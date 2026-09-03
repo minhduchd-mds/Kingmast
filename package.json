@@ -1,0 +1,13 @@
+{
+  "name": "kingmast",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev": "concurrently -n hmi,api \"pnpm --filter @kingmast/hmi dev\" \"pnpm --filter @kingmast/risk-engine dev\"",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {"concurrently":"^9.2.1","typescript":"^5.9.2"}
+}

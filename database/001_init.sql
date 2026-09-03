@@ -1,0 +1,13 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE TYPE severity AS ENUM ('safe','caution','critical');
+CREATE TYPE sensor_state AS ENUM ('ok','degraded','unavailable');
+CREATE TABLE vehicles(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),vin_hash text UNIQUE NOT NULL,profile_name text NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE trips(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),vehicle_id uuid NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,started_at timestamptz NOT NULL,ended_at timestamptz,distance_km numeric(10,2) NOT NULL DEFAULT 0,safety_score smallint CHECK(safety_score BETWEEN 0 AND 100));
+CREATE TABLE safety_events(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE,occurred_at timestamptz NOT NULL,severity severity NOT NULL,event_type text NOT NULL,range_m numeric(8,2),ttc_s numeric(7,3),thw_s numeric(7,3),confidence numeric(4,3) CHECK(confidence BETWEEN 0 AND 1),metadata jsonb NOT NULL DEFAULT '{}'::jsonb);
+CREATE INDEX safety_events_trip_time_idx ON safety_events(trip_id,occurred_at DESC);
+CREATE TABLE sensor_health_samples(id bigserial PRIMARY KEY,trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE,sensor text NOT NULL,state sensor_state NOT NULL,observed_at timestamptz NOT NULL,details jsonb NOT NULL DEFAULT '{}'::jsonb);
+CREATE INDEX sensor_health_trip_time_idx ON sensor_health_samples(trip_id,observed_at DESC);
+CREATE TABLE parked_settings(vehicle_id uuid PRIMARY KEY REFERENCES vehicles(id) ON DELETE CASCADE,alert_sensitivity text NOT NULL DEFAULT 'medium' CHECK(alert_sensitivity IN ('low','medium','high')),alert_sound text NOT NULL DEFAULT 'medium' CHECK(alert_sound IN ('off','low','medium','high')),privacy_enabled boolean NOT NULL DEFAULT true,retention_days smallint NOT NULL DEFAULT 30 CHECK(retention_days IN (7,30,90)),updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE audit_log(id bigserial PRIMARY KEY,vehicle_id uuid REFERENCES vehicles(id) ON DELETE SET NULL,action text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),details jsonb NOT NULL DEFAULT '{}'::jsonb);
+COMMIT;
