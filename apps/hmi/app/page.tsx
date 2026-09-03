@@ -4,324 +4,480 @@ import {
   AlertTriangle,
   BatteryMedium,
   Bell,
+  Bike,
   Camera,
   CarFront,
+  ChartNoAxesColumnIncreasing,
   ChevronRight,
   CircleParking,
   Cpu,
   Gauge,
+  LocateFixed,
   Map,
-  Moon,
+  MapPinned,
+  Navigation,
   Radio,
+  Route,
+  Satellite,
+  Settings,
   ShieldCheck,
   SlidersHorizontal,
-  Sun,
   Volume2,
   Wifi,
   WifiOff,
+  X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  DetectedObject,
+  LocationAlert,
+  SensorHealth,
+  SensorState,
+  Severity,
+  VehiclePosition,
+} from '@kingmast/contracts';
+import GpsSafetyMap, { ObjectGlyph } from '../components/GpsSafetyMap';
 import { MOTION, useAnimatedNumber } from '../lib/motion';
+import { createSimulationFrame, withDevicePosition } from '../lib/telemetry';
 
-type Severity = 'safe' | 'caution' | 'critical';
-type SensorState = 'ok' | 'degraded' | 'offline';
-type ViewKey = 'drive' | 'surround' | 'trip' | 'vehicle';
-type ThemeMode = 'auto' | 'night' | 'day';
+type ViewKey = 'drive' | 'map' | 'objects' | 'alerts' | 'trip' | 'vehicle';
+type GpsState = 'simulator' | 'requesting' | 'device' | 'denied';
 type Sensitivity = 'Low' | 'Medium' | 'High';
-type VolumeLevel = 'Off' | 'Low' | 'Medium' | 'High';
+type SoundLevel = 'Off' | 'Low' | 'Medium' | 'High';
 
-type Scenario = {
-  speed: number;
-  leadSpeed: number;
-  front: number;
-  rear: number;
-  left: number;
-  right: number;
-};
-
-const scenarios: Scenario[] = [
-  { speed: 68, leadSpeed: 55, front: 42, rear: 18, left: 26, right: 32 },
-  { speed: 70, leadSpeed: 52, front: 34, rear: 17, left: 24, right: 29 },
-  { speed: 72, leadSpeed: 48, front: 25, rear: 16, left: 20, right: 25 },
-  { speed: 71, leadSpeed: 38, front: 14, rear: 15, left: 17, right: 21 },
-  { speed: 64, leadSpeed: 47, front: 20, rear: 18, left: 19, right: 24 },
-  { speed: 66, leadSpeed: 56, front: 38, rear: 20, left: 27, right: 31 },
+const views: Array<{ key: ViewKey; label: string; icon: typeof CarFront }> = [
+  { key: 'drive', label: 'Drive', icon: CarFront },
+  { key: 'map', label: 'Map', icon: Map },
+  { key: 'objects', label: 'Objects', icon: Radio },
+  { key: 'alerts', label: 'Alerts', icon: Bell },
+  { key: 'trip', label: 'Trip', icon: Route },
+  { key: 'vehicle', label: 'Vehicle', icon: Gauge },
 ];
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
+const severityRank: Record<Severity, number> = { safe: 1, caution: 2, critical: 3 };
+
+function statusCopy(severity: Severity) {
+  if (severity === 'critical') return { title: 'Slow down', subtitle: 'Immediate hazard in the safety zone.' };
+  if (severity === 'caution') return { title: 'Increase awareness', subtitle: 'A nearby object requires attention.' };
+  return { title: 'Clear ahead', subtitle: 'KINGMAST is monitoring the road around you.' };
 }
 
-function severityFor(frontGap: number, ttc: number): Severity {
-  if (frontGap < 15 || ttc < 1.8) return 'critical';
-  if (frontGap < 30 || ttc < 3.5) return 'caution';
-  return 'safe';
+function formatCoordinate(value: number) {
+  return value.toFixed(5);
 }
 
-function SensorRow({ name, state }: { name: string; state: SensorState }) {
-  const status = state === 'ok' ? 'Ready' : state === 'degraded' ? 'Limited' : 'Offline';
+function sensorLabel(state: SensorState) {
+  if (state === 'ok') return 'Available';
+  if (state === 'degraded') return 'Degraded';
+  return 'Unavailable';
+}
+
+function SensorStatus({ label, icon: Icon, state }: { label: string; icon: typeof Radio; state: SensorState }) {
   return (
-    <div className={`sensorRow sensor-${state}`}>
-      <span className="sensorIndicator" aria-hidden="true" />
-      <div><strong>{name}</strong><small>{status}</small></div>
-      {state === 'ok' ? <ShieldCheck /> : <AlertTriangle />}
+    <div className={`sensorStatus sensor-${state}`}>
+      <span className="sensorGlyph"><Icon strokeWidth={1.7} /></span>
+      <span>
+        <strong>{label}</strong>
+        <small>{sensorLabel(state)}</small>
+      </span>
+      <i aria-hidden="true" />
     </div>
   );
 }
 
-function Segmented<T extends string>({
-  value,
-  values,
-  onChange,
-  label,
-}: {
-  value: T;
-  values: readonly T[];
-  onChange: (next: T) => void;
-  label: string;
-}) {
+function SeverityPill({ severity }: { severity: Severity }) {
+  return <span className={`severityPill severity-${severity}`}>{severity}</span>;
+}
+
+function Metric({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
-    <div className="segmented" role="group" aria-label={label}>
-      {values.map((item) => (
-        <button
-          type="button"
-          key={item}
-          className={value === item ? 'selected' : ''}
-          aria-pressed={value === item}
-          onClick={() => onChange(item)}
-        >
-          {item}
-        </button>
-      ))}
+    <div className="metricTile">
+      <small>{label}</small>
+      <strong>{value}{unit ? <em>{unit}</em> : null}</strong>
     </div>
   );
+}
+
+function nearestFrontObject(objects: DetectedObject[]) {
+  return objects
+    .filter((object) => object.zone === 'front' || object.zone === 'front-left' || object.zone === 'front-right')
+    .sort((a, b) => a.distanceM - b.distanceM)[0] ?? null;
 }
 
 export default function Page() {
-  const [scenarioIndex, setScenarioIndex] = useState(0);
-  const [booted, setBooted] = useState(false);
-  const [activeView, setActiveView] = useState<ViewKey>('drive');
+  const [view, setView] = useState<ViewKey>('drive');
+  const [sequence, setSequence] = useState(0);
+  const [gpsState, setGpsState] = useState<GpsState>('simulator');
+  const [devicePosition, setDevicePosition] = useState<VehiclePosition | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [ambientTheme, setAmbientTheme] = useState<'night' | 'day'>('night');
-  const [themeMode, setThemeMode] = useState<ThemeMode>('auto');
   const [sensitivity, setSensitivity] = useState<Sensitivity>('Medium');
-  const [volume, setVolume] = useState<VolumeLevel>('Medium');
+  const [sound, setSound] = useState<SoundLevel>('Medium');
   const [privacy, setPrivacy] = useState(true);
-
-  const scenario = scenarios[scenarioIndex];
+  const gpsWatchId = useRef<number | null>(null);
 
   useEffect(() => {
-    const bootTimer = window.setTimeout(() => setBooted(true), 900);
-    const scenarioTimer = window.setInterval(
-      () => setScenarioIndex((index) => (index + 1) % scenarios.length),
-      2800,
-    );
-    const syncAmbient = () => {
-      const hour = new Date().getHours();
-      setAmbientTheme(hour >= 7 && hour < 18 ? 'day' : 'night');
-    };
-    syncAmbient();
+    const timer = window.setInterval(() => setSequence((current) => current + 1), 2800);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     return () => {
-      window.clearTimeout(bootTimer);
-      window.clearInterval(scenarioTimer);
+      if (gpsWatchId.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(gpsWatchId.current);
+      }
     };
   }, []);
 
-  const closingSpeed = Math.max(0, (scenario.speed - scenario.leadSpeed) / 3.6);
-  const ttcTarget = closingSpeed > 0.1 ? scenario.front / closingSpeed : 99;
-  const severity = severityFor(scenario.front, ttcTarget);
-  const theme = themeMode === 'auto' ? ambientTheme : themeMode;
-
-  const speed = useAnimatedNumber(scenario.speed, MOTION.ms.emphasized);
-  const frontGap = useAnimatedNumber(scenario.front, MOTION.ms.emphasized);
-  const rearGap = useAnimatedNumber(scenario.rear, MOTION.ms.standard);
-  const leftGap = useAnimatedNumber(scenario.left, MOTION.ms.standard);
-  const rightGap = useAnimatedNumber(scenario.right, MOTION.ms.standard);
-  const ttc = useAnimatedNumber(Math.min(ttcTarget, 9.9), MOTION.ms.standard);
-  const headway = frontGap / Math.max(1, speed / 3.6);
-
-  const cameraState: SensorState = scenarioIndex === 2 || scenarioIndex === 3 ? 'degraded' : 'ok';
-  const canState: SensorState = scenarioIndex === 4 ? 'degraded' : 'ok';
-  const sensorDegraded = cameraState !== 'ok' || canState !== 'ok';
-
-  const sensors = useMemo(
-    () => [
-      { name: 'Front radar', state: 'ok' as SensorState },
-      { name: 'Rear radar', state: 'ok' as SensorState },
-      { name: 'Camera', state: cameraState },
-      { name: 'Vehicle bus', state: canState },
-      { name: 'GNSS / IMU', state: 'ok' as SensorState },
-      { name: 'Safety ECU', state: 'ok' as SensorState },
-    ],
-    [cameraState, canState],
+  const simulatedFrame = useMemo(() => createSimulationFrame(sequence), [sequence]);
+  const frame = useMemo(
+    () => (devicePosition ? withDevicePosition(simulatedFrame, devicePosition) : simulatedFrame),
+    [devicePosition, simulatedFrame],
   );
 
-  const leadTop = clamp(45 - frontGap * 0.72, 10, 36);
-  const leadScale = clamp(1.28 - frontGap / 95, 0.82, 1.14);
-  const statusCopy = severity === 'critical'
-    ? { eyebrow: 'Collision risk', title: 'Slow down', detail: 'Increase following distance now.' }
-    : severity === 'caution'
-      ? { eyebrow: 'Following distance', title: 'Increase gap', detail: 'The vehicle ahead is getting closer.' }
-      : { eyebrow: 'Driver assistance', title: 'Clear ahead', detail: 'Following distance is stable.' };
+  const sortedAlerts = useMemo(
+    () => [...frame.alerts].sort((a, b) => severityRank[b.severity] - severityRank[a.severity]),
+    [frame.alerts],
+  );
+  const primaryAlert = sortedAlerts[0] ?? null;
+  const overallSeverity: Severity = primaryAlert?.severity ?? 'safe';
+  const frontObject = nearestFrontObject(frame.objects);
+  const closingMps = frontObject ? Math.max(0, -frontObject.relativeSpeedMps) : 0;
+  const ttcTarget = frontObject && closingMps > 0.1 ? frontObject.distanceM / closingMps : 9.9;
+  const speed = useAnimatedNumber(frame.vehicle.speedKmh, MOTION.ms.emphasized);
+  const gap = useAnimatedNumber(frontObject?.distanceM ?? 50, MOTION.ms.emphasized);
+  const ttc = useAnimatedNumber(Math.min(9.9, ttcTarget), MOTION.ms.standard);
+  const status = statusCopy(overallSeverity);
 
-  const navItems: Array<{ key: ViewKey; label: string; icon: typeof Gauge }> = [
-    { key: 'drive', label: 'Drive', icon: Gauge },
-    { key: 'surround', label: 'Around', icon: Radio },
-    { key: 'trip', label: 'Trip', icon: Map },
-    { key: 'vehicle', label: 'Vehicle', icon: CarFront },
+  const sensorRows: Array<{ label: string; icon: typeof Radio; state: SensorState }> = [
+    { label: 'Front radar', icon: Radio, state: frame.sensors.radarFront },
+    { label: 'Rear radar', icon: Radio, state: frame.sensors.radarRear },
+    { label: 'Camera', icon: Camera, state: frame.sensors.camera },
+    { label: 'Vehicle CAN', icon: Wifi, state: frame.sensors.can },
+    { label: 'GNSS / IMU', icon: Satellite, state: frame.sensors.gnssImu },
+    { label: 'Safety ECU', icon: Cpu, state: frame.sensors.ecu },
   ];
 
+  function useDeviceGps() {
+    if (!navigator.geolocation) {
+      setGpsState('denied');
+      return;
+    }
+    if (gpsWatchId.current !== null) {
+      navigator.geolocation.clearWatch(gpsWatchId.current);
+      gpsWatchId.current = null;
+    }
+    setGpsState('requesting');
+    gpsWatchId.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setDevicePosition({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          speedKmh: position.coords.speed !== null ? Math.max(0, position.coords.speed * 3.6) : simulatedFrame.vehicle.speedKmh,
+          headingDeg: position.coords.heading ?? simulatedFrame.vehicle.headingDeg,
+          accuracyM: position.coords.accuracy,
+          timestampMs: position.timestamp,
+          source: 'device-gps',
+        });
+        setGpsState('device');
+      },
+      () => {
+        setGpsState('denied');
+        setDevicePosition(null);
+      },
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 12_000 },
+    );
+  }
+
+  function useSimulator() {
+    if (gpsWatchId.current !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(gpsWatchId.current);
+      gpsWatchId.current = null;
+    }
+    setDevicePosition(null);
+    setGpsState('simulator');
+  }
+
   return (
-    <main className={`systemApp theme-${theme} severity-${severity}`}>
-      <div className={`bootScreen ${booted ? 'bootComplete' : ''}`} aria-hidden={booted}>
-        <div className="bootMark">K</div>
-        <strong>KINGMAST</strong>
-        <span>Safety systems ready</span>
-      </div>
-
-      <header className="systemHeader">
-        <div className="brandLockup">
-          <span className="appMark">K</span>
-          <div><strong>KINGMAST</strong><small>Driver Assistance</small></div>
+    <main className={`appShell severity-${overallSeverity}`}>
+      <aside className="sidebar" aria-label="KINGMAST navigation">
+        <div className="appBrand" aria-label="KINGMAST">
+          <span className="brandMark"><CarFront strokeWidth={1.8} /></span>
+          <span><strong>KINGMAST</strong><small>Safety system</small></span>
         </div>
-        <div className="headerStatus">
-          <span className={`systemPill ${sensorDegraded ? 'limited' : ''}`}>
-            {sensorDegraded ? <WifiOff /> : <Wifi />}
-            {sensorDegraded ? 'Limited sensing' : 'Systems ready'}
-          </span>
-          <span className="batteryPill"><BatteryMedium /> 76%</span>
-        </div>
-      </header>
 
-      <div className="appBody">
-        <nav className="sideRail" aria-label="KINGMAST sections">
-          <div className="navGroup">
-            {navItems.map(({ key, label, icon: Icon }) => (
-              <button
-                type="button"
-                key={key}
-                className={activeView === key ? 'active' : ''}
-                aria-current={activeView === key ? 'page' : undefined}
-                onClick={() => setActiveView(key)}
-              >
-                <Icon />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-          <button type="button" className={`settingsButton ${settingsOpen ? 'active' : ''}`} onClick={() => setSettingsOpen(true)}>
-            <SlidersHorizontal />
-            <span>Settings</span>
-          </button>
+        <nav className="navList">
+          {views.map(({ key, label, icon: Icon }) => (
+            <button
+              type="button"
+              key={key}
+              className={view === key ? 'navItem selected' : 'navItem'}
+              onClick={() => setView(key)}
+              aria-current={view === key ? 'page' : undefined}
+            >
+              <Icon strokeWidth={1.7} />
+              <span>{label}</span>
+              {key === 'alerts' && frame.alerts.length > 0 ? <b>{frame.alerts.length}</b> : null}
+            </button>
+          ))}
         </nav>
 
-        <section className="workspace">
-          {activeView === 'drive' && (
-            <div className="driveView viewEnter">
-              <section className="roadStage" aria-label="Driving situation">
-                <div className="stageTop">
-                  <div className="speedCluster">
-                    <span className="eyebrow">Speed</span>
-                    <div><strong>{Math.round(speed)}</strong><small>km/h</small></div>
-                  </div>
-                  <div className="speedLimit" aria-label="Speed limit 80 kilometers per hour"><span>80</span><small>LIMIT</small></div>
-                  <div className={`stageState state-${severity}`}>
-                    {severity === 'critical' ? <AlertTriangle /> : <ShieldCheck />}
-                    <span>{severity === 'safe' ? 'Safe distance' : severity === 'caution' ? 'Watch distance' : 'Slow down'}</span>
+        <div className="sidebarFooter">
+          <button type="button" className="navItem" onClick={() => setSettingsOpen(true)}>
+            <Settings strokeWidth={1.7} />
+            <span>Settings</span>
+          </button>
+          <div className="parkedState"><CircleParking strokeWidth={1.7} /><span>Parked settings enabled</span></div>
+        </div>
+      </aside>
+
+      <section className="workspace">
+        <header className="topbar">
+          <div>
+            <span className="eyebrow">WARNING-ONLY ADAS</span>
+            <h1>{views.find((item) => item.key === view)?.label}</h1>
+          </div>
+          <div className="topbarStatus">
+            <span className="systemReady"><ShieldCheck strokeWidth={1.7} /> System ready</span>
+            <button
+              type="button"
+              className={`gpsControl gps-${gpsState}`}
+              onClick={gpsState === 'device' ? useSimulator : useDeviceGps}
+            >
+              <LocateFixed strokeWidth={1.7} />
+              {gpsState === 'requesting' ? 'Requesting GPS…' : gpsState === 'device' ? 'Device GPS' : gpsState === 'denied' ? 'GPS unavailable' : 'Use device GPS'}
+            </button>
+            <span className="battery"><BatteryMedium strokeWidth={1.7} /> 76%</span>
+          </div>
+        </header>
+
+        {view === 'drive' ? (
+          <div className="driveLayout viewEnter">
+            <section className="driveHero surface">
+              <div className="driveHeader">
+                <span className="liveState"><i /> LIVE SAFETY VIEW</span>
+                <span className="locationLine"><MapPinned strokeWidth={1.6} /> {formatCoordinate(frame.vehicle.lat)}, {formatCoordinate(frame.vehicle.lng)}</span>
+              </div>
+
+              <div className="driveStage">
+                <div className="speedCluster">
+                  <span className="speedValue">{Math.round(speed)}</span>
+                  <span className="speedUnit">km/h</span>
+                  <span className="speedLimit">80</span>
+                </div>
+
+                <div className="roadScene" aria-label="Forward vehicle safety visualization">
+                  <div className="roadPerspective" />
+                  <div className="lane leftLane" />
+                  <div className="lane rightLane" />
+                  <div className="rangeArc arcOne" />
+                  <div className="rangeArc arcTwo" />
+                  {frontObject ? (
+                    <div
+                      className={`leadVehicle severity-${frontObject.severity}`}
+                      style={{
+                        top: `${Math.max(11, Math.min(35, 40 - frontObject.distanceM * 0.65))}%`,
+                        transform: `translateX(-50%) scale(${Math.max(0.84, Math.min(1.16, 1.24 - frontObject.distanceM / 88))})`,
+                      }}
+                    >
+                      <ObjectGlyph kind={frontObject.kind} />
+                      <span>{Math.round(frontObject.distanceM)} m</span>
+                    </div>
+                  ) : null}
+                  <div className="egoVehicle"><CarFront strokeWidth={1.6} /><i /></div>
+                  <div className={`driveStatus severity-${overallSeverity}`}>
+                    {overallSeverity === 'critical' ? <AlertTriangle strokeWidth={1.8} /> : <ShieldCheck strokeWidth={1.8} />}
+                    <span><strong>{status.title}</strong><small>{status.subtitle}</small></span>
                   </div>
                 </div>
 
-                <div className="roadScene">
-                  <div className="horizonGlow" aria-hidden="true" />
-                  <div className="roadSurface" aria-hidden="true" />
-                  <div className="lane laneLeft" aria-hidden="true" />
-                  <div className="lane laneRight" aria-hidden="true" />
-                  <div className="laneCenterFlow" aria-hidden="true" />
-                  <div className={`leadVehicle lead-${severity}`} style={{ top: `${leadTop}%`, transform: `translateX(-50%) scale(${leadScale})` }}>
-                    <CarFront />
-                    <span>{frontGap.toFixed(0)} m</span>
-                  </div>
-                  <div className="distanceArc arcOne" aria-hidden="true" />
-                  <div className="distanceArc arcTwo" aria-hidden="true" />
-                  <div className="egoVehicle"><CarFront /></div>
-                  <div className="sideTarget leftTarget"><CarFront /><span>{leftGap.toFixed(0)} m</span></div>
-                  <div className="sideTarget rightTarget"><CarFront /><span>{rightGap.toFixed(0)} m</span></div>
+                <div className="driveMetrics">
+                  <Metric label="Front gap" value={gap.toFixed(0)} unit="m" />
+                  <Metric label="TTC" value={ttc.toFixed(1)} unit="s" />
+                  <Metric label="Heading" value={Math.round(frame.vehicle.headingDeg).toString()} unit="°" />
                 </div>
+              </div>
+            </section>
 
-                <div className="glanceStrip">
-                  <div><span>Front gap</span><strong>{frontGap.toFixed(0)} m</strong></div>
-                  <div><span>Headway</span><strong>{headway.toFixed(1)} s</strong></div>
-                  <div><span>TTC</span><strong>{ttc.toFixed(1)} s</strong></div>
-                  <div><span>Rear gap</span><strong>{rearGap.toFixed(0)} m</strong></div>
+            <aside className="driveSide">
+              <section className={`attentionCard surface severity-${overallSeverity}`}>
+                <div className="attentionIcon">
+                  {overallSeverity === 'critical' ? <AlertTriangle strokeWidth={1.7} /> : <ShieldCheck strokeWidth={1.7} />}
                 </div>
+                <div>
+                  <span className="eyebrow">CURRENT STATUS</span>
+                  <h2>{status.title}</h2>
+                  <p>{primaryAlert?.message ?? status.subtitle}</p>
+                </div>
+                {primaryAlert ? <button type="button" onClick={() => setView('map')}>View location <ChevronRight /></button> : null}
               </section>
 
-              <aside className="contextColumn">
-                <section className={`safetyCard safety-${severity}`} aria-live={severity === 'critical' ? 'assertive' : 'polite'}>
-                  <div className="safetyIcon">{severity === 'critical' ? <AlertTriangle /> : <ShieldCheck />}</div>
-                  <span className="eyebrow">{statusCopy.eyebrow}</span>
-                  <h1 key={statusCopy.title}>{statusCopy.title}</h1>
-                  <p>{statusCopy.detail}</p>
-                  <div className="safetyNumbers">
-                    <div><span>Distance</span><strong>{frontGap.toFixed(0)} m</strong></div>
-                    <div><span>Time to collision</span><strong>{ttc.toFixed(1)} s</strong></div>
-                  </div>
-                </section>
+              <section className="miniMapCard surface">
+                <div className="sectionTitle"><span><Navigation strokeWidth={1.7} /> Nearby</span><button type="button" onClick={() => setView('map')}>Open map</button></div>
+                <GpsSafetyMap vehicle={frame.vehicle} objects={frame.objects} compact />
+              </section>
 
-                <section className="compactCard">
-                  <div className="sectionTitle"><div><span className="eyebrow">Vehicle sensing</span><h2>System status</h2></div><button type="button" onClick={() => setActiveView('vehicle')}>Details <ChevronRight /></button></div>
-                  <SensorRow name="Front radar" state="ok" />
-                  <SensorRow name="Camera" state={cameraState} />
-                  <SensorRow name="Vehicle bus" state={canState} />
-                </section>
-              </aside>
-            </div>
-          )}
-
-          {activeView === 'surround' && (
-            <div className="detailView viewEnter">
-              <div className="viewHeading"><div><span className="eyebrow">Live sensing</span><h1>Around the vehicle</h1><p>Only nearby objects relevant to the current driving path are emphasized.</p></div><span className={`systemPill ${severity}`}>{severity === 'safe' ? <ShieldCheck /> : <AlertTriangle />}{severity}</span></div>
-              <div className="surroundStage">
-                <div className="spatialGrid"><span className="orbit o1"/><span className="orbit o2"/><span className="orbit o3"/><span className="sweep"/>
-                  <div className="centerVehicle"><CarFront /></div>
-                  <div className={`object frontObject ${severity}`}><CarFront /><strong>{frontGap.toFixed(0)} m</strong><small>Ahead</small></div>
-                  <div className="object leftObject caution"><CarFront /><strong>{leftGap.toFixed(0)} m</strong><small>Left</small></div>
-                  <div className="object rightObject caution"><CarFront /><strong>{rightGap.toFixed(0)} m</strong><small>Right</small></div>
-                  <div className="object rearObject safe"><CarFront /><strong>{rearGap.toFixed(0)} m</strong><small>Rear</small></div>
+              <section className="nearbyCard surface">
+                <div className="sectionTitle"><span><Radio strokeWidth={1.7} /> Detected objects</span><b>{frame.objects.length}</b></div>
+                <div className="nearbyList">
+                  {frame.objects.slice(0, 3).map((object) => (
+                    <button type="button" key={object.id} onClick={() => setView('objects')} className="nearbyRow">
+                      <span className={`objectGlyph severity-${object.severity}`}><ObjectGlyph kind={object.kind} /></span>
+                      <span><strong>{object.kind}</strong><small>{object.zone.replace('-', ' ')} · {Math.round(object.confidence * 100)}%</small></span>
+                      <b>{object.distanceM.toFixed(0)} m</b>
+                    </button>
+                  ))}
                 </div>
-                <div className="distanceKey"><div><span className="keyDot critical"/><strong>0–15 m</strong><small>Critical</small></div><div><span className="keyDot caution"/><strong>15–30 m</strong><small>Caution</small></div><div><span className="keyDot safe"/><strong>&gt; 30 m</strong><small>Clear</small></div></div>
+              </section>
+            </aside>
+          </div>
+        ) : null}
+
+        {view === 'map' ? (
+          <div className="mapLayout viewEnter">
+            <section className="mapMain surface">
+              <div className="sectionTitle large">
+                <span><MapPinned strokeWidth={1.7} /> Live position</span>
+                <div className="mapMeta"><span>{formatCoordinate(frame.vehicle.lat)}</span><span>{formatCoordinate(frame.vehicle.lng)}</span><span>{Math.round(frame.vehicle.headingDeg)}°</span></div>
               </div>
-            </div>
-          )}
+              <GpsSafetyMap vehicle={frame.vehicle} objects={frame.objects} />
+            </section>
+            <aside className="mapSide">
+              <section className="positionCard surface">
+                <span className="eyebrow">POSITION SOURCE</span>
+                <div className="positionSource"><LocateFixed strokeWidth={1.7} /><span><strong>{frame.vehicle.source === 'device-gps' ? 'Device GPS' : 'GNSS simulator'}</strong><small>Accuracy ±{frame.vehicle.accuracyM.toFixed(1)} m</small></span></div>
+                <div className="positionGrid">
+                  <Metric label="Latitude" value={formatCoordinate(frame.vehicle.lat)} />
+                  <Metric label="Longitude" value={formatCoordinate(frame.vehicle.lng)} />
+                  <Metric label="Heading" value={Math.round(frame.vehicle.headingDeg).toString()} unit="°" />
+                  <Metric label="Speed" value={Math.round(frame.vehicle.speedKmh).toString()} unit="km/h" />
+                </div>
+              </section>
+              <section className="mapAlerts surface">
+                <div className="sectionTitle"><span><Bell strokeWidth={1.7} /> Location alerts</span><b>{frame.alerts.length}</b></div>
+                <div className="alertStack compactAlerts">
+                  {sortedAlerts.length === 0 ? <div className="emptyState"><ShieldCheck /> No active location alerts</div> : sortedAlerts.slice(0, 4).map((alert) => <AlertRow key={alert.id} alert={alert} onMap={() => undefined} />)}
+                </div>
+              </section>
+            </aside>
+          </div>
+        ) : null}
 
-          {activeView === 'trip' && (
-            <div className="detailView viewEnter">
-              <div className="viewHeading"><div><span className="eyebrow">Current session</span><h1>Trip summary</h1><p>A quiet review of safety events, intended for use while parked.</p></div><span className="parkedBadge"><CircleParking /> Parked</span></div>
-              <div className="tripCards"><div className="scoreCard"><span className="eyebrow">Safety score</span><strong>92</strong><small>/ 100</small><div className="scoreTrack"><i /></div></div><div className="metricCard"><Map /><span>Distance</span><strong>36.4 km</strong></div><div className="metricCard"><Bell /><span>Alerts</span><strong>3</strong></div><div className="metricCard"><Gauge /><span>Following time</span><strong>48 s</strong></div></div>
-              <section className="timelineCard"><div className="sectionTitle"><div><span className="eyebrow">Timeline</span><h2>Safety events</h2></div><span>36.4 km</span></div><div className="eventRail"><span/><i className="safeNode"/><i className="safeNode"/><i className="criticalNode"><AlertTriangle /></i><i className="cautionNode"><AlertTriangle /></i><i className="cautionNode"><AlertTriangle /></i></div><div className="timelineLabels"><span>Start</span><span>12 km</span><span>24 km</span><span>36.4 km</span></div></section>
-            </div>
-          )}
+        {view === 'objects' ? (
+          <div className="objectView viewEnter">
+            <section className="objectSummary surface">
+              <div><span className="eyebrow">PERCEPTION</span><h2>{frame.objects.length} objects tracked</h2><p>Camera and radar fusion with GPS-projected positions.</p></div>
+              <div className="summaryStats">
+                <span><strong>{frame.objects.filter((item) => item.severity === 'critical').length}</strong>critical</span>
+                <span><strong>{frame.objects.filter((item) => item.severity === 'caution').length}</strong>caution</span>
+                <span><strong>{frame.objects.filter((item) => item.severity === 'safe').length}</strong>safe</span>
+              </div>
+            </section>
+            <section className="objectGrid">
+              {frame.objects.map((object) => (
+                <article key={object.id} className={`objectCard surface severity-${object.severity}`}>
+                  <div className="objectCardTop">
+                    <span className={`objectGlyph large severity-${object.severity}`}><ObjectGlyph kind={object.kind} /></span>
+                    <div><span className="eyebrow">{object.zone.replace('-', ' ')}</span><h3>{object.kind}</h3></div>
+                    <SeverityPill severity={object.severity} />
+                  </div>
+                  <div className="objectMetrics">
+                    <Metric label="Distance" value={object.distanceM.toFixed(1)} unit="m" />
+                    <Metric label="Confidence" value={Math.round(object.confidence * 100).toString()} unit="%" />
+                    <Metric label="Bearing" value={Math.round(object.bearingDeg).toString()} unit="°" />
+                  </div>
+                  <div className="objectLocation"><MapPinned strokeWidth={1.6} /><span>{formatCoordinate(object.position.lat)}, {formatCoordinate(object.position.lng)}</span></div>
+                  <button type="button" className="secondaryButton" onClick={() => setView('map')}>Show on map <ChevronRight /></button>
+                </article>
+              ))}
+            </section>
+          </div>
+        ) : null}
 
-          {activeView === 'vehicle' && (
-            <div className="detailView viewEnter">
-              <div className="viewHeading"><div><span className="eyebrow">Electric SUV</span><h1>Vehicle systems</h1><p>Read-only sensing and connection health. KINGMAST does not command steering, braking, or throttle.</p></div><span className="parkedBadge"><CircleParking /> Parked</span></div>
-              <div className="vehicleGrid"><section className="systemList"><div className="sectionTitle"><div><span className="eyebrow">Sensors</span><h2>Connection health</h2></div><span>{sensorDegraded ? 'Attention needed' : 'All ready'}</span></div>{sensors.map((sensor) => <SensorRow key={sensor.name} {...sensor} />)}</section><section className="vehicleInfo"><div className="infoIcon"><Cpu /></div><span className="eyebrow">Safety ECU</span><h2>Read-only vehicle integration</h2><p>Radar, camera, GNSS/IMU, and CAN telemetry are fused for warnings only.</p><div className="capabilityList"><span><ShieldCheck /> Brake commands disabled</span><span><ShieldCheck /> Steering commands disabled</span><span><ShieldCheck /> Throttle commands disabled</span></div></section></div>
-            </div>
-          )}
-        </section>
-      </div>
+        {view === 'alerts' ? (
+          <div className="alertsView viewEnter">
+            <section className="alertsHero surface">
+              <span className={`alertHeroIcon severity-${overallSeverity}`}><Bell strokeWidth={1.7} /></span>
+              <div><span className="eyebrow">ALERT CENTER</span><h2>{frame.alerts.length === 0 ? 'No active alerts' : `${frame.alerts.length} active alert${frame.alerts.length > 1 ? 's' : ''}`}</h2><p>Every warning includes the detected object and its projected GPS position.</p></div>
+            </section>
+            <section className="alertList surface">
+              {sortedAlerts.length === 0 ? (
+                <div className="emptyState large"><ShieldCheck strokeWidth={1.6} /><span><strong>Road environment clear</strong><small>No active location or object warnings.</small></span></div>
+              ) : (
+                sortedAlerts.map((alert) => <AlertRow key={alert.id} alert={alert} onMap={() => setView('map')} />)
+              )}
+            </section>
+          </div>
+        ) : null}
 
-      {settingsOpen && (
+        {view === 'trip' ? (
+          <div className="tripView viewEnter">
+            <section className="tripSummary surface">
+              <div className="scoreRing"><strong>92</strong><small>Safety</small></div>
+              <div><span className="eyebrow">CURRENT SESSION</span><h2>36.4 km monitored</h2><p>Location-aware safety events are stored with object type, severity and GPS coordinates.</p></div>
+              <div className="tripMetrics">
+                <Metric label="Alerts" value="3" />
+                <Metric label="Critical" value="1" />
+                <Metric label="Follow time" value="48" unit="s" />
+              </div>
+            </section>
+            <div className="tripGrid">
+              <section className="surface tripMap"><div className="sectionTitle"><span><Route strokeWidth={1.7} /> Route and incidents</span></div><GpsSafetyMap vehicle={frame.vehicle} objects={frame.objects} /></section>
+              <section className="surface eventTimeline"><div className="sectionTitle"><span><ChartNoAxesColumnIncreasing strokeWidth={1.7} /> Event timeline</span></div><div className="timelineRail"><i /><i /><i className="criticalNode" /><i className="cautionNode" /><i /></div><div className="eventRows"><p><span className="severityDot critical" /> Critical following distance <b>14:32</b></p><p><span className="severityDot caution" /> Pedestrian proximity <b>14:41</b></p><p><span className="severityDot safe" /> Sensor recovery <b>14:44</b></p></div></section>
+            </div>
+          </div>
+        ) : null}
+
+        {view === 'vehicle' ? (
+          <div className="vehicleView viewEnter">
+            <section className="vehicleHero surface">
+              <span className="vehicleIcon"><CarFront strokeWidth={1.5} /></span>
+              <div><span className="eyebrow">ELECTRIC SUV PROFILE</span><h2>Vehicle safety interface</h2><p>Read-only CAN integration. KINGMAST does not command braking, steering or throttle.</p></div>
+              <span className="warningOnly"><ShieldCheck /> Warning only</span>
+            </section>
+            <section className="sensorPanel surface">
+              <div className="sectionTitle large"><span><SlidersHorizontal strokeWidth={1.7} /> Sensor health</span><span className="nominalText">{Object.values(frame.sensors).every((state) => state === 'ok') ? 'All systems nominal' : 'Reduced confidence'}</span></div>
+              <div className="sensorGrid">{sensorRows.map((sensor) => <SensorStatus key={sensor.label} {...sensor} />)}</div>
+            </section>
+            <section className="capabilityGrid">
+              <article className="surface capability"><CarFront /><span><strong>CAN read-only</strong><small>Vehicle telemetry input only</small></span></article>
+              <article className="surface capability"><Navigation /><span><strong>GPS positioning</strong><small>GNSS or device GPS</small></span></article>
+              <article className="surface capability"><Radio /><span><strong>Object detection</strong><small>Camera + radar fusion</small></span></article>
+              <article className="surface capability"><AlertTriangle /><span><strong>No control authority</strong><small>No brake, steer or throttle output</small></span></article>
+            </section>
+          </div>
+        ) : null}
+      </section>
+
+      {settingsOpen ? (
         <div className="sheetBackdrop" role="presentation" onMouseDown={() => setSettingsOpen(false)}>
-          <aside className="settingsSheet" role="dialog" aria-modal="true" aria-label="Parked settings" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="sheetHandle" aria-hidden="true" />
-            <div className="sheetHeader"><div><span className="eyebrow">Vehicle parked</span><h2>Settings</h2></div><button type="button" className="doneButton" onClick={() => setSettingsOpen(false)}>Done</button></div>
-            <div className="settingGroup"><div className="settingRow"><span><Bell /> Alert sensitivity</span><Segmented value={sensitivity} values={['Low', 'Medium', 'High'] as const} onChange={setSensitivity} label="Alert sensitivity" /></div><div className="settingRow"><span><Volume2 /> Alert sound</span><Segmented value={volume} values={['Off', 'Low', 'Medium', 'High'] as const} onChange={setVolume} label="Alert volume" /></div><div className="settingRow"><span><ShieldCheck /> Privacy</span><button type="button" className={`toggle ${privacy ? 'on' : ''}`} aria-pressed={privacy} onClick={() => setPrivacy((value) => !value)}><i /></button></div></div>
-            <div className="settingGroup"><div className="settingRow"><span>{theme === 'night' ? <Moon /> : <Sun />} Appearance</span><Segmented value={themeMode} values={['auto', 'night', 'day'] as const} onChange={setThemeMode} label="Appearance" /></div><div className="settingRow readOnly"><span><Camera /> Camera diagnostics</span><strong>{cameraState === 'ok' ? 'Ready' : 'Check'}</strong></div><div className="settingRow readOnly"><span><Radio /> Radar diagnostics</span><strong>Ready</strong></div></div>
-            <p className="sheetNote"><CircleParking /> Configuration is available only while the vehicle is parked.</p>
-          </aside>
+          <section className="settingsSheet" role="dialog" aria-modal="true" aria-label="Parked settings" onMouseDown={(event) => event.stopPropagation()}>
+            <header><div><span className="eyebrow">VEHICLE PARKED</span><h2>Settings</h2></div><button type="button" className="iconButton" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X /></button></header>
+            <p className="settingsNotice"><CircleParking /> Configuration is available only while parked. Driving alerts remain visible without interaction.</p>
+            <SettingRow icon={Bell} label="Alert sensitivity"><Segmented values={['Low', 'Medium', 'High'] as const} value={sensitivity} onChange={setSensitivity} /></SettingRow>
+            <SettingRow icon={Volume2} label="Alert sound"><Segmented values={['Off', 'Low', 'Medium', 'High'] as const} value={sound} onChange={setSound} /></SettingRow>
+            <SettingRow icon={ShieldCheck} label="Local privacy"><button type="button" className={`toggle ${privacy ? 'on' : ''}`} aria-pressed={privacy} onClick={() => setPrivacy((value) => !value)}><i /></button></SettingRow>
+            <SettingRow icon={LocateFixed} label="Position source"><button type="button" className="secondaryButton" onClick={gpsState === 'device' ? useSimulator : useDeviceGps}>{gpsState === 'device' ? 'Use simulator' : 'Use device GPS'}</button></SettingRow>
+          </section>
         </div>
-      )}
+      ) : null}
     </main>
   );
+}
+
+function AlertRow({ alert, onMap }: { alert: LocationAlert; onMap: () => void }) {
+  return (
+    <article className={`alertRow severity-${alert.severity}`}>
+      <span className={`alertRowIcon severity-${alert.severity}`}><AlertTriangle strokeWidth={1.7} /></span>
+      <div className="alertCopy"><div><strong>{alert.title}</strong><SeverityPill severity={alert.severity} /></div><p>{alert.message}</p><small><MapPinned strokeWidth={1.5} /> {formatCoordinate(alert.position.lat)}, {formatCoordinate(alert.position.lng)}</small></div>
+      <button type="button" className="iconButton mapButton" onClick={onMap} aria-label={`Show ${alert.title} on map`}><MapPinned /></button>
+    </article>
+  );
+}
+
+function SettingRow({ icon: Icon, label, children }: { icon: typeof Bell; label: string; children: React.ReactNode }) {
+  return <div className="settingRow"><span><Icon strokeWidth={1.7} />{label}</span>{children}</div>;
+}
+
+function Segmented<T extends string>({ values, value, onChange }: { values: readonly T[]; value: T; onChange: (value: T) => void }) {
+  return <div className="segmented">{values.map((item) => <button type="button" key={item} className={value === item ? 'selected' : ''} aria-pressed={value === item} onClick={() => onChange(item)}>{item}</button>)}</div>;
 }
