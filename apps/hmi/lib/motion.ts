@@ -31,7 +31,7 @@ export function usePrefersReducedMotion() {
   return reduced;
 }
 
-export function useAnimatedNumber(target: number, duration = MOTION.ms.standard) {
+export function useAnimatedNumber(target: number, duration: number = MOTION.ms.standard) {
   const reducedMotion = usePrefersReducedMotion();
   const [value, setValue] = useState(target);
   const valueRef = useRef(target);
