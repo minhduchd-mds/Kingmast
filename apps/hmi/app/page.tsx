@@ -6,16 +6,18 @@ import {
   Bell,
   Camera,
   CarFront,
+  ChevronRight,
   CircleParking,
   Cpu,
-  Database,
   Gauge,
-  HardDrive,
   Map,
+  Moon,
   Radio,
-  RotateCcw,
   ShieldCheck,
+  SlidersHorizontal,
+  Sun,
   Volume2,
+  Wifi,
   WifiOff,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -23,10 +25,10 @@ import { MOTION, useAnimatedNumber } from '../lib/motion';
 
 type Severity = 'safe' | 'caution' | 'critical';
 type SensorState = 'ok' | 'degraded' | 'offline';
+type ViewKey = 'drive' | 'surround' | 'trip' | 'vehicle';
 type ThemeMode = 'auto' | 'night' | 'day';
 type Sensitivity = 'Low' | 'Medium' | 'High';
 type VolumeLevel = 'Off' | 'Low' | 'Medium' | 'High';
-type Retention = 7 | 30 | 90;
 
 type Scenario = {
   speed: number;
@@ -56,29 +58,18 @@ function severityFor(frontGap: number, ttc: number): Severity {
   return 'safe';
 }
 
-function SensorCard({
-  icon: Icon,
-  name,
-  state,
-}: {
-  icon: typeof Radio;
-  name: string;
-  state: SensorState;
-}) {
-  const label = state === 'ok' ? 'OK' : state === 'degraded' ? 'CHECK' : 'OFFLINE';
+function SensorRow({ name, state }: { name: string; state: SensorState }) {
+  const status = state === 'ok' ? 'Ready' : state === 'degraded' ? 'Limited' : 'Offline';
   return (
-    <div className={`sensor sensor-${state}`}>
-      <span className="sensorIcon" aria-hidden="true">
-        <Icon />
-      </span>
-      <span>{name}</span>
-      <strong>{label}</strong>
-      <i className="sensorDot" aria-hidden="true" />
+    <div className={`sensorRow sensor-${state}`}>
+      <span className="sensorIndicator" aria-hidden="true" />
+      <div><strong>{name}</strong><small>{status}</small></div>
+      {state === 'ok' ? <ShieldCheck /> : <AlertTriangle />}
     </div>
   );
 }
 
-function Segmented<T extends string | number>({
+function Segmented<T extends string>({
   value,
   values,
   onChange,
@@ -100,7 +91,6 @@ function Segmented<T extends string | number>({
           onClick={() => onChange(item)}
         >
           {item}
-          {typeof item === 'number' ? ' days' : ''}
         </button>
       ))}
     </div>
@@ -110,17 +100,18 @@ function Segmented<T extends string | number>({
 export default function Page() {
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [booted, setBooted] = useState(false);
+  const [activeView, setActiveView] = useState<ViewKey>('drive');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [ambientTheme, setAmbientTheme] = useState<'night' | 'day'>('night');
   const [themeMode, setThemeMode] = useState<ThemeMode>('auto');
   const [sensitivity, setSensitivity] = useState<Sensitivity>('Medium');
   const [volume, setVolume] = useState<VolumeLevel>('Medium');
   const [privacy, setPrivacy] = useState(true);
-  const [retention, setRetention] = useState<Retention>(30);
 
   const scenario = scenarios[scenarioIndex];
 
   useEffect(() => {
-    const bootTimer = window.setTimeout(() => setBooted(true), 1050);
+    const bootTimer = window.setTimeout(() => setBooted(true), 900);
     const scenarioTimer = window.setInterval(
       () => setScenarioIndex((index) => (index + 1) % scenarios.length),
       2800,
@@ -151,186 +142,186 @@ export default function Page() {
 
   const cameraState: SensorState = scenarioIndex === 2 || scenarioIndex === 3 ? 'degraded' : 'ok';
   const canState: SensorState = scenarioIndex === 4 ? 'degraded' : 'ok';
+  const sensorDegraded = cameraState !== 'ok' || canState !== 'ok';
 
   const sensors = useMemo(
     () => [
-      { name: 'Front radar', icon: Radio, state: 'ok' as SensorState },
-      { name: 'Rear radar', icon: Radio, state: 'ok' as SensorState },
-      { name: 'Camera', icon: Camera, state: cameraState },
-      { name: 'CAN', icon: Gauge, state: canState },
-      { name: 'GNSS / IMU', icon: Map, state: 'ok' as SensorState },
-      { name: 'ECU', icon: Cpu, state: 'ok' as SensorState },
+      { name: 'Front radar', state: 'ok' as SensorState },
+      { name: 'Rear radar', state: 'ok' as SensorState },
+      { name: 'Camera', state: cameraState },
+      { name: 'Vehicle bus', state: canState },
+      { name: 'GNSS / IMU', state: 'ok' as SensorState },
+      { name: 'Safety ECU', state: 'ok' as SensorState },
     ],
     [cameraState, canState],
   );
 
-  const warningCopy =
-    severity === 'critical'
-      ? { title: 'SLOW DOWN', hint: 'Increase following distance now' }
-      : severity === 'caution'
-        ? { title: 'INCREASE GAP', hint: 'Following distance is reducing' }
-        : { title: 'MONITORING', hint: 'Following distance is stable' };
-
-  const leadTop = clamp(44 - frontGap * 0.72, 10, 36);
+  const leadTop = clamp(45 - frontGap * 0.72, 10, 36);
   const leadScale = clamp(1.28 - frontGap / 95, 0.82, 1.14);
-  const frontRadarTop = clamp(8 + (40 - frontGap) * 0.34, 7, 18);
-  const parked = true;
+  const statusCopy = severity === 'critical'
+    ? { eyebrow: 'Collision risk', title: 'Slow down', detail: 'Increase following distance now.' }
+    : severity === 'caution'
+      ? { eyebrow: 'Following distance', title: 'Increase gap', detail: 'The vehicle ahead is getting closer.' }
+      : { eyebrow: 'Driver assistance', title: 'Clear ahead', detail: 'Following distance is stable.' };
+
+  const navItems: Array<{ key: ViewKey; label: string; icon: typeof Gauge }> = [
+    { key: 'drive', label: 'Drive', icon: Gauge },
+    { key: 'surround', label: 'Around', icon: Radio },
+    { key: 'trip', label: 'Trip', icon: Map },
+    { key: 'vehicle', label: 'Vehicle', icon: CarFront },
+  ];
 
   return (
-    <main className={`shell severity-${severity} theme-${theme}`}>
-      <div className={`startup ${booted ? 'startup-complete' : ''}`} aria-hidden={booted}>
-        <div className="startupBrand"><span className="mark">K</span><strong>KINGMAST</strong></div>
-        <div className="startupTrack"><i /></div>
-        <small>SAFETY SYSTEM SELF-CHECK</small>
+    <main className={`systemApp theme-${theme} severity-${severity}`}>
+      <div className={`bootScreen ${booted ? 'bootComplete' : ''}`} aria-hidden={booted}>
+        <div className="bootMark">K</div>
+        <strong>KINGMAST</strong>
+        <span>Safety systems ready</span>
       </div>
 
-      <header>
-        <div className="brand"><span className="mark">K</span><strong>KINGMAST</strong></div>
-        <div className="systemHealth"><i className="healthDot" /> SYSTEM READY</div>
-        <div className="legend" aria-label="Safety severity legend">
-          <span className="safe">● SAFE</span>
-          <span className="caution">● CAUTION</span>
-          <span className="critical">● CRITICAL</span>
+      <header className="systemHeader">
+        <div className="brandLockup">
+          <span className="appMark">K</span>
+          <div><strong>KINGMAST</strong><small>Driver Assistance</small></div>
+        </div>
+        <div className="headerStatus">
+          <span className={`systemPill ${sensorDegraded ? 'limited' : ''}`}>
+            {sensorDegraded ? <WifiOff /> : <Wifi />}
+            {sensorDegraded ? 'Limited sensing' : 'Systems ready'}
+          </span>
+          <span className="batteryPill"><BatteryMedium /> 76%</span>
         </div>
       </header>
 
-      <section className="grid">
-        <article className="panel drive">
-          <h2><b>1</b> DRIVE <em><BatteryMedium /> 76%</em></h2>
-          <div className="driveRow">
-            <div className="speedColumn">
-              <div className="speed numberTransition">{Math.round(speed)}</div>
-              <div className="unit">km/h</div>
-              <div className="limit">80</div>
-              <small>SPEED LIMIT</small>
-            </div>
+      <div className="appBody">
+        <nav className="sideRail" aria-label="KINGMAST sections">
+          <div className="navGroup">
+            {navItems.map(({ key, label, icon: Icon }) => (
+              <button
+                type="button"
+                key={key}
+                className={activeView === key ? 'active' : ''}
+                aria-current={activeView === key ? 'page' : undefined}
+                onClick={() => setActiveView(key)}
+              >
+                <Icon />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" className={`settingsButton ${settingsOpen ? 'active' : ''}`} onClick={() => setSettingsOpen(true)}>
+            <SlidersHorizontal />
+            <span>Settings</span>
+          </button>
+        </nav>
 
-            <div className="road">
-              <div className="roadFlow" aria-hidden="true" />
-              <div className="laneGlow" aria-hidden="true" />
-              <div className="distanceWave wave1" aria-hidden="true" />
-              <div className="distanceWave wave2" aria-hidden="true" />
-              <CarFront
-                className={`lead lead-${severity}`}
-                style={{ top: `${leadTop}%`, transform: `translateX(-50%) scale(${leadScale})` }}
-              />
-              <CarFront className="ego" />
-              <div className={`status status-${severity}`}>
-                {severity === 'critical' ? <AlertTriangle /> : <ShieldCheck />}
-                {severity === 'safe' ? 'SAFE' : severity === 'caution' ? 'CAUTION' : 'SLOW DOWN'}
+        <section className="workspace">
+          {activeView === 'drive' && (
+            <div className="driveView viewEnter">
+              <section className="roadStage" aria-label="Driving situation">
+                <div className="stageTop">
+                  <div className="speedCluster">
+                    <span className="eyebrow">Speed</span>
+                    <div><strong>{Math.round(speed)}</strong><small>km/h</small></div>
+                  </div>
+                  <div className="speedLimit" aria-label="Speed limit 80 kilometers per hour"><span>80</span><small>LIMIT</small></div>
+                  <div className={`stageState state-${severity}`}>
+                    {severity === 'critical' ? <AlertTriangle /> : <ShieldCheck />}
+                    <span>{severity === 'safe' ? 'Safe distance' : severity === 'caution' ? 'Watch distance' : 'Slow down'}</span>
+                  </div>
+                </div>
+
+                <div className="roadScene">
+                  <div className="horizonGlow" aria-hidden="true" />
+                  <div className="roadSurface" aria-hidden="true" />
+                  <div className="lane laneLeft" aria-hidden="true" />
+                  <div className="lane laneRight" aria-hidden="true" />
+                  <div className="laneCenterFlow" aria-hidden="true" />
+                  <div className={`leadVehicle lead-${severity}`} style={{ top: `${leadTop}%`, transform: `translateX(-50%) scale(${leadScale})` }}>
+                    <CarFront />
+                    <span>{frontGap.toFixed(0)} m</span>
+                  </div>
+                  <div className="distanceArc arcOne" aria-hidden="true" />
+                  <div className="distanceArc arcTwo" aria-hidden="true" />
+                  <div className="egoVehicle"><CarFront /></div>
+                  <div className="sideTarget leftTarget"><CarFront /><span>{leftGap.toFixed(0)} m</span></div>
+                  <div className="sideTarget rightTarget"><CarFront /><span>{rightGap.toFixed(0)} m</span></div>
+                </div>
+
+                <div className="glanceStrip">
+                  <div><span>Front gap</span><strong>{frontGap.toFixed(0)} m</strong></div>
+                  <div><span>Headway</span><strong>{headway.toFixed(1)} s</strong></div>
+                  <div><span>TTC</span><strong>{ttc.toFixed(1)} s</strong></div>
+                  <div><span>Rear gap</span><strong>{rearGap.toFixed(0)} m</strong></div>
+                </div>
+              </section>
+
+              <aside className="contextColumn">
+                <section className={`safetyCard safety-${severity}`} aria-live={severity === 'critical' ? 'assertive' : 'polite'}>
+                  <div className="safetyIcon">{severity === 'critical' ? <AlertTriangle /> : <ShieldCheck />}</div>
+                  <span className="eyebrow">{statusCopy.eyebrow}</span>
+                  <h1 key={statusCopy.title}>{statusCopy.title}</h1>
+                  <p>{statusCopy.detail}</p>
+                  <div className="safetyNumbers">
+                    <div><span>Distance</span><strong>{frontGap.toFixed(0)} m</strong></div>
+                    <div><span>Time to collision</span><strong>{ttc.toFixed(1)} s</strong></div>
+                  </div>
+                </section>
+
+                <section className="compactCard">
+                  <div className="sectionTitle"><div><span className="eyebrow">Vehicle sensing</span><h2>System status</h2></div><button type="button" onClick={() => setActiveView('vehicle')}>Details <ChevronRight /></button></div>
+                  <SensorRow name="Front radar" state="ok" />
+                  <SensorRow name="Camera" state={cameraState} />
+                  <SensorRow name="Vehicle bus" state={canState} />
+                </section>
+              </aside>
+            </div>
+          )}
+
+          {activeView === 'surround' && (
+            <div className="detailView viewEnter">
+              <div className="viewHeading"><div><span className="eyebrow">Live sensing</span><h1>Around the vehicle</h1><p>Only nearby objects relevant to the current driving path are emphasized.</p></div><span className={`systemPill ${severity}`}>{severity === 'safe' ? <ShieldCheck /> : <AlertTriangle />}{severity}</span></div>
+              <div className="surroundStage">
+                <div className="spatialGrid"><span className="orbit o1"/><span className="orbit o2"/><span className="orbit o3"/><span className="sweep"/>
+                  <div className="centerVehicle"><CarFront /></div>
+                  <div className={`object frontObject ${severity}`}><CarFront /><strong>{frontGap.toFixed(0)} m</strong><small>Ahead</small></div>
+                  <div className="object leftObject caution"><CarFront /><strong>{leftGap.toFixed(0)} m</strong><small>Left</small></div>
+                  <div className="object rightObject caution"><CarFront /><strong>{rightGap.toFixed(0)} m</strong><small>Right</small></div>
+                  <div className="object rearObject safe"><CarFront /><strong>{rearGap.toFixed(0)} m</strong><small>Rear</small></div>
+                </div>
+                <div className="distanceKey"><div><span className="keyDot critical"/><strong>0–15 m</strong><small>Critical</small></div><div><span className="keyDot caution"/><strong>15–30 m</strong><small>Caution</small></div><div><span className="keyDot safe"/><strong>&gt; 30 m</strong><small>Clear</small></div></div>
               </div>
             </div>
+          )}
 
-            <div className="metrics">
-              <span><CarFront /> FRONT GAP <strong>{frontGap.toFixed(0)} m</strong></span>
-              <span><Gauge /> HEADWAY <strong>{headway.toFixed(1)} s</strong></span>
-              <span><CarFront /> REAR GAP <strong>{rearGap.toFixed(0)} m</strong></span>
+          {activeView === 'trip' && (
+            <div className="detailView viewEnter">
+              <div className="viewHeading"><div><span className="eyebrow">Current session</span><h1>Trip summary</h1><p>A quiet review of safety events, intended for use while parked.</p></div><span className="parkedBadge"><CircleParking /> Parked</span></div>
+              <div className="tripCards"><div className="scoreCard"><span className="eyebrow">Safety score</span><strong>92</strong><small>/ 100</small><div className="scoreTrack"><i /></div></div><div className="metricCard"><Map /><span>Distance</span><strong>36.4 km</strong></div><div className="metricCard"><Bell /><span>Alerts</span><strong>3</strong></div><div className="metricCard"><Gauge /><span>Following time</span><strong>48 s</strong></div></div>
+              <section className="timelineCard"><div className="sectionTitle"><div><span className="eyebrow">Timeline</span><h2>Safety events</h2></div><span>36.4 km</span></div><div className="eventRail"><span/><i className="safeNode"/><i className="safeNode"/><i className="criticalNode"><AlertTriangle /></i><i className="cautionNode"><AlertTriangle /></i><i className="cautionNode"><AlertTriangle /></i></div><div className="timelineLabels"><span>Start</span><span>12 km</span><span>24 km</span><span>36.4 km</span></div></section>
             </div>
-          </div>
-        </article>
+          )}
 
-        <article className={`panel warning warning-${severity}`} aria-live={severity === 'critical' ? 'assertive' : 'polite'}>
-          <h2><b>2</b> WARNING <em className={`severityPill ${severity}`}>{severity.toUpperCase()}</em></h2>
-          <div className="warningTitle">
-            <AlertTriangle />
-            <strong key={warningCopy.title}>{warningCopy.title}</strong>
-            <AlertTriangle />
-          </div>
-          <p className="warningHint">{warningCopy.hint}</p>
-          <div className="warningBody">
-            <div><small>DISTANCE</small><strong>{frontGap.toFixed(0)}<i> m</i></strong></div>
-            <div className="hazardVehicle">
-              <CarFront className="dangerCar" />
-              <span className="hazardHalo" aria-hidden="true" />
+          {activeView === 'vehicle' && (
+            <div className="detailView viewEnter">
+              <div className="viewHeading"><div><span className="eyebrow">Electric SUV</span><h1>Vehicle systems</h1><p>Read-only sensing and connection health. KINGMAST does not command steering, braking, or throttle.</p></div><span className="parkedBadge"><CircleParking /> Parked</span></div>
+              <div className="vehicleGrid"><section className="systemList"><div className="sectionTitle"><div><span className="eyebrow">Sensors</span><h2>Connection health</h2></div><span>{sensorDegraded ? 'Attention needed' : 'All ready'}</span></div>{sensors.map((sensor) => <SensorRow key={sensor.name} {...sensor} />)}</section><section className="vehicleInfo"><div className="infoIcon"><Cpu /></div><span className="eyebrow">Safety ECU</span><h2>Read-only vehicle integration</h2><p>Radar, camera, GNSS/IMU, and CAN telemetry are fused for warnings only.</p><div className="capabilityList"><span><ShieldCheck /> Brake commands disabled</span><span><ShieldCheck /> Steering commands disabled</span><span><ShieldCheck /> Throttle commands disabled</span></div></section></div>
             </div>
-            <div><small>TTC</small><strong>{ttc.toFixed(1)}<i> s</i></strong></div>
-          </div>
-          <div className="chevrons" aria-hidden="true"><i>⌃</i><i>⌃</i><i>⌃</i></div>
-        </article>
+          )}
+        </section>
+      </div>
 
-        <article className="panel surround">
-          <h2><b>3</b> SURROUND <em><Radio /> LIVE</em></h2>
-          <div className="surroundLayout">
-            <div className={`radar radar-${severity}`}>
-              <div className="radarSweep" aria-hidden="true" />
-              <div className="ring r1" /><div className="ring r2" /><div className="ring r3" /><div className="ring r4" />
-              <CarFront className="centerCar" />
-              <div className={`radarTarget target-front ${severity}`} style={{ top: `${frontRadarTop}%` }}><CarFront /><strong>{frontGap.toFixed(0)} m</strong></div>
-              <div className="radarTarget target-left caution"><CarFront /><strong>{leftGap.toFixed(0)} m</strong></div>
-              <div className="radarTarget target-right caution"><CarFront /><strong>{rightGap.toFixed(0)} m</strong></div>
-              <div className="radarTarget target-rear safe"><CarFront /><strong>{rearGap.toFixed(0)} m</strong></div>
-            </div>
-            <div className="distanceLegend">
-              <span><i className="criticalRing" /> 0–15 m <small>CRITICAL</small></span>
-              <span><i className="cautionRing" /> 15–30 m <small>CAUTION</small></span>
-              <span><i className="safeRing" /> &gt; 30 m <small>SAFE</small></span>
-            </div>
-          </div>
-        </article>
-
-        <article className="panel sensorsPanel">
-          <h2><b>4</b> SENSORS <em>{cameraState === 'degraded' || canState === 'degraded' ? 'DEGRADED MODE' : 'ALL SYSTEMS NOMINAL'}</em></h2>
-          <div className="sensorGrid">
-            {sensors.map((sensor) => <SensorCard key={sensor.name} {...sensor} />)}
-          </div>
-          <div className={`degradedBanner ${cameraState === 'degraded' || canState === 'degraded' ? 'visible' : ''}`}>
-            <WifiOff /> Reduced confidence — unavailable inputs are excluded from safety decisions.
-          </div>
-        </article>
-
-        <article className="panel tripPanel">
-          <h2><b>5</b> TRIP REPORT <em>36.4 km SESSION</em></h2>
-          <div className="stats">
-            <span className="scoreStat">
-              <i className="scoreRing"><strong>92</strong></i>
-              <label>SAFETY SCORE <small>/100</small></label>
-            </span>
-            <span><Map /> DISTANCE<strong>36.4<small> km</small></strong></span>
-            <span><Bell /> ALERTS<strong>3</strong></span>
-            <span><Gauge /> FOLLOW TIME<strong>48<small> s</small></strong></span>
-          </div>
-          <div className="timeline" aria-label="Alert timeline">
-            <span className="timelineRail" />
-            <i className="safeNode" /><i className="safeNode" /><i className="dangerNode"><AlertTriangle /></i><i className="warnNode"><AlertTriangle /></i><i className="warnNode"><AlertTriangle /></i>
-          </div>
-          <div className="reportBottom">
-            <div className="alertSplit">
-              <div className="donut" aria-label="33 percent critical, 67 percent caution"><span /></div>
-              <div><p><i className="criticalDot" /> Critical <strong>1</strong></p><p><i className="cautionDot" /> Caution <strong>2</strong></p><p><i className="safeDot" /> Safe <strong>0</strong></p></div>
-            </div>
-            <div className="bars" aria-label="Safety score by distance segment">
-              {[68, 79, 74, 81, 72].map((height, index) => <i key={index} style={{ height: `${height}%`, animationDelay: `${index * 90}ms` }} />)}
-            </div>
-          </div>
-        </article>
-
-        <article className="panel settings">
-          <h2><b>6</b> PARKED SETTINGS <em><CircleParking /> VEHICLE PARKED</em></h2>
-          <p className="notice"><ShieldCheck /> Changes are available only while the vehicle is parked.</p>
-
-          <div className="settingRow">
-            <span><Bell /> Alert sensitivity</span>
-            <Segmented value={sensitivity} values={['Low', 'Medium', 'High'] as const} onChange={setSensitivity} label="Alert sensitivity" />
-          </div>
-          <div className="settingRow">
-            <span><Volume2 /> Alert sound</span>
-            <Segmented value={volume} values={['Off', 'Low', 'Medium', 'High'] as const} onChange={setVolume} label="Alert sound" />
-          </div>
-          <div className="settingRow">
-            <span><ShieldCheck /> Privacy</span>
-            <button type="button" className={`toggle ${privacy ? 'on' : ''}`} aria-pressed={privacy} onClick={() => setPrivacy((value) => !value)} disabled={!parked}><i /></button>
-          </div>
-          <div className="settingRow">
-            <span><Database /> Data retention</span>
-            <Segmented value={retention} values={[7, 30, 90] as const} onChange={setRetention} label="Data retention" />
-          </div>
-          <div className="settingRow">
-            <span><HardDrive /> Display mode</span>
-            <Segmented value={themeMode} values={['auto', 'night', 'day'] as const} onChange={setThemeMode} label="Display mode" />
-          </div>
-          <button type="button" className="vehicleProfile"><CarFront /> Vehicle profile <span>Electric SUV <RotateCcw /></span></button>
-        </article>
-      </section>
+      {settingsOpen && (
+        <div className="sheetBackdrop" role="presentation" onMouseDown={() => setSettingsOpen(false)}>
+          <aside className="settingsSheet" role="dialog" aria-modal="true" aria-label="Parked settings" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="sheetHandle" aria-hidden="true" />
+            <div className="sheetHeader"><div><span className="eyebrow">Vehicle parked</span><h2>Settings</h2></div><button type="button" className="doneButton" onClick={() => setSettingsOpen(false)}>Done</button></div>
+            <div className="settingGroup"><div className="settingRow"><span><Bell /> Alert sensitivity</span><Segmented value={sensitivity} values={['Low', 'Medium', 'High'] as const} onChange={setSensitivity} label="Alert sensitivity" /></div><div className="settingRow"><span><Volume2 /> Alert sound</span><Segmented value={volume} values={['Off', 'Low', 'Medium', 'High'] as const} onChange={setVolume} label="Alert volume" /></div><div className="settingRow"><span><ShieldCheck /> Privacy</span><button type="button" className={`toggle ${privacy ? 'on' : ''}`} aria-pressed={privacy} onClick={() => setPrivacy((value) => !value)}><i /></button></div></div>
+            <div className="settingGroup"><div className="settingRow"><span>{theme === 'night' ? <Moon /> : <Sun />} Appearance</span><Segmented value={themeMode} values={['auto', 'night', 'day'] as const} onChange={setThemeMode} label="Appearance" /></div><div className="settingRow readOnly"><span><Camera /> Camera diagnostics</span><strong>{cameraState === 'ok' ? 'Ready' : 'Check'}</strong></div><div className="settingRow readOnly"><span><Radio /> Radar diagnostics</span><strong>Ready</strong></div></div>
+            <p className="sheetNote"><CircleParking /> Configuration is available only while the vehicle is parked.</p>
+          </aside>
+        </div>
+      )}
     </main>
   );
 }
