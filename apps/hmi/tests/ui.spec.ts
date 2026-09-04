@@ -60,7 +60,19 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await expect(page.locator('.v5Cockpit')).toBeVisible();
   });
 
-  test('active caution opens a non-destructive driver action sheet',async({page})=>{
+  test('voice action gives immediate non-blocking feedback',async({page})=>{
+    await openHmi(page,1366,768);
+    const dock=page.getByTestId('driver-action-dock');
+    const voice=dock.getByRole('button',{name:/Turn voice guidance off/});
+    await expect(voice).toBeVisible();
+    await voice.click();
+    const toast=page.getByTestId('interaction-toast');
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText('Voice guidance off');
+    await expect(dock.getByRole('button',{name:/Turn voice guidance on/})).toBeVisible();
+  });
+
+  test('active caution opens a non-destructive modal sheet and returns focus on Escape',async({page})=>{
     await openHmi(page,1366,768);
     const dock=page.getByTestId('driver-action-dock');
     const alertButton=dock.getByRole('button',{name:/Alerts/});
@@ -68,10 +80,27 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await alertButton.click();
     const sheet=page.getByTestId('driver-action-sheet');
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole('button',{name:/Keep current route/})).toBeVisible();
+    await expect(sheet).toHaveAttribute('aria-modal','true');
+    const keepRoute=sheet.getByRole('button',{name:/Keep current route/});
+    await expect(keepRoute).toBeVisible();
+    await expect(keepRoute).toBeFocused();
     await expect(sheet.getByRole('button',{name:/Mute voice/})).toBeVisible();
-    await sheet.getByRole('button',{name:/Keep current route/}).click();
+    await page.keyboard.press('Escape');
     await expect(sheet).toBeHidden();
+    await expect(alertButton).toBeFocused();
+  });
+
+  test('modal sheet traps keyboard focus inside driver actions',async({page})=>{
+    await openHmi(page,1366,768);
+    const alertButton=page.getByTestId('driver-action-dock').getByRole('button',{name:/Alerts/});
+    await expect(alertButton).toHaveClass(/hasAlert/,{timeout:5_000});
+    await alertButton.click();
+    const sheet=page.getByTestId('driver-action-sheet');
+    await expect(sheet).toBeVisible();
+    for(let index=0;index<8;index++)await page.keyboard.press('Tab');
+    const focusInside=await page.evaluate(()=>Boolean(document.activeElement?.closest('[data-testid="driver-action-sheet"]')));
+    expect(focusInside).toBe(true);
+    await page.keyboard.press('Escape');
   });
 
   test('1366x768 keeps the driving hierarchy readable without horizontal clipping',async({page})=>{
@@ -108,12 +137,18 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 
-  test('reduced motion skips decorative startup timing quickly',async({page})=>{
+  test('reduced motion removes event animation without removing interaction feedback',async({page})=>{
     await page.setViewportSize({width:1366,height:768});
     await page.emulateMedia({reducedMotion:'reduce'});
     const started=Date.now();
     await page.goto('/');
     await expect(page.locator('main.appShell')).toBeVisible({timeout:2_000});
     expect(Date.now()-started).toBeLessThan(2_000);
+    const voice=page.getByTestId('driver-action-dock').getByRole('button',{name:/Turn voice guidance off/});
+    await voice.click();
+    const toast=page.getByTestId('interaction-toast');
+    await expect(toast).toBeVisible();
+    const animationName=await toast.evaluate((node)=>getComputedStyle(node).animationName);
+    expect(animationName).toBe('none');
   });
 });
