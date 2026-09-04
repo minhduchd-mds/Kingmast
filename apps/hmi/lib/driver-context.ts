@@ -1,4 +1,6 @@
 import type { GeoPoint,NavigationRoute,NavigationStep,RoadContext,Severity,TrafficCamera,VehiclePosition } from '@kingmast/contracts';
+import type { UnitSystem } from './use-driver-profile';
+import { formatDistance } from './units';
 
 const EARTH_RADIUS_M=6_371_000;
 const toRad=(value:number)=>value*Math.PI/180;
@@ -112,7 +114,4 @@ export function cameraLabel(camera:TrafficCamera){
 
 export function cameraIsDriverRelevant(camera:TrafficCamera){return camera.kind!=='traffic-monitoring'||camera.speedLimitKmh!==null;}
 
-export function formatDriverDistance(distanceM:number){
-  if(distanceM<1_000)return`${Math.max(0,Math.round(distanceM/10)*10)} m`;
-  return`${(distanceM/1_000).toFixed(distanceM<10_000?1:0)} km`;
-}
+export function formatDriverDistance(distanceM:number,units:UnitSystem='metric'){return formatDistance(distanceM,units);}
