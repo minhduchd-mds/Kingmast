@@ -12,6 +12,8 @@ export interface WifiNetwork {
 interface NativeWifiState {
   enabled: boolean;
   connectedSsid: string | null;
+  internetReachable?: boolean;
+  captivePortal?: boolean;
 }
 
 interface NativeWifiBridge {
@@ -20,6 +22,8 @@ interface NativeWifiBridge {
   scan: () => Promise<WifiNetwork[]>;
   connect: (input: { ssid: string; password?: string }) => Promise<NativeWifiState>;
   disconnect: () => Promise<NativeWifiState>;
+  forget?: (ssid: string) => Promise<NativeWifiState>;
+  openCaptivePortal?: () => Promise<void>;
 }
 
 declare global {
@@ -36,13 +40,17 @@ export interface WifiConnectivityController {
   connectedSsid: string | null;
   networks: WifiNetwork[];
   online: boolean;
+  captivePortal: boolean;
   busy: boolean;
   error: string | null;
   refresh: () => Promise<void>;
   setEnabled: (enabled: boolean) => Promise<void>;
   scan: () => Promise<void>;
-  connect: (ssid: string, password?: string) => Promise<void>;
+  connect: (ssid: string, password?: string) => Promise<boolean>;
+  reconnect: (ssid: string) => Promise<boolean>;
   disconnect: () => Promise<void>;
+  forget: (ssid: string) => Promise<void>;
+  openCaptivePortal: () => Promise<void>;
 }
 
 function getBridge() {
@@ -59,14 +67,27 @@ function normalizeNetworks(items: WifiNetwork[]) {
     .sort((a, b) => Number(Boolean(b.saved)) - Number(Boolean(a.saved)) || b.signal - a.signal || a.ssid.localeCompare(b.ssid));
 }
 
+function stateOnline(state: NativeWifiState) {
+  if (typeof state.internetReachable === 'boolean') return state.internetReachable;
+  return Boolean(state.connectedSsid) && !state.captivePortal;
+}
+
 export function useWifiConnectivity(): WifiConnectivityController {
   const [mode, setMode] = useState<'native' | 'host-managed'>('host-managed');
   const [enabled, setEnabledState] = useState<boolean | null>(null);
   const [connectedSsid, setConnectedSsid] = useState<string | null>(null);
   const [networks, setNetworks] = useState<WifiNetwork[]>([]);
   const [online, setOnline] = useState(true);
+  const [captivePortal, setCaptivePortal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const applyState = useCallback((state: NativeWifiState) => {
+    setEnabledState(Boolean(state.enabled));
+    setConnectedSsid(state.connectedSsid ?? null);
+    setCaptivePortal(Boolean(state.captivePortal));
+    setOnline(stateOnline(state));
+  }, []);
 
   const refresh = useCallback(async () => {
     const bridge = getBridge();
@@ -74,6 +95,7 @@ export function useWifiConnectivity(): WifiConnectivityController {
       setMode('host-managed');
       setEnabledState(null);
       setConnectedSsid(null);
+      setCaptivePortal(false);
       setOnline(typeof navigator === 'undefined' ? true : navigator.onLine);
       setError(null);
       return;
@@ -81,21 +103,21 @@ export function useWifiConnectivity(): WifiConnectivityController {
     setMode('native');
     setBusy(true);
     try {
-      const state = await bridge.getState();
-      setEnabledState(Boolean(state.enabled));
-      setConnectedSsid(state.connectedSsid ?? null);
-      setOnline(Boolean(state.connectedSsid));
+      applyState(await bridge.getState());
       setError(null);
     } catch {
       setError('Unable to read Wi-Fi status from the vehicle host.');
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [applyState]);
 
   useEffect(() => {
     void refresh();
-    const updateOnline = () => setOnline(navigator.onLine);
+    const updateOnline = () => {
+      if (getBridge()) void refresh();
+      else setOnline(navigator.onLine);
+    };
     window.addEventListener('online', updateOnline);
     window.addEventListener('offline', updateOnline);
     return () => {
@@ -113,17 +135,15 @@ export function useWifiConnectivity(): WifiConnectivityController {
     setBusy(true);
     try {
       const state = await bridge.setEnabled(next);
-      setEnabledState(Boolean(state.enabled));
-      setConnectedSsid(state.connectedSsid ?? null);
+      applyState(state);
       setNetworks(next ? networks : []);
-      setOnline(Boolean(state.connectedSsid));
       setError(null);
     } catch {
       setError('Unable to change Wi-Fi state.');
     } finally {
       setBusy(false);
     }
-  }, [networks]);
+  }, [applyState, networks]);
 
   const scan = useCallback(async () => {
     const bridge = getBridge();
@@ -137,7 +157,7 @@ export function useWifiConnectivity(): WifiConnectivityController {
       setNetworks(normalizeNetworks(await bridge.scan()));
       setError(null);
     } catch {
-      setError('Unable to scan Wi-Fi networks.');
+      setError('Unable to scan Wi-Fi networks. Move to a stronger signal area and try again.');
     } finally {
       setBusy(false);
     }
@@ -147,38 +167,77 @@ export function useWifiConnectivity(): WifiConnectivityController {
     const bridge = getBridge();
     if (!bridge) {
       setError('Wi-Fi connection requires the native vehicle Wi-Fi bridge.');
-      return;
+      return false;
     }
     setBusy(true);
     try {
       const state = await bridge.connect(password ? { ssid, password } : { ssid });
-      setEnabledState(Boolean(state.enabled));
-      setConnectedSsid(state.connectedSsid ?? null);
-      setOnline(Boolean(state.connectedSsid));
-      setError(state.connectedSsid ? null : 'Connection did not complete.');
+      applyState(state);
+      if (!state.connectedSsid) {
+        setError('Connection did not complete. Verify the network and try again.');
+        return false;
+      }
+      if (state.captivePortal) {
+        setError('Connected to Wi-Fi, but sign-in is required before online services can be used.');
+      } else if (!stateOnline(state)) {
+        setError('Connected to Wi-Fi, but internet access is unavailable. KINGMAST will use offline behavior.');
+      } else setError(null);
+      return true;
     } catch {
       setError('Unable to connect to this Wi-Fi network. Verify credentials and signal.');
+      return false;
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [applyState]);
+
+  const reconnect = useCallback(async (ssid: string) => connect(ssid), [connect]);
 
   const disconnect = useCallback(async () => {
     const bridge = getBridge();
     if (!bridge) return;
     setBusy(true);
     try {
-      const state = await bridge.disconnect();
-      setEnabledState(Boolean(state.enabled));
-      setConnectedSsid(state.connectedSsid ?? null);
-      setOnline(Boolean(state.connectedSsid));
+      applyState(await bridge.disconnect());
       setError(null);
     } catch {
       setError('Unable to disconnect Wi-Fi.');
     } finally {
       setBusy(false);
     }
+  }, [applyState]);
+
+  const forget = useCallback(async (ssid: string) => {
+    const bridge = getBridge();
+    if (!bridge?.forget) {
+      setError('Forget network is not available on this vehicle host.');
+      return;
+    }
+    setBusy(true);
+    try {
+      applyState(await bridge.forget(ssid));
+      setNetworks((items) => items.map((item) => item.ssid === ssid ? { ...item, saved: false } : item));
+      setError(null);
+    } catch {
+      setError('Unable to forget this Wi-Fi network.');
+    } finally {
+      setBusy(false);
+    }
+  }, [applyState]);
+
+  const openCaptivePortal = useCallback(async () => {
+    const bridge = getBridge();
+    if (!bridge?.openCaptivePortal) {
+      setError('Network sign-in must be completed on the host device.');
+      return;
+    }
+    try {
+      await bridge.openCaptivePortal();
+      setError(null);
+    } catch {
+      setError('Unable to open network sign-in.');
+    }
   }, []);
 
-  return useMemo(() => ({ mode, enabled, connectedSsid, networks, online, busy, error, refresh, setEnabled, scan, connect, disconnect }), [mode, enabled, connectedSsid, networks, online, busy, error, refresh, setEnabled, scan, connect, disconnect]);
+  return useMemo(() => ({ mode, enabled, connectedSsid, networks, online, captivePortal, busy, error, refresh, setEnabled, scan, connect, reconnect, disconnect, forget, openCaptivePortal }), [mode, enabled, connectedSsid, networks, online, captivePortal, busy, error, refresh, setEnabled, scan, connect, reconnect, disconnect, forget, openCaptivePortal]);
 }
