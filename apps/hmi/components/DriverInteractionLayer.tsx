@@ -4,6 +4,8 @@ import { AlertTriangle,Bell,Camera,Check,ChevronRight,Map,Mic,Route,Settings2,Sh
 import { useEffect,useMemo,useRef,useState } from 'react';
 import type { Severity } from '@kingmast/contracts';
 import { cameraDistanceBand,useMotionFeedback } from '../lib/motion-feedback';
+import { useDriverProfile } from '../lib/use-driver-profile';
+import { formatDistance,speedText } from '../lib/units';
 
 interface CameraActionContext {
   label:string;
@@ -32,11 +34,6 @@ interface DriverInteractionLayerProps {
 type SheetKind='hazard'|'camera'|null;
 const severityRank:Record<Severity,number>={safe:1,caution:2,critical:3};
 
-function distanceLabel(distanceM:number){
-  if(distanceM<1000)return`${Math.max(1,Math.round(distanceM))} m`;
-  return`${(distanceM/1000).toFixed(distanceM>=10_000?0:1)} km`;
-}
-
 export default function DriverInteractionLayer(props:DriverInteractionLayerProps){
   const[sheet,setSheet]=useState<SheetKind>(null);
   const[rerouting,setRerouting]=useState(false);
@@ -53,6 +50,8 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
   const previousCameraBand=useRef(cameraDistanceBand(props.camera?.distanceM));
   const previousCameraLabel=useRef(props.camera?.label??null);
   const{notice,notify}=useMotionFeedback();
+  const{profile}=useDriverProfile();
+  const units=profile.units;
   const cameraBand=useMemo(()=>cameraDistanceBand(props.camera?.distanceM),[props.camera?.distanceM]);
   const mutedMinutes=mutedUntilMs?Math.max(0,Math.ceil((mutedUntilMs-nowMs)/60_000)):0;
 
@@ -106,10 +105,10 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
     }
     if(previousCameraBand.current!==cameraBand){
       if(cameraBand==='300m'||cameraBand==='immediate')setAcknowledgedCamera(null);
-      notify('caution','Camera warning',`${props.camera.label} · ${distanceLabel(props.camera.distanceM)} ahead.`);
+      notify('caution','Camera warning',`${props.camera.label} · ${formatDistance(props.camera.distanceM,units)} ahead.`);
       previousCameraBand.current=cameraBand;
     }
-  },[cameraBand,notify,props.camera]);
+  },[cameraBand,notify,props.camera,units]);
 
   useEffect(()=>{
     if(!sheet)return;
@@ -242,7 +241,7 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
           <span>
             <small>{sheet==='camera'?'ROUTE CAMERA':'DRIVER ALERT'}</small>
             <strong id="driver-sheet-title">{sheet==='camera'?props.camera?.label:props.title}</strong>
-            <em id="driver-sheet-description">{sheet==='camera'&&props.camera?`${distanceLabel(props.camera.distanceM)} ahead${props.camera.speedLimit!==null?` · limit ${props.camera.speedLimit} km/h`:''}`:props.message}</em>
+            <em id="driver-sheet-description">{sheet==='camera'&&props.camera?`${formatDistance(props.camera.distanceM,units)} ahead${props.camera.speedLimit!==null?` · limit ${speedText(props.camera.speedLimit,units)}`:''}`:props.message}</em>
           </span>
           <button type="button" className="driverSheetClose" onClick={closeSheet} aria-label="Close action sheet"><X/></button>
         </header>
