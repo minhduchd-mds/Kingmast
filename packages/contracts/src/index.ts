@@ -1,24 +1,8 @@
 export type Severity = 'safe' | 'caution' | 'critical';
 export type SensorState = 'ok' | 'degraded' | 'unavailable';
-export type ObjectKind =
-  | 'person'
-  | 'car'
-  | 'motorcycle'
-  | 'bicycle'
-  | 'truck'
-  | 'bus'
-  | 'obstacle'
-  | 'unknown';
+export type ObjectKind = 'person' | 'car' | 'motorcycle' | 'bicycle' | 'truck' | 'bus' | 'obstacle' | 'unknown';
 export type RelativeZone = 'front' | 'front-left' | 'front-right' | 'left' | 'right' | 'rear';
-export type AlertType =
-  | 'pedestrian-ahead'
-  | 'vehicle-too-close'
-  | 'vulnerable-road-user'
-  | 'object-in-danger-zone'
-  | 'geofence-entry'
-  | 'sensor-degraded'
-  | 'overspeed'
-  | 'speed-limit-change';
+export type AlertType = 'pedestrian-ahead' | 'vehicle-too-close' | 'vulnerable-road-user' | 'object-in-danger-zone' | 'geofence-entry' | 'sensor-degraded' | 'overspeed' | 'speed-limit-change';
 export type PerceptionSource = 'radar-camera' | 'radar-only' | 'camera-only' | 'simulator';
 export type EdgeHealthState = 'live' | 'degraded' | 'offline';
 export type SpeedLimitSource = 'map' | 'sign-vision' | 'authorized-provider' | 'simulator' | 'unknown';
@@ -35,7 +19,6 @@ export interface DetectedObject { id:string; kind:ObjectKind; confidence:number;
 export interface LocationAlert { id:string; type:AlertType; severity:Severity; title:string; message:string; distanceM:number|null; objectId:string|null; position:GeoPoint; timestampMs:number; acknowledged:boolean; }
 export interface Geofence { id:string; name:string; center:GeoPoint; radiusM:number; severity:Exclude<Severity,'safe'>; enabled:boolean; }
 export interface TelemetryFrame { sequence:number; vehicle:VehiclePosition; sensors:SensorHealth; objects:DetectedObject[]; alerts:LocationAlert[]; }
-
 export interface CameraDetection { id:string; kind:ObjectKind; confidence:number; bearingDeg:number; estimatedDistanceM:number|null; timestampMs:number; }
 export interface CameraDetectionFrame { cameraId:string; timestampMs:number; detections:CameraDetection[]; }
 export interface RadarTrack { id:string; distanceM:number; bearingDeg:number; relativeSpeedMps:number; confidence:number; timestampMs:number; }
@@ -48,71 +31,18 @@ export interface RealtimeTelemetryEnvelope { type:'telemetry'; source:'edge'|'si
 export interface RealtimeHeartbeatEnvelope { type:'heartbeat'; receivedAtMs:number; lastSequence:number; connectedClients:number; }
 export type RealtimeMessage = RealtimeTelemetryEnvelope | RealtimeHeartbeatEnvelope;
 export interface EdgeEventRecord { id:string; timestampMs:number; sequence:number; severity:Severity; type:AlertType; title:string; message:string; objectId:string|null; position:GeoPoint; }
+export interface SpeedSignObservation { cameraId:string; speedLimitKmh:number; confidence:number; bearingDeg:number; timestampMs:number; }
+export interface SpeedLimitContext { currentKmh:number|null; source:SpeedLimitSource; confidence:number; roadName:string|null; conditional:string|null; observedAtMs:number; }
+export interface TrafficCamera { id:string; position:GeoPoint; kind:TrafficCameraKind; operator:string|null; ref:string|null; directionDeg:number|null; speedLimitKmh:number|null; viewerUrl:string|null; source:TrafficCameraSource; publicData:boolean; distanceM:number; }
+export interface RoadContext { position:GeoPoint; speedLimit:SpeedLimitContext; compliance:SpeedCompliance; cameras:TrafficCamera[]; fetchedAtMs:number; coverage:'provider-backed'|'partial-public-map'|'unavailable'; notes:string[]; }
+export interface NavigationStep { instruction:string; distanceM:number; durationS:number; location:GeoPoint; roadName:string|null; }
+export interface NavigationRoute { provider:'osrm'; origin:GeoPoint; destination:GeoPoint; distanceM:number; durationS:number; geometry:GeoPoint[]; steps:NavigationStep[]; fetchedAtMs:number; }
+export interface NavigationPlace { id:string; name:string; subtitle:string|null; position:GeoPoint; source:'geocoder'; }
 
-export interface SpeedSignObservation {
-  cameraId:string;
-  speedLimitKmh:number;
-  confidence:number;
-  bearingDeg:number;
-  timestampMs:number;
-}
-
-export interface SpeedLimitContext {
-  currentKmh:number|null;
-  source:SpeedLimitSource;
-  confidence:number;
-  roadName:string|null;
-  conditional:string|null;
-  observedAtMs:number;
-}
-
-export interface TrafficCamera {
-  id:string;
-  position:GeoPoint;
-  kind:TrafficCameraKind;
-  operator:string|null;
-  ref:string|null;
-  directionDeg:number|null;
-  speedLimitKmh:number|null;
-  viewerUrl:string|null;
-  source:TrafficCameraSource;
-  publicData:boolean;
-  distanceM:number;
-}
-
-export interface RoadContext {
-  position:GeoPoint;
-  speedLimit:SpeedLimitContext;
-  compliance:SpeedCompliance;
-  cameras:TrafficCamera[];
-  fetchedAtMs:number;
-  coverage:'provider-backed'|'partial-public-map'|'unavailable';
-  notes:string[];
-}
-
-export interface NavigationStep {
-  instruction:string;
-  distanceM:number;
-  durationS:number;
-  location:GeoPoint;
-  roadName:string|null;
-}
-
-export interface NavigationRoute {
-  provider:'osrm';
-  origin:GeoPoint;
-  destination:GeoPoint;
-  distanceM:number;
-  durationS:number;
-  geometry:GeoPoint[];
-  steps:NavigationStep[];
-  fetchedAtMs:number;
-}
-
-export interface NavigationPlace {
-  id:string;
-  name:string;
-  subtitle:string|null;
-  position:GeoPoint;
-  source:'geocoder';
-}
+export interface EvProfile { batteryPct:number; usableBatteryKwh:number; rangeKm:number; consumptionWhPerKm:number; reservePct:number; }
+export interface NavigationRouteOption { id:string; label:string; route:NavigationRoute; estimatedEnergyKwh:number; estimatedArrivalBatteryPct:number; reserveMarginPct:number; recommended:boolean; score:number; }
+export interface SpeedZonePreview { id:string; position:GeoPoint; distanceAlongRouteM:number; limitKmh:number; roadName:string|null; source:'map'|'authorized-provider'; confidence:number; }
+export type JunctionKind = 'traffic-signal'|'roundabout'|'merge'|'exit'|'crossing'|'unknown';
+export interface JunctionPreview { id:string; position:GeoPoint; distanceAlongRouteM:number; kind:JunctionKind; roadName:string|null; }
+export interface ChargingStation { id:string; name:string; position:GeoPoint; operator:string|null; powerKw:number|null; connectors:string[]; distanceAlongRouteM:number; detourDistanceM:number; source:'osm'|'authorized-provider'; }
+export interface RouteIntelligence { speedZones:SpeedZonePreview[]; junctions:JunctionPreview[]; chargingStations:ChargingStation[]; coverage:'partial-public-map'|'provider-backed'|'unavailable'; generatedAtMs:number; notes:string[]; }
