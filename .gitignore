@@ -4,5 +4,12 @@ dist
 coverage
 .env
 .env.local
+.env.*.local
 .DS_Store
 *.log
+
+# Edge/native secrets must never be committed.
+edge/esp32/**/config.h
+edge/esp32/**/secrets.h
+edge/**/credentials.*
+native/**/secrets.*
