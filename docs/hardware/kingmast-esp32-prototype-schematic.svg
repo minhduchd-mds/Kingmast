@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <style>
+      .title{font:700 34px Arial,sans-serif;fill:#101114}.sub{font:700 17px Arial,sans-serif;fill:#c71920}
+      .h{font:700 18px Arial,sans-serif;fill:#101114}.t{font:14px Arial,sans-serif;fill:#202124}.s{font:12px Arial,sans-serif;fill:#4b5563}
+      .pin{font:11px monospace;fill:#111827}.box{fill:#fff;stroke:#d6d9df;stroke-width:2}.soft{fill:#f7f8fa;stroke:#d6d9df;stroke-width:1.5}
+      .red{stroke:#d71920}.green{stroke:#20884a}.blue{stroke:#2563eb}.cyan{stroke:#0891b2}.purple{stroke:#7c3aed}.orange{stroke:#ea580c}.black{stroke:#111827}
+      .wire{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:8 7}
+      .badge{fill:#d71920}.badgeText{font:700 16px Arial,sans-serif;fill:#fff}.note{font:13px Arial,sans-serif;fill:#374151}
+    </style>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#d71920"/></marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#20884a"/></marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/></marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c3aed"/></marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ea580c"/></marker>
+  </defs>
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <text x="50" y="58" class="title">KINGMAST — ESP32 PROTOTYPE HARDWARE SCHEMATIC</text>
+  <text x="50" y="88" class="sub">Non-ADAS vehicle research rig · warning-only · read-only vehicle data path</text>
+  <rect x="40" y="120" rx="16" ry="16" width="1520" height="170" class="box"/>
+  <circle cx="66" cy="146" r="17" class="badge"/><text x="61" y="152" class="badgeText">1</text>
+  <text x="95" y="152" class="h">Vehicle power → protected 5 V prototype rail</text>
+  <g transform="translate(80 185)">
+    <rect x="0" y="0" width="150" height="72" rx="10" class="soft"/><text x="18" y="28" class="h">12 V Battery</text><text x="18" y="52" class="s">B+ / ACC / chassis GND</text>
+    <rect x="210" y="0" width="130" height="72" rx="10" class="soft"/><text x="243" y="29" class="h">Fuse</text><text x="245" y="52" class="s">3–5 A</text>
+    <rect x="400" y="0" width="165" height="72" rx="10" class="soft"/><text x="422" y="29" class="h">Reverse polarity</text><text x="448" y="52" class="s">diode / MOSFET</text>
+    <rect x="625" y="0" width="170" height="72" rx="10" class="soft"/><text x="675" y="29" class="h">TVS surge</text><text x="667" y="52" class="s">automotive transient</text>
+    <rect x="855" y="0" width="170" height="72" rx="10" class="soft"/><text x="900" y="29" class="h">DC-DC Buck</text><text x="908" y="52" class="s">12 V → 5 V</text>
+    <rect x="1085" y="0" width="180" height="72" rx="10" class="soft"/><text x="1125" y="29" class="h">ESP32 5 V rail</text><text x="1114" y="52" class="s">controller + modules</text>
+    <path d="M150 36 H210" class="wire red" marker-end="url(#arrow-red)"/><path d="M340 36 H400" class="wire red" marker-end="url(#arrow-red)"/><path d="M565 36 H625" class="wire red" marker-end="url(#arrow-red)"/><path d="M795 36 H855" class="wire red" marker-end="url(#arrow-red)"/><path d="M1025 36 H1085" class="wire red" marker-end="url(#arrow-red)"/>
+  </g>
+  <rect x="40" y="315" rx="16" ry="16" width="980" height="530" class="box"/>
+  <circle cx="66" cy="341" r="17" class="badge"/><text x="61" y="347" class="badgeText">2</text>
+  <text x="95" y="347" class="h">ESP32 wiring — prototype reference</text>
+  <rect x="405" y="405" rx="20" ry="20" width="250" height="330" fill="#1c232b" stroke="#111827" stroke-width="3"/>
+  <rect x="470" y="438" width="120" height="115" rx="8" fill="#353d46" stroke="#8b949e"/>
+  <text x="486" y="482" style="font:700 18px Arial;fill:#fff">ESP32</text><text x="485" y="510" style="font:15px Arial;fill:#fff">WROOM-32</text>
+  <text x="452" y="592" style="font:700 20px Arial;fill:#e52b32">KINGMAST</text><text x="457" y="619" style="font:16px Arial;fill:#fff">Prototype Controller</text>
+  <text x="460" y="644" style="font:13px Arial;fill:#cbd5e1">Wi-Fi / USB debug / telemetry</text>
+  <circle cx="445" cy="690" r="7" fill="#22c55e"/><text x="460" y="695" class="s" fill="#fff">PWR</text>
+  <circle cx="520" cy="690" r="7" fill="#3b82f6"/><text x="535" y="695" class="s" fill="#fff">GPS</text>
+  <circle cx="595" cy="690" r="7" fill="#ef4444"/><text x="610" y="695" class="s" fill="#fff">ALERT</text>
+  <rect x="75" y="395" width="260" height="105" rx="12" class="soft"/><text x="95" y="422" class="h">CAN / OBD reader</text><text x="95" y="448" class="t">MCP2515 + automotive transceiver</text><text x="95" y="472" class="s">SPI · read-only · no command authority</text>
+  <text x="315" y="420" class="pin">SCK</text><text x="315" y="440" class="pin">MISO</text><text x="315" y="460" class="pin">MOSI</text><text x="315" y="480" class="pin">CS/INT</text>
+  <path d="M335 420 H405" class="wire green"/><path d="M335 440 H405" class="wire green"/><path d="M335 460 H405" class="wire green"/><path d="M335 480 H405" class="wire green"/>
+  <rect x="75" y="525" width="260" height="92" rx="12" class="soft"/><text x="95" y="552" class="h">GNSS module</text><text x="95" y="578" class="t">UART · NMEA position / speed / time</text><text x="95" y="600" class="s">Reference: RX GPIO16 · TX GPIO17</text>
+  <path d="M335 560 H405" class="wire blue"/><path d="M335 585 H405" class="wire blue"/>
+  <rect x="75" y="640" width="260" height="92" rx="12" class="soft"/><text x="95" y="667" class="h">4G / LTE module</text><text x="95" y="693" class="t">Optional UART telemetry path</text><text x="95" y="715" class="s">MQTT / HTTP to Cloud / Fleet</text>
+  <path d="M335 675 H405" class="wire purple"/><path d="M335 700 H405" class="wire purple"/>
+  <rect x="725" y="395" width="255" height="92" rx="12" class="soft"/><text x="745" y="422" class="h">Front radar / mmWave</text><text x="745" y="448" class="t">UART / CAN-adapter input</text><text x="745" y="470" class="s">Reference radar RX GPIO26 · TX GPIO27</text>
+  <path d="M655 435 H725" class="wire orange"/><path d="M655 460 H725" class="wire orange"/>
+  <rect x="725" y="510" width="255" height="92" rx="12" class="soft"/><text x="745" y="537" class="h">OLED + Buzzer</text><text x="745" y="563" class="t">I²C / GPIO driver</text><text x="745" y="585" class="s">Driver warning output only</text>
+  <path d="M655 548 H725" class="wire cyan"/><path d="M655 575 H725" class="wire orange"/>
+  <rect x="725" y="625" width="255" height="92" rx="12" class="soft"/><text x="745" y="652" class="h">Optional test sensors</text><text x="745" y="678" class="t">Ultrasonic / ESP32-CAM / ACC detect</text><text x="745" y="700" class="s">Bench / closed-track validation only</text>
+  <path d="M655 670 H725" class="wire blue dash"/>
+  <rect x="75" y="760" width="905" height="58" rx="10" fill="#fff6f6" stroke="#f1b4b7"/>
+  <text x="95" y="784" class="t">Example GPIO mapping: SPI SCK18 · MISO19 · MOSI23 · CS5 · INT4 · I²C SDA21/SCL22 · Buzzer25.</text>
+  <text x="95" y="806" class="s">Pins are firmware-configurable. Verify voltage levels and module datasheets before wiring.</text>
+  <rect x="1045" y="315" rx="16" ry="16" width="515" height="350" class="box"/>
+  <circle cx="1071" cy="341" r="17" class="badge"/><text x="1066" y="347" class="badgeText">3</text>
+  <text x="1100" y="347" class="h">Runtime simulation / data flow</text>
+  <rect x="1080" y="390" width="125" height="92" rx="12" class="soft"/><text x="1102" y="418" class="h">Inputs</text><text x="1092" y="444" class="s">CAN · GNSS · Radar</text><text x="1092" y="465" class="s">Optional sensors</text>
+  <rect x="1240" y="390" width="150" height="92" rx="12" fill="#eef6ff" stroke="#8fb7ed"/><text x="1276" y="418" class="h">ESP32</text><text x="1252" y="444" class="s">read → validate → score</text><text x="1252" y="465" class="s">package telemetry</text>
+  <rect x="1425" y="390" width="100" height="92" rx="12" class="soft"/><text x="1441" y="418" class="h">Outputs</text><text x="1436" y="444" class="s">OLED / buzzer</text><text x="1436" y="465" class="s">Cloud / log</text>
+  <path d="M1205 436 H1240" class="wire blue" marker-end="url(#arrow-blue)"/><path d="M1390 436 H1425" class="wire red" marker-end="url(#arrow-red)"/>
+  <text x="1082" y="528" class="h">Simulated status</text>
+  <rect x="1080" y="548" width="105" height="38" rx="19" fill="#ecfdf3" stroke="#86d39f"/><text x="1102" y="572" class="s">CAN: OK</text>
+  <rect x="1195" y="548" width="128" height="38" rx="19" fill="#eef6ff" stroke="#8fb7ed"/><text x="1211" y="572" class="s">GPS: 12 sats</text>
+  <rect x="1333" y="548" width="115" height="38" rx="19" fill="#ecfdf3" stroke="#86d39f"/><text x="1350" y="572" class="s">4G: online</text>
+  <rect x="1458" y="548" width="67" height="38" rx="19" fill="#fff1f2" stroke="#f1a1a7"/><text x="1472" y="572" class="s">ALERT</text>
+  <text x="1082" y="620" class="note">Realtime path in repo: ESP32 → /v3/edge/frame → risk-engine → /v3/stream → HMI.</text>
+  <rect x="1045" y="690" rx="16" ry="16" width="515" height="155" class="box"/>
+  <circle cx="1071" cy="716" r="17" class="badge"/><text x="1066" y="722" class="badgeText">4</text>
+  <text x="1100" y="722" class="h">Prototype safety boundary</text>
+  <text x="1080" y="754" class="t">✓ Warning-only: no brake / steering / throttle control</text>
+  <text x="1080" y="780" class="t">✓ Vehicle data adapters remain read-only</text>
+  <text x="1080" y="806" class="t">✓ Prefer OEM/T-harness + independent fused power</text>
+  <text x="1080" y="832" class="t">✓ Bench / closed-track research; not a production ECU</text>
+  <rect x="40" y="870" rx="14" ry="14" width="1520" height="90" class="soft"/>
+  <text x="70" y="902" class="h">Signal legend</text>
+  <line x1="205" y1="897" x2="255" y2="897" class="wire red"/><text x="268" y="902" class="s">12/5 V power</text>
+  <line x1="395" y1="897" x2="445" y2="897" class="wire black"/><text x="458" y="902" class="s">GND</text>
+  <line x1="535" y1="897" x2="585" y2="897" class="wire green"/><text x="598" y="902" class="s">SPI / CAN adapter</text>
+  <line x1="770" y1="897" x2="820" y2="897" class="wire blue"/><text x="833" y="902" class="s">UART / GNSS</text>
+  <line x1="965" y1="897" x2="1015" y2="897" class="wire cyan"/><text x="1028" y="902" class="s">I²C</text>
+  <line x1="1105" y1="897" x2="1155" y2="897" class="wire orange"/><text x="1168" y="902" class="s">GPIO / radar</text>
+  <line x1="1335" y1="897" x2="1385" y2="897" class="wire purple"/><text x="1398" y="902" class="s">4G UART</text>
+  <text x="70" y="936" class="s">KINGMAST research diagram · ESP32 prototype for non-ADAS vehicles · configuration must be validated per vehicle and module datasheet.</text>
+</svg>
