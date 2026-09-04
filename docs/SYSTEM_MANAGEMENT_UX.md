@@ -20,10 +20,13 @@ KINGMAST remains warning-only Level 0. These flows add service, update, privacy,
 14. Wi-Fi passwords remain outside web UI persistence.
 15. Driver profile preferences restore at startup through a root runtime.
 16. Large text, high contrast and reduced motion apply independently from opening Settings.
-17. Unit preference is persisted, but v0.0.6 avoids partial unit conversion: safety readouts remain metric until all driving surfaces can switch atomically.
+17. Metric/Imperial preference switches driver-facing safety speed and distance presentation atomically; internal risk and routing calculations remain in SI.
 18. Locale preference is persisted without claiming translation coverage that is not implemented.
 19. Accessibility and service controls maintain large touch targets, focus-visible states, Reduced Motion and Forced Colors support.
 20. Every service/update failure has a deterministic return path to the normal parked Settings screen and cannot suppress critical collision/VRU warnings.
+21. Browser preview never guesses ignition state; native ignition/sleep/wake/recovery status is accepted only from the host lifecycle bridge.
+22. Live sensor degradation is presented as a capability limitation and never falsely claims that unavailable sensing-backed warnings remain operational.
+23. Live V2X SPaT/emergency state fails closed when provider security is missing, expired, revoked or untrusted.
 
 ## Native host bridges
 
@@ -35,11 +38,17 @@ The embedded host may expose `window.kingmastNative.maintenance` with `getState(
 
 The embedded host may expose `window.kingmastNative.updates` with `getState()`, `check()`, `download()`, `install()` and `rollback()`. The host owns signature verification, compatibility checks, power checks, rollback slots and interrupted-update recovery.
 
+### System lifecycle
+
+The embedded host may expose `window.kingmastNative.lifecycle` with `getState()` and optional `subscribe(listener)`. The bridge can report ignition and display lifecycle state, but the web UI does not infer ECU/sensor readiness from ignition alone.
+
 ## Remaining production gates
 
 - Validate actual radar/camera/GNSS calibration procedures against the selected hardware datasheets and OEM mounting tolerances.
 - Add signed update manifest format, trust anchors, secure boot/rollback design and hardware-backed key storage.
 - Wire privacy choices to the real backend retention policy once a backend/account model exists.
-- Convert all safety-critical units atomically before enabling Imperial display mode.
+- Validate every Metric/Imperial surface and accessibility override on target automotive displays.
 - Complete localization before changing the runtime document language.
+- Map ignition/sleep/wake/watchdog semantics to the actual native vehicle host.
+- Provision V2X certificate rotation/revocation and message-authenticity checks in the authorized provider adapter.
 - Validate all flows on the target automotive display for sunlight, night luminance, glove/knob input and distraction limits.
