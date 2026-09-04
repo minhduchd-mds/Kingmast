@@ -11,6 +11,7 @@ const shell=read('components/KingmastV006.tsx');
 const cockpit=read('components/KingmastV5.tsx');
 const interaction=read('components/DriverInteractionLayer.tsx');
 const driverCapabilities=read('components/DriverCapabilityRail.tsx');
+const driverCapabilityCss=read('app/hmi-driver-capabilities.css');
 const capabilityCenter=read('components/CapabilityCenter.tsx');
 const capabilityRegistry=read('lib/capability-registry.ts');
 const connectedRoad=read('lib/connected-road.ts');
@@ -19,6 +20,7 @@ const driverProfile=read('lib/use-driver-profile.ts');
 const units=read('lib/units.ts');
 const lifecycle=read('lib/use-system-lifecycle.ts');
 const roadEvents=read('lib/road-event-presentation.ts');
+const contracts=read('../../packages/contracts/src/index.ts');
 
 const checks=[
   ['development version remains 0.0.6',pkg.version==='0.0.6'],
@@ -35,10 +37,13 @@ const checks=[
   ['capability registry covers exactly 36 numbered capabilities',(capabilityRegistry.match(/\{id:\d+,key:/g)??[]).length===36],
   ['capability states distinguish integration truth',capabilityRegistry.includes("'requires-integration'")&&capabilityRegistry.includes("'software-ready'")],
   ['capability center preserves warning-only authority',capabilityCenter.includes('No brake, steering, throttle, gear, torque or CAN write authority')],
+  ['shared contract carries driver-assist runtime truth',contracts.includes('DriverAssistRuntimeSnapshot')&&contracts.includes("controlAuthority:'none'")&&contracts.includes('actuatorTools:false')],
   ['driver capability rail covers LDW DMS AI and 360',['ldw','dms','assistant','surround'].every((key)=>driverCapabilities.includes(`key:'${key}'`))],
   ['driver capability rail is status-only and truthful',driverCapabilities.includes('Warning-only · no vehicle control')&&driverCapabilities.includes('Read-only assistant')&&driverCapabilities.includes('calibration required')&&!driverCapabilities.includes('<button')],
-  ['short displays shed the secondary driver capability rail',has('app/hmi-driver-capabilities.css','@media(max-height:560px)')&&has('app/hmi-driver-capabilities.css','display:none!important')],
-  ['critical hazard visually suppresses secondary capability rail',has('app/hmi-driver-capabilities.css','body:has(.hmiV5.severity-critical) .driverCapabilityRail')],
+  ['driver capability rail consumes authenticated runtime telemetry',driverCapabilities.includes("'use client'")&&driverCapabilities.includes("kingmast:telemetry")&&driverCapabilities.includes('frame.assist')&&driverCapabilities.includes("data-runtime={runtime?'connected':'awaiting'}")],
+  ['driver capability rail does not use undersized 9-11px labels',!driverCapabilityCss.includes('font-size:9px')&&!driverCapabilityCss.includes('font-size:10px')&&!driverCapabilityCss.includes('font-size:11px')&&driverCapabilityCss.includes('font-size:14px')&&driverCapabilityCss.includes('font-size:13px')],
+  ['short displays shed the secondary driver capability rail',driverCapabilityCss.includes('@media(max-height:560px)')&&driverCapabilityCss.includes('display:none!important')],
+  ['critical hazard visually suppresses secondary capability rail',driverCapabilityCss.includes('body:has(.hmiV5.severity-critical) .driverCapabilityRail')],
   ['driver quick actions remain compact',interaction.includes('driverActionDock')&&interaction.includes('<span>Camera</span>')&&interaction.includes('<span>Alerts</span>')],
   ['driver action sheets are modal with focus return',interaction.includes('aria-modal="true"')&&interaction.includes('returnFocusRef.current?.focus()')],
   ['temporary voice mute preserves visual safety warnings',interaction.includes('Voice muted for 5 minutes')&&interaction.includes('Critical visual safety warnings remain active')],
@@ -53,8 +58,8 @@ const checks=[
   ['roadwork lane topology presentation remains present',roadEvents.includes("kind:'roadwork'")&&roadEvents.includes('preferredLaneIndexes')],
   ['SPaT countdown sanity guard remains present',roadEvents.includes('movement.minEndTimeMs-nowMs<120_000')],
   ['emergency advisory requires approach confidence',roadEvents.includes("item.approach==='approaching'")&&roadEvents.includes('item.confidence>=.65')],
-  ['reduced motion exists across capability and motion layers',has('app/hmi-motion.css','@media(prefers-reduced-motion:reduce)')&&has('app/hmi-capabilities.css','@media(prefers-reduced-motion:reduce)')&&has('app/hmi-driver-capabilities.css','@media(prefers-reduced-motion:reduce)')],
-  ['high contrast capability styling exists',has('app/hmi-capabilities.css','@media(prefers-contrast:more)')&&has('app/hmi-driver-capabilities.css','@media(prefers-contrast:more)')],
+  ['reduced motion exists across capability and motion layers',has('app/hmi-motion.css','@media(prefers-reduced-motion:reduce)')&&has('app/hmi-capabilities.css','@media(prefers-reduced-motion:reduce)')&&driverCapabilityCss.includes('@media(prefers-reduced-motion:reduce)')],
+  ['high contrast capability styling exists',has('app/hmi-capabilities.css','@media(prefers-contrast:more)')&&driverCapabilityCss.includes('@media(prefers-contrast:more)')],
   ['52px automotive touch token remains present',has('app/hmi-apple.css','--apple-touch-target:52px')],
   ['56px quick action targets remain present',has('app/hmi-interactions.css','min-height:56px')],
   ['Playwright UI test script remains configured',pkg.scripts?.['test:ui']==='playwright test'],

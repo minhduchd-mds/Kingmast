@@ -18,7 +18,18 @@ export interface VehiclePosition extends GeoPoint { speedKmh:number; headingDeg:
 export interface DetectedObject { id:string; kind:ObjectKind; confidence:number; distanceM:number; bearingDeg:number; zone:RelativeZone; severity:Severity; relativeSpeedMps:number; position:GeoPoint; timestampMs:number; source?:PerceptionSource; }
 export interface LocationAlert { id:string; type:AlertType; severity:Severity; title:string; message:string; distanceM:number|null; objectId:string|null; position:GeoPoint; timestampMs:number; acknowledged:boolean; }
 export interface Geofence { id:string; name:string; center:GeoPoint; radiusM:number; severity:Exclude<Severity,'safe'>; enabled:boolean; }
-export interface TelemetryFrame { sequence:number; vehicle:VehiclePosition; sensors:SensorHealth; objects:DetectedObject[]; alerts:LocationAlert[]; }
+
+// Driver-assistance runtime truth is shared end-to-end. "live" means fresh validated input,
+// never vehicle-control authority. Production code must fail closed to degraded/unavailable.
+export type DriverAssistAvailability='live'|'degraded'|'unavailable'|'staged';
+export interface LaneDepartureRuntimeStatus { availability:DriverAssistAvailability; observedAtMs:number|null; ageMs:number|null; severity:Severity; side:'left'|'right'|null; timeToLineCrossingS:number|null; confidence:number; reason:string; advisoryOnly:true; }
+export type DriverAttentionRuntimeState='attentive'|'distracted'|'prolonged-distraction'|'drowsiness-suspected'|'driver-unavailable';
+export interface DriverMonitoringRuntimeStatus { availability:DriverAssistAvailability; observedAtMs:number|null; ageMs:number|null; state:DriverAttentionRuntimeState; confidence:number; perclos:number; gazeAwayRatio:number; faceAvailability:number; reason:string; storesRawVideo:false; advisoryOnly:true; }
+export interface SurroundRuntimeStatus { availability:DriverAssistAvailability; observedAtMs:number|null; ageMs:number|null; cameraCount:number; calibratedCameraCount:number; synchronizedCameraCount:number; maxReprojectionErrorPx:number|null; reason:string; visualizationOnly:true; }
+export interface AssistantRuntimeStatus { availability:DriverAssistAvailability; observedAtMs:number|null; ageMs:number|null; reason:string; readOnly:true; actuatorTools:false; }
+export interface DriverAssistRuntimeSnapshot { generatedAtMs:number; ldw:LaneDepartureRuntimeStatus; dms:DriverMonitoringRuntimeStatus; assistant:AssistantRuntimeStatus; surround:SurroundRuntimeStatus; controlAuthority:'none'; }
+
+export interface TelemetryFrame { sequence:number; vehicle:VehiclePosition; sensors:SensorHealth; objects:DetectedObject[]; alerts:LocationAlert[]; assist?:DriverAssistRuntimeSnapshot; }
 export interface CameraDetection { id:string; kind:ObjectKind; confidence:number; bearingDeg:number; estimatedDistanceM:number|null; timestampMs:number; }
 export interface CameraDetectionFrame { cameraId:string; timestampMs:number; detections:CameraDetection[]; }
 export interface RadarTrack { id:string; distanceM:number; bearingDeg:number; relativeSpeedMps:number; confidence:number; timestampMs:number; }

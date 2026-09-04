@@ -6,6 +6,7 @@ const read=(path)=>readFileSync(resolve(root,path),'utf8');
 const realtime=read('lib/realtime.ts');
 const sessionRoute=read('app/api/kingmast/session/route.ts');
 const envExample=read('../../.env.example');
+const riskServer=read('../../services/risk-engine/src/server.ts');
 const failures=[];
 function expect(name,condition){if(!condition)failures.push(name);}
 
@@ -17,6 +18,12 @@ expect('viewer cookie domain is explicitly configurable',sessionRoute.includes('
 expect('realtime establishes viewer session before websocket',realtime.indexOf('establishViewerSession')>=0&&realtime.indexOf('await establishViewerSession')<realtime.indexOf('new WebSocket'));
 expect('realtime session request includes credentials',realtime.includes("credentials:'include'"));
 expect('realtime aborts pending session request on teardown',realtime.includes('sessionAbort.abort()'));
+expect('LDW ingress requires edge authentication',riskServer.includes("app.post('/v3/assist/lane'")&&riskServer.includes("if(!requireEdgeAuth(request,reply))return"));
+expect('DMS ingress requires edge authentication',riskServer.includes("app.post('/v3/assist/dms'")&&riskServer.includes("dms-sample-rejected"));
+expect('surround ingress requires edge authentication',riskServer.includes("app.post('/v3/assist/surround'")&&riskServer.includes("surround-observation-rejected"));
+expect('assistant planner requires viewer authentication',riskServer.includes("app.post('/v3/assistant/plan'")&&riskServer.includes("if(!requireViewerAuth(request,reply))return"));
+expect('assistant input is bounded',riskServer.includes("max(240)"));
+expect('driver assist preserves zero control authority',riskServer.includes("controlAuthority:'none'")&&riskServer.includes('readOnlyAssistantPlanner:true'));
 
 if(failures.length){console.error('KINGMAST HMI security contract failed:\n'+failures.map((item)=>`- ${item}`).join('\n'));process.exit(1);}
 console.log('KINGMAST HMI security contract passed.');
