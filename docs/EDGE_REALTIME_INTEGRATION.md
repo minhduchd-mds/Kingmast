@@ -3,6 +3,12 @@
 ## Scope
 KINGMAST Edge v3 is warning-only. It ingests GNSS, radar tracks and camera classifications, fuses them into detected road objects, projects those objects onto GPS coordinates, generates location-aware alerts and streams the result to the HMI over WebSocket. It has no steering, braking, throttle, gear or torque authority.
 
+## ESP32 prototype hardware overview
+
+![KINGMAST ESP32 prototype hardware schematic](hardware/kingmast-esp32-prototype-schematic.svg)
+
+The SVG above documents the prototype power path, ESP32 controller, reference GNSS/radar connections and optional development modules. It is a research wiring reference only. Optional CAN/OBD, 4G, OLED, buzzer and auxiliary sensor blocks must not be interpreted as implemented production interfaces unless the corresponding firmware and vehicle adapter are present and validated.
+
 ## Data flow
 
 ```text
