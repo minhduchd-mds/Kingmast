@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <TinyGPSPlus.h>
@@ -24,10 +25,36 @@ bool syncClock(){if(WiFi.status()!=WL_CONNECTED)return false;configTime(0,0,NTP_
 uint64_t epochMillis(){struct timeval tv;gettimeofday(&tv,nullptr);if(tv.tv_sec<1700000000)return 0;return static_cast<uint64_t>(tv.tv_sec)*1000ULL+static_cast<uint64_t>(tv.tv_usec/1000);}
 void initBootId(){uint64_t chip=ESP.getEfuseMac();char value[64];snprintf(value,sizeof(value),"%08lX%08lX-%08lX",static_cast<unsigned long>(chip>>32),static_cast<unsigned long>(chip&0xffffffffULL),static_cast<unsigned long>(esp_random()));bootId=String(value);}
 
+bool secureConfigurationValid(){
+  const String url=String(KINGMAST_API_URL);
+  const String token=String(KINGMAST_EDGE_TOKEN);
+  const String ca=String(KINGMAST_TLS_CA_CERT);
+  if(!url.startsWith("https://")){Serial.println("KINGMAST: refusing non-HTTPS edge endpoint");return false;}
+  if(token.length()<16||token.indexOf("REPLACE_")>=0){Serial.println("KINGMAST: refusing placeholder/short edge token");return false;}
+  if(ca.indexOf("BEGIN CERTIFICATE")<0||ca.indexOf("REPLACE_WITH_GATEWAY_CA_CERTIFICATE")>=0){Serial.println("KINGMAST: refusing placeholder TLS CA certificate");return false;}
+  return true;
+}
+
 bool parseRadarCsv(const String& line,RadarTrack& track){int p1=line.indexOf(',');int p2=line.indexOf(',',p1+1);int p3=line.indexOf(',',p2+1);int p4=line.indexOf(',',p3+1);if(p1<1||p2<0||p3<0||p4<0)return false;track.id=line.substring(0,p1);track.distanceM=line.substring(p1+1,p2).toFloat();track.bearingDeg=line.substring(p2+1,p3).toFloat();track.relativeSpeedMps=line.substring(p3+1,p4).toFloat();track.confidence=line.substring(p4+1).toFloat();track.valid=track.distanceM>=0.0f&&track.distanceM<=500.0f&&track.confidence>=0.0f&&track.confidence<=1.0f;return track.valid;}
 void readSensors(){while(GpsSerial.available())gps.encode(GpsSerial.read());while(RadarSerial.available()){char c=static_cast<char>(RadarSerial.read());if(c=='\n'){RadarTrack parsed;if(parseRadarCsv(radarLine,parsed)){latestTrack=parsed;lastRadarSeenMs=millis();}radarLine="";}else if(c!='\r'&&radarLine.length()<180)radarLine+=c;}}
 
-bool postBody(const String& body){for(int attempt=0;attempt<HTTP_RETRY_COUNT;attempt++){HTTPClient http;http.begin(KINGMAST_API_URL);http.addHeader("Content-Type","application/json");if(String(KINGMAST_EDGE_TOKEN).length()>0)http.addHeader("x-kingmast-edge-token",KINGMAST_EDGE_TOKEN);http.setTimeout(1200);int status=http.POST(body);http.end();if(status>=200&&status<300)return true;delay(100*(attempt+1));}return false;}
+bool postBody(const String& body){
+  if(!secureConfigurationValid())return false;
+  for(int attempt=0;attempt<HTTP_RETRY_COUNT;attempt++){
+    WiFiClientSecure tlsClient;
+    tlsClient.setCACert(KINGMAST_TLS_CA_CERT);
+    HTTPClient http;
+    if(!http.begin(tlsClient,KINGMAST_API_URL)){delay(100*(attempt+1));continue;}
+    http.addHeader("Content-Type","application/json");
+    http.addHeader("x-kingmast-edge-token",KINGMAST_EDGE_TOKEN);
+    http.setTimeout(1200);
+    int status=http.POST(body);
+    http.end();
+    if(status>=200&&status<300)return true;
+    delay(100*(attempt+1));
+  }
+  return false;
+}
 
 void publishFrame(){
   if(WiFi.status()!=WL_CONNECTED){connectWifi();if(WiFi.status()!=WL_CONNECTED)return;}
@@ -43,5 +70,5 @@ void publishFrame(){
   String body;serializeJson(doc,body);postBody(body);
 }
 
-void setup(){Serial.begin(115200);initBootId();GpsSerial.begin(GPS_BAUD,SERIAL_8N1,GPS_RX_PIN,GPS_TX_PIN);RadarSerial.begin(RADAR_BAUD,SERIAL_8N1,RADAR_RX_PIN,RADAR_TX_PIN);connectWifi();syncClock();}
+void setup(){Serial.begin(115200);if(!secureConfigurationValid())Serial.println("KINGMAST: secure edge publishing disabled until config.h is provisioned");initBootId();GpsSerial.begin(GPS_BAUD,SERIAL_8N1,GPS_RX_PIN,GPS_TX_PIN);RadarSerial.begin(RADAR_BAUD,SERIAL_8N1,RADAR_RX_PIN,RADAR_TX_PIN);connectWifi();syncClock();}
 void loop(){readSensors();unsigned long now=millis();if(now-lastPublishMs>=PUBLISH_INTERVAL_MS){lastPublishMs=now;publishFrame();}delay(2);}
