@@ -16,7 +16,7 @@ interface HmiSettingsPanelProps {
 }
 
 function ToggleRow({icon:Icon,label,description,checked,onChange}:{icon:typeof Mic;label:string;description:string;checked:boolean;onChange:(checked:boolean)=>void}){
-  return <div className="settingsToggleRow"><span className="settingsRowIcon"><Icon strokeWidth={1.8}/></span><span className="settingsRowCopy"><strong>{label}</strong><small>{description}</small></span><button type="button" role="switch" aria-checked={checked} className={`appleSwitch ${checked?'isOn':''}`} onClick={()=>onChange(!checked)}><span/></button></div>;
+  return <div className="settingsToggleRow"><span className="settingsRowIcon"><Icon strokeWidth={1.8}/></span><span className="settingsRowCopy"><strong>{label}</strong><small>{description}</small></span><button type="button" role="switch" aria-label={label} aria-checked={checked} className={`appleSwitch ${checked?'isOn':''}`} onClick={()=>onChange(!checked)}><span/></button></div>;
 }
 
 function Segmented<T extends string>({label,value,options,onChange}:{label:string;value:T;options:Array<{value:T;label:string}>;onChange:(value:T)=>void}){
