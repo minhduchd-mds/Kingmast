@@ -13,6 +13,7 @@ import './hmi-road-events.css';
 import './hmi-first-run.css';
 import './hmi-system-management.css';
 import './hmi-resilience.css';
+import './hmi-capabilities.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 
 export const metadata={
