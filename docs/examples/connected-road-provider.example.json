@@ -1,0 +1,39 @@
+{
+  "providerId": "example-v2x-provider",
+  "timestampMs": 1893456000000,
+  "spat": [
+    {
+      "intersectionId": "junction-001",
+      "name": "Example intersection",
+      "position": {"lat": 21.0288, "lng": 105.8560},
+      "approachHeadingDeg": 90,
+      "movements": [
+        {"signalGroup": 1, "state": "stop-and-remain", "minEndTimeMs": 1893456010000, "maxEndTimeMs": 1893456018000, "confidence": 0.95}
+      ],
+      "timestampMs": 1893456000000,
+      "source": "v2x-provider"
+    }
+  ],
+  "zones": [
+    {"id":"school-001","kind":"school","name":"Example school zone","position":{"lat":21.0290,"lng":105.8570},"radiusM":250,"active":true,"advisorySpeedKmh":30,"routeDistanceM":null,"startsAtMs":null,"endsAtMs":null,"source":"authorized-provider","confidence":0.9},
+    {"id":"works-001","kind":"construction","name":"Example road works","position":{"lat":21.0300,"lng":105.8600},"radiusM":350,"active":true,"advisorySpeedKmh":40,"routeDistanceM":null,"startsAtMs":null,"endsAtMs":null,"source":"authorized-provider","confidence":0.88}
+  ],
+  "weather": {
+    "condition":"heavy-rain","temperatureC":27,"precipitationMmH":18,"visibilityM":800,"windKmh":30,"roadSurface":"standing-water","timestampMs":1893456000000,"source":"authorized-provider","confidence":0.9,
+    "hazards":[{"id":"flood-001","kind":"flooding","title":"Standing water ahead","position":{"lat":21.0295,"lng":105.8580},"distanceM":450,"severity":"critical","confidence":0.85,"expiresAtMs":1893456300000,"source":"authorized-provider"}]
+  },
+  "emergencyVehicles": [
+    {"id":"ambulance-001","kind":"ambulance","position":{"lat":21.0284,"lng":105.8530},"distanceM":300,"bearingDeg":180,"approach":"approaching","sirenDetected":true,"confidence":0.94,"timestampMs":1893456000000,"source":"v2x-provider"}
+  ],
+  "laneTopology": {
+    "roadName":"Example Expressway","roadRef":"EX1","laneCount":3,"currentLaneIndex":1,"drivingSide":"right","source":"authorized-provider","confidence":0.9,"timestampMs":1893456000000,
+    "lanes":[
+      {"index":0,"maneuvers":["straight"],"preferred":false,"exitOnly":false,"destination":null},
+      {"index":1,"maneuvers":["straight","right"],"preferred":true,"exitOnly":false,"destination":null},
+      {"index":2,"maneuvers":["right","exit"],"preferred":false,"exitOnly":true,"destination":"City Center"}
+    ]
+  },
+  "exits": [
+    {"id":"exit-03","position":{"lat":21.0350,"lng":105.8700},"ref":"E3","name":"City Center","destination":"City Center","distanceM":2300,"side":"right","targetLaneIndexes":[2],"source":"authorized-provider","confidence":0.9}
+  ]
+}

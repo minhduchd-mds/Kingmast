@@ -46,3 +46,27 @@ export type JunctionKind = 'traffic-signal'|'roundabout'|'merge'|'exit'|'crossin
 export interface JunctionPreview { id:string; position:GeoPoint; distanceAlongRouteM:number; kind:JunctionKind; roadName:string|null; }
 export interface ChargingStation { id:string; name:string; position:GeoPoint; operator:string|null; powerKw:number|null; connectors:string[]; distanceAlongRouteM:number; detourDistanceM:number; source:'osm'|'authorized-provider'; }
 export interface RouteIntelligence { speedZones:SpeedZonePreview[]; junctions:JunctionPreview[]; chargingStations:ChargingStation[]; coverage:'partial-public-map'|'provider-backed'|'unavailable'; generatedAtMs:number; notes:string[]; }
+
+// Connected-road intelligence stays advisory and does not create vehicle-control authority.
+export type ConnectedRoadSource = 'v2x-provider'|'authorized-provider'|'public-map'|'vehicle-sensor'|'simulator';
+export type SpatSignalState = 'stop-and-remain'|'protected-movement-allowed'|'permissive-movement-allowed'|'protected-clearance'|'permissive-clearance'|'dark'|'unknown';
+export interface SpatMovementState { signalGroup:number; state:SpatSignalState; minEndTimeMs:number|null; maxEndTimeMs:number|null; confidence:number; }
+export interface SpatIntersectionState { intersectionId:string; name:string|null; position:GeoPoint; approachHeadingDeg:number|null; movements:SpatMovementState[]; timestampMs:number; source:ConnectedRoadSource; }
+export type RoadZoneKind = 'school'|'construction';
+export interface RoadZoneContext { id:string; kind:RoadZoneKind; name:string|null; position:GeoPoint; radiusM:number; active:boolean; advisorySpeedKmh:number|null; routeDistanceM:number|null; startsAtMs:number|null; endsAtMs:number|null; source:ConnectedRoadSource; confidence:number; }
+export type WeatherCondition = 'clear'|'rain'|'heavy-rain'|'fog'|'storm'|'snow'|'unknown';
+export type RoadSurfaceState = 'dry'|'wet'|'standing-water'|'icy'|'snow-covered'|'unknown';
+export type RoadHazardKind = 'pothole'|'flooding'|'debris'|'low-visibility'|'slippery'|'crosswind'|'roadwork'|'unknown';
+export interface RoadHazard { id:string; kind:RoadHazardKind; title:string; position:GeoPoint; distanceM:number|null; severity:Exclude<Severity,'safe'>; confidence:number; expiresAtMs:number|null; source:ConnectedRoadSource; }
+export interface WeatherRoadContext { condition:WeatherCondition; temperatureC:number|null; precipitationMmH:number|null; visibilityM:number|null; windKmh:number|null; roadSurface:RoadSurfaceState; hazards:RoadHazard[]; timestampMs:number; source:ConnectedRoadSource; confidence:number; }
+export type EmergencyVehicleKind = 'ambulance'|'fire'|'police'|'rescue'|'unknown';
+export type EmergencyApproach = 'approaching'|'receding'|'stationary'|'unknown';
+export interface EmergencyVehicleAdvisory { id:string; kind:EmergencyVehicleKind; position:GeoPoint; distanceM:number|null; bearingDeg:number|null; approach:EmergencyApproach; sirenDetected:boolean; confidence:number; timestampMs:number; source:ConnectedRoadSource; }
+export type LaneManeuver = 'straight'|'left'|'right'|'uturn'|'merge-left'|'merge-right'|'exit'|'unknown';
+export interface LaneDescriptor { index:number; maneuvers:LaneManeuver[]; preferred:boolean; exitOnly:boolean; destination:string|null; }
+export interface LaneTopology { roadName:string|null; roadRef:string|null; laneCount:number; currentLaneIndex:number|null; lanes:LaneDescriptor[]; drivingSide:'left'|'right'|'unknown'; source:ConnectedRoadSource; confidence:number; timestampMs:number; }
+export interface HighwayExitGuidance { id:string; position:GeoPoint; ref:string|null; name:string|null; destination:string|null; distanceM:number; side:'left'|'right'|'unknown'; targetLaneIndexes:number[]; source:ConnectedRoadSource; confidence:number; }
+export type ConnectedRoadCategory = 'emergency-vehicle'|'spat'|'school-zone'|'construction-zone'|'weather'|'road-hazard'|'lane-guidance'|'highway-exit';
+export interface ConnectedRoadAdvisory { id:string; category:ConnectedRoadCategory; severity:Severity; priority:number; title:string; message:string; distanceM:number|null; dedupeKey:string; suppressible:boolean; expiresAtMs:number|null; source:ConnectedRoadSource; }
+export interface ConnectedRoadProviderSnapshot { providerId:string; timestampMs:number; spat?:SpatIntersectionState[]; zones?:RoadZoneContext[]; weather?:WeatherRoadContext|null; emergencyVehicles?:EmergencyVehicleAdvisory[]; laneTopology?:LaneTopology|null; exits?:HighwayExitGuidance[]; }
+export interface ConnectedRoadContext { spat:SpatIntersectionState[]; zones:RoadZoneContext[]; weather:WeatherRoadContext|null; emergencyVehicles:EmergencyVehicleAdvisory[]; laneTopology:LaneTopology|null; exits:HighwayExitGuidance[]; advisories:ConnectedRoadAdvisory[]; suppressedCount:number; suppressionReason:string|null; coverage:'provider-backed'|'partial-public-map'|'simulator'|'unavailable'; generatedAtMs:number; notes:string[]; }

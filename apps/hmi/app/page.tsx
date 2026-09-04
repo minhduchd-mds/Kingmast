@@ -1,1 +1,1 @@
-export {default} from '../components/KingmastV5';
+export {default} from '../components/KingmastV006';

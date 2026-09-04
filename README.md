@@ -2,7 +2,7 @@
 
 **Development version: v0.0.6**
 
-KINGMAST is a safety-first ADAS research platform for electric vehicles. The production boundary remains **warning-only Level 0 driver assistance**: speed, forward/rear gap, THW/TTC, surround awareness, GPS positioning, road-object detection, location-aware alerts, navigation context, EV route intelligence, sensor health and event logging.
+KINGMAST is a safety-first ADAS research platform for electric vehicles. The production boundary remains **warning-only Level 0 driver assistance**: speed, forward/rear gap, THW/TTC, surround awareness, GPS positioning, road-object detection, location-aware alerts, navigation context, EV route intelligence, connected-road context, sensor health and event logging.
 
 > Safety boundary: this repository does **not** issue steering, braking, throttle or drivetrain commands. Vehicle adapters are read-only by design. Autonomous-driving work belongs in a separate simulation-only lab.
 
@@ -18,6 +18,9 @@ KINGMAST is a safety-first ADAS research platform for electric vehicles. The pro
 - Route alternatives with deterministic EV energy and projected arrival battery estimates.
 - Route-aware mapped junction, crossing, roundabout and charging-station context.
 - Blind-spot and low-speed rear cross-traffic advisories from fused object metadata.
+- Connected-road provider abstraction for V2X/SPaT, school/construction zones, weather/road hazards, emergency vehicles, lane topology and highway exits.
+- Intelligent connected-road alert suppression so collision-critical perception always owns driver attention.
+- Compact connected-road HUD ribbon rather than another dashboard-style screen.
 - Sustained off-route detection with cooldown-protected rerouting.
 - Optional short voice prompts for turns, camera context, speed limits and rerouting.
 - Moving destination-edit and route-selection lock for real vehicle sources.
@@ -30,19 +33,19 @@ KINGMAST is a safety-first ADAS research platform for electric vehicles. The pro
 ## Versioning during development
 KINGMAST is still in active development. Adding a feature batch does **not** automatically create a new product version. The repository stays on **v0.0.6** until an explicit release checkpoint is approved.
 
-API paths such as `/v3`, `/v4` and `/v5` are **interface generations**, not the KINGMAST product version. See `docs/VERSIONING.md`.
+API paths such as `/v3`, `/v4` and `/v5` are **interface generations**, not the KINGMAST product version. Connected-road endpoints intentionally use descriptive paths instead of implying another product release. See `docs/VERSIONING.md`.
 
 ## Monorepo
 ```text
 apps/hmi/                  Next.js automotive HMI
 services/risk-engine/      Fastify risk, fusion, road-context and realtime API
-packages/contracts/        Shared typed telemetry/navigation contracts
+packages/contracts/        Shared typed telemetry/navigation/connected-road contracts
 edge/esp32/                GNSS/radar edge publisher reference firmware
 edge/camera-detector/      Camera object/speed-sign metadata publisher
 database/                  PostgreSQL migrations
 safety/                    Safety policy and traceability
 skills/ecc-plan/           Engineering Control & Compliance planning skill
-docs/                      Architecture, HMI, navigation and ECU plans
+docs/                      Architecture, HMI, navigation and connected-road plans
 tests/scenarios/           Deterministic ADAS scenarios
 autonomy-lab/              Simulation-only R&D boundary
 ```
@@ -68,6 +71,13 @@ The HMI falls back to a deterministic simulator when the edge WebSocket is unava
 - `GET /v4/road-context/providers` — provider/coverage policy.
 - `POST /v5/navigation/alternatives` — route alternatives and EV estimates.
 - `POST /v5/navigation/intelligence` — route speed zones, junctions and charging context.
+
+## Connected-road API
+- `POST /connected-road/provider` — authenticated provider snapshot ingest for SPaT, zones, weather, emergency vehicles, lanes and exits.
+- `POST /connected-road/context` — fused read-only driver context with priority suppression.
+- `GET /connected-road/capabilities` — connected-road capability/policy surface.
+
+Live SPaT and emergency-vehicle state require an explicitly authorized provider. Public maps must never be presented as live signal phase.
 
 ## Realtime API
 - `POST /v3/edge/frame` — authenticated protocol-v1 ESP32 packet.
@@ -95,6 +105,8 @@ database/003_edge_operations.sql
 ```
 
 ## Safety model
-`THW = range / egoSpeed`. `closingSpeed = egoSpeed - targetSpeed`. `TTC = range / closingSpeed` only when the gap is closing. Safety decisions are timestamp/confidence aware; stale camera/radar/GNSS inputs are degraded or rejected. GPS, map and navigation context never create vehicle-control authority.
+`THW = range / egoSpeed`. `closingSpeed = egoSpeed - targetSpeed`. `TTC = range / closingSpeed` only when the gap is closing. Safety decisions are timestamp/confidence aware; stale camera/radar/GNSS inputs are degraded or rejected. GPS, map, navigation and connected-road context never create vehicle-control authority.
+
+See `docs/CONNECTED_ROAD_INTELLIGENCE.md` and `safety/CONNECTED_ROAD_WARNING_POLICY.md` for the latest feature batch.
 
 KINGMAST is Apple-inspired but is not an official Apple CarPlay app, not AEB/ACC and not a homologated safety product.
