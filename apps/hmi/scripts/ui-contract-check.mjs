@@ -26,7 +26,7 @@ const checks=[
   ['automotive touch target token is at least 52px',css.includes('--apple-touch-target:52px')],
   ['quick action dock uses 56px driving targets',interactionCss.includes('min-height:56px')],
   ['focus-visible treatment is present',interactionCss.includes(':focus-visible')&&interactionCss.includes('outline:3px solid #79bfff')],
-  ['driver sheet is a true modal dialog with focus containment',interaction.includes('aria-modal="true"')&&interaction.includes("event.key==='Tab'")&&interaction.includes('returnFocusRef')],
+  ['driver sheet is a true modal dialog with focus containment',interaction.includes('aria-modal="true"')&&interaction.includes("event.key!=='Tab'")&&interaction.includes('querySelectorAll<HTMLElement>')&&interaction.includes('returnFocusRef')],
   ['temporary voice mute restores automatically',interaction.includes('5*60_000')&&interaction.includes('Voice guidance restored')],
   ['camera acknowledgement reduces duplicate interaction prominence',interaction.includes('acknowledgedCamera')&&interaction.includes('Visual route context remains active')],
   ['event feedback uses finite dismiss timers',motionFeedback.includes("tone==='critical'?3600:2600")&&motionFeedback.includes('setTimeout')],
