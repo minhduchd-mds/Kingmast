@@ -2,6 +2,7 @@ import type {
   ConnectedRoadAdvisory,
   ConnectedRoadContext,
   ConnectedRoadProviderSnapshot,
+  ConnectedRoadProviderStatus,
   ConnectedRoadSource,
   EmergencyVehicleAdvisory,
   GeoPoint,
@@ -33,6 +34,9 @@ function routeDistance(point:GeoPoint,vehicle:GeoPoint,route:NavigationRoute|nul
 function fresh(timestampMs:number,maxAgeMs:number,nowMs:number){return timestampMs<=nowMs+30_000&&nowMs-timestampMs<=maxAgeMs;}
 function activeZone(zone:RoadZoneContext,nowMs:number){return zone.active&&(zone.startsAtMs===null||zone.startsAtMs<=nowMs)&&(zone.endsAtMs===null||zone.endsAtMs>=nowMs);}
 function advisory(id:string,category:ConnectedRoadAdvisory['category'],severity:Severity,priority:number,title:string,message:string,distanceM:number|null,dedupeKey:string,source:ConnectedRoadSource,expiresAtMs:number|null=null,suppressible=true):ConnectedRoadAdvisory{return{id,category,severity,priority,title,message,distanceM,dedupeKey,suppressible,expiresAtMs,source};}
+function snapshotUsesLiveV2x(snapshot:ConnectedRoadProviderSnapshot){return(snapshot.spat??[]).some((item)=>item.source==='v2x-provider')||(snapshot.emergencyVehicles??[]).some((item)=>item.source==='v2x-provider');}
+function snapshotLiveV2xTrusted(snapshot:ConnectedRoadProviderSnapshot,nowMs:number){const security=snapshot.security;if(!security)return false;if(security.certificateExpiresAtMs!==null&&security.certificateExpiresAtMs<=nowMs)return false;return security.trustStatus==='verified'||security.trustStatus==='expiring';}
+function sourceAllowed(source:ConnectedRoadSource,snapshot:ConnectedRoadProviderSnapshot,nowMs:number){return source!=='v2x-provider'||snapshotLiveV2xTrusted(snapshot,nowMs);}
 
 function simulator(vehicle:VehiclePosition,route:NavigationRoute|null,nowMs:number){
   const signalPoint=projectPoint(vehicle,vehicle.headingDeg,420);const schoolPoint=projectPoint(vehicle,vehicle.headingDeg,760);const worksPoint=projectPoint(vehicle,vehicle.headingDeg,1_450);const exitPoint=projectPoint(vehicle,vehicle.headingDeg,2_350);
@@ -47,12 +51,12 @@ function simulator(vehicle:VehiclePosition,route:NavigationRoute|null,nowMs:numb
 function merge(nowMs:number){
   const spat:SpatIntersectionState[]=[];const zones:RoadZoneContext[]=[];const emergencyVehicles:EmergencyVehicleAdvisory[]=[];const exits:HighwayExitGuidance[]=[];let weather:WeatherRoadContext|null=null;let laneTopology:LaneTopology|null=null;
   for(const snapshot of snapshots.values()){
-    for(const item of snapshot.spat??[])if(fresh(item.timestampMs,MAX_AGE.spat,nowMs))spat.push(item);
-    for(const zone of snapshot.zones??[])if(fresh(snapshot.timestampMs,MAX_AGE.zones,nowMs))zones.push(zone);
-    for(const item of snapshot.emergencyVehicles??[])if(fresh(item.timestampMs,MAX_AGE.emergency,nowMs))emergencyVehicles.push(item);
-    for(const exit of snapshot.exits??[])if(fresh(snapshot.timestampMs,MAX_AGE.topology,nowMs))exits.push(exit);
-    if(snapshot.weather&&fresh(snapshot.weather.timestampMs,MAX_AGE.weather,nowMs)&&(!weather||snapshot.weather.timestampMs>weather.timestampMs))weather=snapshot.weather;
-    if(snapshot.laneTopology&&fresh(snapshot.laneTopology.timestampMs,MAX_AGE.topology,nowMs)&&(!laneTopology||snapshot.laneTopology.timestampMs>laneTopology.timestampMs))laneTopology=snapshot.laneTopology;
+    for(const item of snapshot.spat??[])if(sourceAllowed(item.source,snapshot,nowMs)&&fresh(item.timestampMs,MAX_AGE.spat,nowMs))spat.push(item);
+    for(const zone of snapshot.zones??[])if(sourceAllowed(zone.source,snapshot,nowMs)&&fresh(snapshot.timestampMs,MAX_AGE.zones,nowMs))zones.push(zone);
+    for(const item of snapshot.emergencyVehicles??[])if(sourceAllowed(item.source,snapshot,nowMs)&&fresh(item.timestampMs,MAX_AGE.emergency,nowMs))emergencyVehicles.push(item);
+    for(const exit of snapshot.exits??[])if(sourceAllowed(exit.source,snapshot,nowMs)&&fresh(snapshot.timestampMs,MAX_AGE.topology,nowMs))exits.push(exit);
+    if(snapshot.weather&&sourceAllowed(snapshot.weather.source,snapshot,nowMs)&&fresh(snapshot.weather.timestampMs,MAX_AGE.weather,nowMs)&&(!weather||snapshot.weather.timestampMs>weather.timestampMs))weather=snapshot.weather;
+    if(snapshot.laneTopology&&sourceAllowed(snapshot.laneTopology.source,snapshot,nowMs)&&fresh(snapshot.laneTopology.timestampMs,MAX_AGE.topology,nowMs)&&(!laneTopology||snapshot.laneTopology.timestampMs>laneTopology.timestampMs))laneTopology=snapshot.laneTopology;
   }
   return{spat,zones,weather,emergencyVehicles,laneTopology,exits};
 }
@@ -77,8 +81,9 @@ export function suppressConnectedRoadAdvisories(items:ConnectedRoadAdvisory[],co
 export function replaceConnectedRoadProvider(snapshot:ConnectedRoadProviderSnapshot){snapshots.set(snapshot.providerId,snapshot);return snapshot;}
 export function configuredConnectedRoadProviderCount(){return snapshots.size;}
 export function clearConnectedRoadProviders(){snapshots.clear();}
+export function connectedRoadProviderStatus(nowMs=Date.now()):ConnectedRoadProviderStatus[]{return[...snapshots.values()].map((snapshot)=>{const snapshotAgeMs=Math.max(0,nowMs-snapshot.timestampMs);const usesLiveV2x=snapshotUsesLiveV2x(snapshot);const liveV2xTrusted=usesLiveV2x&&snapshotLiveV2xTrusted(snapshot,nowMs);const security=snapshot.security??null;const securityBad=security!==null&&(['expired','revoked','untrusted'].includes(security.trustStatus)||(security.certificateExpiresAtMs!==null&&security.certificateExpiresAtMs<=nowMs));const state:ConnectedRoadProviderStatus['state']=snapshotAgeMs>MAX_AGE.topology?'stale':(usesLiveV2x&&!liveV2xTrusted)||securityBad?'degraded':'healthy';return{providerId:snapshot.providerId,snapshotAgeMs,state,security,liveV2xTrusted};}).sort((a,b)=>a.providerId.localeCompare(b.providerId));}
 
 export async function getConnectedRoadContext(input:{vehicle:VehiclePosition;route:NavigationRoute|null;collisionCritical:boolean}):Promise<ConnectedRoadContext>{
   const nowMs=Date.now();const provider=merge(nowMs);const demo=input.vehicle.source==='simulator'?simulator(input.vehicle,input.route,nowMs):null;const spat=provider.spat.length?provider.spat:(demo?.spat??[]);const zones=(provider.zones.length?provider.zones:(demo?.zones??[])).map((zone)=>({...zone,routeDistanceM:zone.routeDistanceM??routeDistance(zone.position,input.vehicle,input.route)}));const weather=provider.weather??demo?.weather??null;const emergencyVehicles=provider.emergencyVehicles.length?provider.emergencyVehicles:(demo?.emergencyVehicles??[]);const laneTopology=provider.laneTopology??demo?.laneTopology??null;const exits=(provider.exits.length?provider.exits:(demo?.exits??[])).sort((a,b)=>a.distanceM-b.distanceM);const built=candidates({vehicle:input.vehicle,route:input.route,spat,zones,weather,emergencyVehicles,laneTopology,exits,nowMs});const suppressed=suppressConnectedRoadAdvisories(built,input.collisionCritical,nowMs);const providerBacked=provider.spat.length>0||provider.zones.length>0||provider.weather!==null||provider.emergencyVehicles.length>0||provider.laneTopology!==null||provider.exits.length>0;const coverage:ConnectedRoadContext['coverage']=providerBacked?'provider-backed':demo?'simulator':'unavailable';
-  return{spat,zones,weather,emergencyVehicles,laneTopology,exits,advisories:suppressed.advisories,suppressedCount:suppressed.suppressedCount,suppressionReason:suppressed.suppressionReason,coverage,generatedAtMs:nowMs,notes:['Connected-road data is advisory only and never creates steering, braking, throttle or CAN-write authority.','Live SPaT and emergency-vehicle status require an authorized V2X/provider feed. Public maps must not be presented as live signal state.','School/construction, weather, lane and exit data may be incomplete. Posted signs, signals, road conditions and driver observation remain authoritative.']};
+  return{spat,zones,weather,emergencyVehicles,laneTopology,exits,advisories:suppressed.advisories,suppressedCount:suppressed.suppressedCount,suppressionReason:suppressed.suppressionReason,coverage,generatedAtMs:nowMs,notes:['Connected-road data is advisory only and never creates steering, braking, throttle or CAN-write authority.','Live SPaT and emergency-vehicle state from a V2X provider is accepted only when provider security is verified or explicitly expiring and the certificate is not expired.','School/construction, weather, lane and exit data may be incomplete. Posted signs, signals, road conditions and driver observation remain authoritative.']};
 }
