@@ -1,8 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function primeReturningUser(page:Page){
+  await page.addInitScript(()=>localStorage.setItem('kingmast:v006:first-run-complete','1'));
+}
+
 async function openHmi(page:Page,width:number,height:number,reducedMotion=true){
   await page.setViewportSize({width,height});
   if(reducedMotion)await page.emulateMedia({reducedMotion:'reduce'});
+  await primeReturningUser(page);
   await page.goto('/');
   await expect(page.locator('main.appShell')).toBeVisible({timeout:7_000});
 }
@@ -12,8 +17,9 @@ async function hasHorizontalOverflow(page:Page){
 }
 
 test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
-  test('startup experience is branded, calm and completes into Drive',async({page})=>{
+  test('startup experience is branded, calm and completes into Drive for a returning driver',async({page})=>{
     await page.setViewportSize({width:1366,height:768});
+    await primeReturningUser(page);
     await page.goto('/');
     const startup=page.getByTestId('kingmast-startup');
     await expect(startup).toBeVisible();
@@ -26,6 +32,28 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await expect(page.locator('.speedLimitSign')).toBeVisible();
     await expect(page.getByTestId('driver-action-dock')).toBeVisible();
     expect(await hasHorizontalOverflow(page)).toBe(false);
+  });
+
+  test('first-run setup is contextual, privacy-aware and preserves critical warnings',async({page})=>{
+    await page.setViewportSize({width:1366,height:768});
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await page.goto('/');
+    const setup=page.getByTestId('first-run-experience');
+    await expect(setup).toBeVisible({timeout:4_000});
+    await expect(setup).toContainText('Safety first. Minimal setup.');
+    await expect(setup).toContainText('Critical collision and vulnerable-road-user warnings always stay active.');
+    await setup.getByRole('button',{name:/Continue/}).click();
+    await expect(setup).toContainText('Location');
+    await expect(setup).toContainText('does not store coordinates');
+    await setup.getByRole('button',{name:/Continue/}).last().click();
+    await expect(setup).toContainText(/Host network available|Offline mode is ready/);
+    await setup.getByRole('button',{name:'Continue'}).click();
+    await expect(setup).toContainText('Your driving view is configured.');
+    await expect(setup.getByRole('switch',{name:'Optional road advisories during first-run setup'})).toHaveAttribute('aria-checked','true');
+    await setup.getByRole('button',{name:/Start KINGMAST/}).click();
+    await expect(page.locator('main.appShell')).toBeVisible();
+    const stored=await page.evaluate(()=>localStorage.getItem('kingmast:v006:first-run-complete'));
+    expect(stored).toBe('1');
   });
 
   test('primary navigation and driver controls keep automotive touch targets',async({page})=>{
@@ -79,6 +107,18 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     expect(stored.advisoryAlerts).toBe(false);
   });
 
+  test('offline mode is explicit and pauses connected-road UI without hiding core HMI',async({page,context})=>{
+    await openHmi(page,1366,768);
+    await context.setOffline(true);
+    const offline=page.getByTestId('offline-mode');
+    await expect(offline).toBeVisible();
+    await expect(offline).toContainText('Primary on-vehicle warnings remain active');
+    await expect(page.locator('main.appShell')).toBeVisible();
+    await expect(page.locator('.connectedRoadHud')).toHaveCount(0);
+    await context.setOffline(false);
+    await expect(offline).toBeHidden();
+  });
+
   test('web preview reports Wi-Fi as host-managed instead of faking radio control',async({page})=>{
     await openHmi(page,1366,768);
     await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
@@ -92,11 +132,11 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await page.addInitScript(()=>{
       let enabled=true;let connectedSsid:string|null=null;
       (window as unknown as {kingmastNative:unknown}).kingmastNative={wifi:{
-        getState:async()=>({enabled,connectedSsid}),
-        setEnabled:async(next:boolean)=>{enabled=next;if(!next)connectedSsid=null;return{enabled,connectedSsid};},
+        getState:async()=>({enabled,connectedSsid,internetReachable:Boolean(connectedSsid)}),
+        setEnabled:async(next:boolean)=>{enabled=next;if(!next)connectedSsid=null;return{enabled,connectedSsid,internetReachable:Boolean(connectedSsid)};},
         scan:async()=>[{ssid:'KINGMAST Lab',signal:4,secure:true,saved:false},{ssid:'Guest',signal:2,secure:false,saved:false}],
-        connect:async(input:{ssid:string;password?:string})=>{if(input.ssid==='KINGMAST Lab'&&input.password!=='test-pass')throw new Error('bad password');connectedSsid=input.ssid;return{enabled,connectedSsid};},
-        disconnect:async()=>{connectedSsid=null;return{enabled,connectedSsid};},
+        connect:async(input:{ssid:string;password?:string})=>{if(input.ssid==='KINGMAST Lab'&&input.password!=='test-pass')throw new Error('bad password');connectedSsid=input.ssid;return{enabled,connectedSsid,internetReachable:true};},
+        disconnect:async()=>{connectedSsid=null;return{enabled,connectedSsid,internetReachable:false};},
       }};
     });
     await openHmi(page,1366,768);
@@ -109,6 +149,28 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await wifi.getByLabel('Network password').fill('test-pass');
     await wifi.getByRole('button',{name:'Connect'}).click();
     await expect(wifi).toContainText('Connected to KINGMAST Lab');
+  });
+
+  test('saved Wi-Fi network reconnects without asking for the password again',async({page})=>{
+    await page.addInitScript(()=>{
+      let enabled=true;let connectedSsid:string|null=null;
+      (window as unknown as {kingmastNative:unknown}).kingmastNative={wifi:{
+        getState:async()=>({enabled,connectedSsid,internetReachable:Boolean(connectedSsid)}),
+        setEnabled:async(next:boolean)=>{enabled=next;return{enabled,connectedSsid,internetReachable:Boolean(connectedSsid)};},
+        scan:async()=>[{ssid:'Fleet Secure',signal:4,secure:true,saved:true}],
+        connect:async(input:{ssid:string})=>{connectedSsid=input.ssid;return{enabled,connectedSsid,internetReachable:true};},
+        disconnect:async()=>{connectedSsid=null;return{enabled,connectedSsid,internetReachable:false};},
+        forget:async()=>{connectedSsid=null;return{enabled,connectedSsid,internetReachable:false};},
+      }};
+    });
+    await openHmi(page,1366,768);
+    await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
+    const wifi=page.getByTestId('wifi-settings');
+    await wifi.getByRole('button',{name:/Scan/}).click();
+    await expect(wifi).toContainText('Known network');
+    await wifi.getByRole('button',{name:/Fleet Secure/}).click();
+    await expect(wifi).toContainText('Connected to Fleet Secure');
+    await expect(wifi.getByLabel('Network password')).toHaveCount(0);
   });
 
   test('voice action gives immediate non-blocking feedback',async({page})=>{
@@ -191,6 +253,7 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
   test('reduced motion removes event animation without removing interaction feedback',async({page})=>{
     await page.setViewportSize({width:1366,height:768});
     await page.emulateMedia({reducedMotion:'reduce'});
+    await primeReturningUser(page);
     const started=Date.now();
     await page.goto('/');
     await expect(page.locator('main.appShell')).toBeVisible({timeout:2_000});
