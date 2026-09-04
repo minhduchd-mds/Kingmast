@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect,useRef,useState } from 'react';
-import type { ConnectedRoadContext,NavigationRoute,VehiclePosition } from '@kingmast/contracts';
+import type { ConnectedRoadContext,ConnectedRoadProviderStatus,NavigationRoute,VehiclePosition } from '@kingmast/contracts';
 
 function apiBase(){return(process.env.NEXT_PUBLIC_KINGMAST_API_URL??'http://localhost:4000').replace(/\/$/,'');}
 
 export interface ConnectedRoadController{context:ConnectedRoadContext|null;loading:boolean;error:string|null;}
+export interface ConnectedRoadProviderController{providers:ConnectedRoadProviderStatus[];loading:boolean;error:string|null;}
 
 export function useConnectedRoadContext(vehicle:VehiclePosition|null,route:NavigationRoute|null,collisionCritical:boolean,enabled=true):ConnectedRoadController{
   const[context,setContext]=useState<ConnectedRoadContext|null>(null);const[loading,setLoading]=useState(false);const[error,setError]=useState<string|null>(null);
@@ -33,4 +34,20 @@ export function useConnectedRoadContext(vehicle:VehiclePosition|null,route:Navig
   },[active,routeRevision,collisionCritical,enabled]);
 
   return{context,loading,error};
+}
+
+export function useConnectedRoadProviderStatus(enabled=true):ConnectedRoadProviderController{
+  const[providers,setProviders]=useState<ConnectedRoadProviderStatus[]>([]);const[loading,setLoading]=useState(false);const[error,setError]=useState<string|null>(null);
+  useEffect(()=>{
+    if(!enabled){setProviders([]);setLoading(false);setError(null);return;}
+    let cancelled=false;let inFlight=false;
+    const load=async()=>{
+      if(inFlight)return;inFlight=true;setLoading(true);
+      try{const response=await fetch(`${apiBase()}/connected-road/status`,{cache:'no-store'});if(!response.ok)throw new Error(`connected-road-status-${response.status}`);const value=await response.json() as {providers?:ConnectedRoadProviderStatus[]};if(!cancelled){setProviders(Array.isArray(value.providers)?value.providers:[]);setError(null);}}
+      catch(errorValue){if(!cancelled){setProviders([]);setError(errorValue instanceof Error?errorValue.message:'connected-road-status-unavailable');}}
+      finally{inFlight=false;if(!cancelled)setLoading(false);}
+    };
+    void load();const timer=window.setInterval(()=>void load(),15_000);return()=>{cancelled=true;window.clearInterval(timer);};
+  },[enabled]);
+  return{providers,loading,error};
 }
