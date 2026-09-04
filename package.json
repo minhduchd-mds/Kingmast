@@ -11,5 +11,10 @@
     "test": "pnpm -r test",
     "safety:boundary": "node scripts/safety-boundary-check.mjs"
   },
+  "pnpm": {
+    "overrides": {
+      "postcss": "8.5.18"
+    }
+  },
   "devDependencies": {"concurrently":"^9.2.1","typescript":"^5.9.2"}
 }
