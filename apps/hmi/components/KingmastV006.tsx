@@ -4,6 +4,7 @@ import { AlertTriangle,Bell,CloudRain,Construction,Navigation,Route,School,Shiel
 import { useEffect,useMemo,useRef,useState } from 'react';
 import type { ConnectedRoadAdvisory,NavigationRoute,TelemetryFrame } from '@kingmast/contracts';
 import KingmastV5 from './KingmastV5';
+import StartupExperience from './StartupExperience';
 import { createSimulationFrame } from '../lib/telemetry';
 import type { KingmastTelemetryEventDetail } from '../lib/realtime';
 import { useConnectedRoadContext } from '../lib/connected-road';
@@ -97,4 +98,8 @@ function ConnectedRoadHud(){
   </aside>;
 }
 
-export default function KingmastV006(){return <><KingmastV5/><ConnectedRoadHud/></>;}
+export default function KingmastV006(){
+  const[bootComplete,setBootComplete]=useState(false);
+  if(!bootComplete)return <StartupExperience onComplete={()=>setBootComplete(true)}/>;
+  return <div className="kingmastExperience"><KingmastV5/><ConnectedRoadHud/></div>;
+}

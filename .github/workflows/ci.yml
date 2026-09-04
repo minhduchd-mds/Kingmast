@@ -22,3 +22,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Install Chromium for HMI verification
+        run: pnpm --filter @kingmast/hmi exec playwright install --with-deps chromium
+      - name: Run automotive HMI UI tests
+        run: pnpm --filter @kingmast/hmi test:ui
