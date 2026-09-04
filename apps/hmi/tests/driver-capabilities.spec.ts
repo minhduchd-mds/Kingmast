@@ -26,14 +26,23 @@ test.describe('driver-facing assistance capability rail',()=>{
     await openReturningDriver(page,1366,768);
     await page.evaluate(()=>{
       const now=Date.now();
-      window.dispatchEvent(new CustomEvent('kingmast:telemetry',{detail:{frame:{assist:{
+      const assist={
         generatedAtMs:now,
-        controlAuthority:'none',
-        ldw:{availability:'live',observedAtMs:now,ageMs:20,severity:'caution',side:'right',timeToLineCrossingS:1.2,confidence:.93,reason:'lane-departure-right',advisoryOnly:true},
-        dms:{availability:'live',observedAtMs:now,ageMs:15,state:'attentive',confidence:.91,perclos:.08,gazeAwayRatio:.12,faceAvailability:.98,reason:'attention-within-thresholds',storesRawVideo:false,advisoryOnly:true},
-        assistant:{availability:'live',observedAtMs:now,ageMs:0,reason:'read-only-context-ready',readOnly:true,actuatorTools:false},
-        surround:{availability:'live',observedAtMs:now,ageMs:30,cameraCount:4,calibratedCameraCount:4,synchronizedCameraCount:4,maxReprojectionErrorPx:1.7,reason:'surround-calibration-ready',visualizationOnly:true},
-      }}}}));
+        controlAuthority:'none' as const,
+        ldw:{availability:'live' as const,observedAtMs:now,ageMs:20,severity:'caution' as const,side:'right' as const,timeToLineCrossingS:1.2,confidence:.93,reason:'lane-departure-right',advisoryOnly:true as const},
+        dms:{availability:'live' as const,observedAtMs:now,ageMs:15,state:'attentive' as const,confidence:.91,perclos:.08,gazeAwayRatio:.12,faceAvailability:.98,reason:'attention-within-thresholds',storesRawVideo:false as const,advisoryOnly:true as const},
+        assistant:{availability:'live' as const,observedAtMs:now,ageMs:0,reason:'read-only-context-ready',readOnly:true as const,actuatorTools:false as const},
+        surround:{availability:'live' as const,observedAtMs:now,ageMs:30,cameraCount:4,calibratedCameraCount:4,synchronizedCameraCount:4,maxReprojectionErrorPx:1.7,reason:'surround-calibration-ready',visualizationOnly:true as const},
+      };
+      const frame={
+        sequence:42,
+        vehicle:{lat:21.0285,lng:105.8542,speedKmh:48,headingDeg:0,accuracyM:2,timestampMs:now,source:'gnss' as const},
+        sensors:{radarFront:'ok' as const,radarRear:'ok' as const,camera:'ok' as const,can:'ok' as const,gnssImu:'ok' as const,ecu:'ok' as const},
+        objects:[],
+        alerts:[],
+        assist,
+      };
+      window.dispatchEvent(new CustomEvent('kingmast:telemetry',{detail:{frame,receivedAtMs:now,diagnostics:null}}));
     });
     const rail=page.getByTestId('driver-capability-rail');
     await expect(rail).toHaveAttribute('data-runtime','connected');
