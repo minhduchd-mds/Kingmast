@@ -18,87 +18,63 @@ export type AlertType =
   | 'geofence-entry'
   | 'sensor-degraded';
 
-export interface GeoPoint {
-  lat: number;
-  lng: number;
+export interface GeoPoint { lat:number; lng:number; }
+export interface VehicleSample { timestampMs:number; egoSpeedMps:number; targetSpeedMps:number; rangeM:number; confidence:number; canHealthy:boolean; radarHealthy:boolean; cameraHealthy:boolean; }
+export interface RiskAssessment { severity:Severity; ttcS:number|null; thwS:number|null; closingSpeedMps:number; confidence:number; reasons:string[]; }
+export interface SensorHealth { radarFront:SensorState; radarRear:SensorState; camera:SensorState; can:SensorState; gnssImu:SensorState; ecu:SensorState; }
+export interface VehiclePosition extends GeoPoint { speedKmh:number; headingDeg:number; accuracyM:number; timestampMs:number; source:'gnss'|'device-gps'|'simulator'; }
+export interface DetectedObject { id:string; kind:ObjectKind; confidence:number; distanceM:number; bearingDeg:number; zone:RelativeZone; severity:Severity; relativeSpeedMps:number; position:GeoPoint; timestampMs:number; }
+export interface LocationAlert { id:string; type:AlertType; severity:Severity; title:string; message:string; distanceM:number|null; objectId:string|null; position:GeoPoint; timestampMs:number; acknowledged:boolean; }
+export interface Geofence { id:string; name:string; center:GeoPoint; radiusM:number; severity:Exclude<Severity,'safe'>; enabled:boolean; }
+export interface TelemetryFrame { sequence:number; vehicle:VehiclePosition; sensors:SensorHealth; objects:DetectedObject[]; alerts:LocationAlert[]; }
+
+export interface CameraDetection {
+  id:string;
+  kind:ObjectKind;
+  confidence:number;
+  bearingDeg:number;
+  estimatedDistanceM:number|null;
+  timestampMs:number;
 }
 
-export interface VehicleSample {
-  timestampMs: number;
-  egoSpeedMps: number;
-  targetSpeedMps: number;
-  rangeM: number;
-  confidence: number;
-  canHealthy: boolean;
-  radarHealthy: boolean;
-  cameraHealthy: boolean;
+export interface CameraDetectionFrame {
+  cameraId:string;
+  timestampMs:number;
+  detections:CameraDetection[];
 }
 
-export interface RiskAssessment {
-  severity: Severity;
-  ttcS: number | null;
-  thwS: number | null;
-  closingSpeedMps: number;
-  confidence: number;
-  reasons: string[];
+export interface RadarTrack {
+  id:string;
+  distanceM:number;
+  bearingDeg:number;
+  relativeSpeedMps:number;
+  confidence:number;
+  timestampMs:number;
 }
 
-export interface SensorHealth {
-  radarFront: SensorState;
-  radarRear: SensorState;
-  camera: SensorState;
-  can: SensorState;
-  gnssImu: SensorState;
-  ecu: SensorState;
+export interface RadarTrackFrame {
+  radarId:string;
+  timestampMs:number;
+  tracks:RadarTrack[];
 }
 
-export interface VehiclePosition extends GeoPoint {
-  speedKmh: number;
-  headingDeg: number;
-  accuracyM: number;
-  timestampMs: number;
-  source: 'gnss' | 'device-gps' | 'simulator';
+export interface EdgeGnssSample extends VehiclePosition {
+  source:'gnss';
 }
 
-export interface DetectedObject {
-  id: string;
-  kind: ObjectKind;
-  confidence: number;
-  distanceM: number;
-  bearingDeg: number;
-  zone: RelativeZone;
-  severity: Severity;
-  relativeSpeedMps: number;
-  position: GeoPoint;
-  timestampMs: number;
+export interface EdgeTelemetryPacket {
+  deviceId:string;
+  sequence:number;
+  timestampMs:number;
+  gnss:EdgeGnssSample;
+  sensors:SensorHealth;
+  radar?:RadarTrackFrame;
+  camera?:CameraDetectionFrame;
 }
 
-export interface LocationAlert {
-  id: string;
-  type: AlertType;
-  severity: Severity;
-  title: string;
-  message: string;
-  distanceM: number | null;
-  objectId: string | null;
-  position: GeoPoint;
-  timestampMs: number;
-  acknowledged: boolean;
-}
-
-export interface Geofence {
-  id: string;
-  name: string;
-  center: GeoPoint;
-  radiusM: number;
-  severity: Exclude<Severity, 'safe'>;
-  enabled: boolean;
-}
-
-export interface TelemetryFrame {
-  sequence: number;
-  vehicle: VehiclePosition;
-  sensors: SensorHealth;
-  objects: DetectedObject[];
-  alerts: LocationAlert[];
+export interface RealtimeTelemetryEnvelope {
+  type:'telemetry';
+  source:'edge'|'simulator';
+  receivedAtMs:number;
+  frame:TelemetryFrame;
 }
