@@ -3,9 +3,19 @@
 // Copy to config.h and keep credentials out of Git.
 #define WIFI_SSID "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
-#define KINGMAST_API_URL "http://192.168.1.10:4000/v3/edge/frame"
+
+// HTTPS is mandatory for edge telemetry outside loopback/bench development.
+#define KINGMAST_API_URL "https://kingmast-gateway.example.com/v3/edge/frame"
 #define KINGMAST_DEVICE_ID "kingmast-esp32-01"
-#define KINGMAST_EDGE_TOKEN "CHANGE_ME"
+#define KINGMAST_EDGE_TOKEN "REPLACE_WITH_RANDOM_TOKEN_AT_LEAST_16_CHARS"
+
+// Replace with the PEM CA certificate that validates your KINGMAST gateway.
+// Do not use setInsecure() in production firmware.
+static const char KINGMAST_TLS_CA_CERT[] = R"KINGMAST_CERT(
+-----BEGIN CERTIFICATE-----
+REPLACE_WITH_GATEWAY_CA_CERTIFICATE
+-----END CERTIFICATE-----
+)KINGMAST_CERT";
 
 #define NTP_SERVER_1 "pool.ntp.org"
 #define NTP_SERVER_2 "time.google.com"
