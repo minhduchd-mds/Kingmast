@@ -1,0 +1,29 @@
+name: Viewer session verification
+on:
+  push:
+    branches:
+      - fix/viewer-session-bootstrap-20260904
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm safety:boundary
+      - run: python -m py_compile edge/camera-detector/detector.py edge/camera-detector/speed_sign_detector.py
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm audit --prod --audit-level=high
+      - run: pnpm build
+      - run: pnpm --filter @kingmast/hmi exec playwright install --with-deps chromium
+      - run: pnpm --filter @kingmast/hmi test:ui
