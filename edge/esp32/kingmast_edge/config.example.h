@@ -10,7 +10,7 @@
 #define KINGMAST_EDGE_TOKEN "REPLACE_WITH_RANDOM_TOKEN_AT_LEAST_16_CHARS"
 
 // Replace with the PEM CA certificate that validates your KINGMAST gateway.
-// Do not use setInsecure() in production firmware.
+// Production firmware must keep TLS certificate validation enabled.
 static const char KINGMAST_TLS_CA_CERT[] = R"KINGMAST_CERT(
 -----BEGIN CERTIFICATE-----
 REPLACE_WITH_GATEWAY_CA_CERTIFICATE
