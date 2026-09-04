@@ -14,7 +14,7 @@
 .connectedEventHero.tone-critical{border-color:rgba(255,69,58,.3);background:rgba(255,69,58,.075)}
 .connectedEventHero.tone-critical>span:first-child{color:var(--apple-red);background:rgba(255,69,58,.1)}
 .connectedEventHero.event-roadwork{grid-template-columns:42px minmax(0,1fr) minmax(118px,auto)}
-.laneMini{display:flex;align-items:end;justify-content:flex-end;gap:5px;min-width:104px;height:40px}
+.laneMini{display:flex;align-items:flex-end;justify-content:flex-end;gap:5px;min-width:104px;height:40px}
 .laneMini span{position:relative;width:24px;height:38px;border-radius:7px 7px 3px 3px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));display:grid;place-items:end center;padding-bottom:4px;color:#727782;font-size:10px;font-weight:750}
 .laneMini span::before{content:"";position:absolute;left:50%;top:4px;bottom:13px;width:1px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.34))}
 .laneMini span.isCurrent{border-color:rgba(10,132,255,.38);box-shadow:inset 0 0 0 1px rgba(10,132,255,.08)}
