@@ -25,11 +25,13 @@ import { fuseEdgePerception } from './edge-fusion.js';
 import { AlertStabilizer } from './alert-stabilizer.js';
 import { EdgeEventBuffer } from './event-buffer.js';
 import { applySensorFreshness, EdgePacketGuard, sensorAges } from './edge-guard.js';
+import { roadContextRoutes } from './road-context-routes.js';
 
 const app=Fastify({logger:true,bodyLimit:256_000});
 await app.register(helmet);
 await app.register(cors,{origin:process.env.HMI_ORIGIN??'http://localhost:3000',methods:['GET','POST']});
 await app.register(websocket);
+await app.register(roadContextRoutes);
 
 const Sample=z.object({timestampMs:z.number().int(),egoSpeedMps:z.number().min(0).max(100),targetSpeedMps:z.number().min(-50).max(100),rangeM:z.number().min(0).max(500),confidence:z.number().min(0).max(1),canHealthy:z.boolean(),radarHealthy:z.boolean(),cameraHealthy:z.boolean()});
 const GeoPointSchema=z.object({lat:z.number().min(-90).max(90),lng:z.number().min(-180).max(180)});
@@ -91,20 +93,14 @@ function publish(source:'edge'|'simulator'='edge'){const envelope=currentEnvelop
 function heartbeat(){const payload:RealtimeHeartbeatEnvelope={type:'heartbeat',receivedAtMs:Date.now(),lastSequence:latestSequence,connectedClients:clients.size};broadcast(payload);}
 const heartbeatTimer=setInterval(heartbeat,1_000);heartbeatTimer.unref();
 
-app.get('/health',async()=>({status:'ok',mode:'warning-only',version:'3.1-edge-reliability',edge:diagnostics()}));
+app.get('/health',async()=>({status:'ok',mode:'warning-only',version:'3.2-navigation-road-context',edge:diagnostics()}));
 app.post('/v1/risk',async(request,reply)=>{const parsed=Sample.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-sample'});return assessRisk(parsed.data);});
 app.post('/v2/telemetry/evaluate',async(request,reply)=>{const parsed=TelemetryEvaluationSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-telemetry-frame',details:parsed.error.flatten()});const vehicle=parsed.data.vehicle as VehiclePosition;const sensors=parsed.data.sensors as SensorHealth;const objects=parsed.data.objects as DetectedObject[];const fences=(parsed.data.geofences??[]) as Geofence[];return{vehicle,objects,alerts:buildLocationAlerts({vehicle,sensors,objects,geofences:fences}),safetyMode:'warning-only',controlAuthority:'none'};});
 app.post('/v2/geo/project',async(request,reply)=>{const parsed=ProjectPointSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-geo-input'});return projectPoint(parsed.data.origin,parsed.data.bearingDeg,parsed.data.distanceM);});
-
 app.post('/v3/perception/camera',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=CameraFrameSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-camera-frame',details:parsed.error.flatten()});latestCamera=parsed.data as CameraDetectionFrame;latestSensors={...latestSensors,camera:'ok'};lastIngressAtMs=Date.now();return publish();});
 app.post('/v3/perception/radar',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=RadarFrameSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-radar-frame',details:parsed.error.flatten()});latestRadar=parsed.data as RadarTrackFrame;latestSensors={...latestSensors,radarFront:'ok'};lastIngressAtMs=Date.now();return publish();});
 app.post('/v3/edge/gnss',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=VehiclePositionSchema.safeParse(request.body);if(!parsed.success||parsed.data.source!=='gnss')return reply.code(400).send({error:'invalid-gnss-sample'});latestVehicle=parsed.data as VehiclePosition;latestSensors={...latestSensors,gnssImu:'ok'};latestSequence+=1;lastIngressAtMs=Date.now();return publish();});
-app.post('/v3/edge/frame',async(request,reply)=>{
-  if(!requireEdgeAuth(request,reply))return;
-  const parsed=EdgePacketSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-edge-packet',details:parsed.error.flatten()});
-  const packet=parsed.data as EdgeTelemetryPacket;const accepted=packetGuard.accept(packet);if(!accepted.ok)return reply.code(409).send({error:'edge-packet-rejected',reason:accepted.reason});
-  latestDeviceId=packet.deviceId;latestBootId=packet.bootId;latestSequence=packet.sequence;latestVehicle=packet.gnss;latestSensors=packet.sensors;if(packet.camera)latestCamera=packet.camera;if(packet.radar)latestRadar=packet.radar;lastIngressAtMs=Date.now();return publish();
-});
+app.post('/v3/edge/frame',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=EdgePacketSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-edge-packet',details:parsed.error.flatten()});const packet=parsed.data as EdgeTelemetryPacket;const accepted=packetGuard.accept(packet);if(!accepted.ok)return reply.code(409).send({error:'edge-packet-rejected',reason:accepted.reason});latestDeviceId=packet.deviceId;latestBootId=packet.bootId;latestSequence=packet.sequence;latestVehicle=packet.gnss;latestSensors=packet.sensors;if(packet.camera)latestCamera=packet.camera;if(packet.radar)latestRadar=packet.radar;lastIngressAtMs=Date.now();return publish();});
 app.get('/v3/edge/latest',async()=>currentEnvelope());
 app.get('/v3/diagnostics',async()=>diagnostics());
 app.get('/v3/events',async(request,reply)=>{const parsed=EventsQuerySchema.safeParse(request.query);if(!parsed.success)return reply.code(400).send({error:'invalid-events-query'});return{events:eventBuffer.list(parsed.data.limit,parsed.data.severity as Severity|undefined)};});
@@ -112,5 +108,5 @@ app.get('/v3/geofences',async()=>({geofences}));
 app.post('/v3/geofences',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=GeofenceReplaceSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-geofences',details:parsed.error.flatten()});geofences=parsed.data.geofences as Geofence[];return{updated:geofences.length,geofences};});
 app.get('/v3/stream',{websocket:true},(socket)=>{const client=socket as unknown as SocketLike;clients.add(client);const initial=currentEnvelope();if(initial&&client.readyState===1)client.send(JSON.stringify(initial));client.on('close',()=>clients.delete(client));});
 
-app.get('/v1/capabilities',async()=>({vehicleControl:false,canWrite:false,brake:false,steer:false,throttle:false,gpsPositioning:true,objectDetection:true,radarFusion:true,cameraClassification:true,realtimeWebSocket:true,heartbeat:true,edgeReplayProtection:true,edgeAuthentication:EDGE_TOKEN.length>0,diagnostics:true,eventHistory:true,geofenceAlerts:true,mapAlerts:true}));
+app.get('/v1/capabilities',async()=>({vehicleControl:false,canWrite:false,brake:false,steer:false,throttle:false,gpsPositioning:true,objectDetection:true,radarFusion:true,cameraClassification:true,realtimeWebSocket:true,heartbeat:true,edgeReplayProtection:true,edgeAuthentication:EDGE_TOKEN.length>0,diagnostics:true,eventHistory:true,geofenceAlerts:true,mapAlerts:true,navigationRouting:true,speedLimitAwareness:true,speedSignVision:true,trafficCameraContext:true,trafficCameraAccessPolicy:'public-or-authorized-only'}));
 await app.listen({port:Number(process.env.PORT??4000),host:'0.0.0.0'});
