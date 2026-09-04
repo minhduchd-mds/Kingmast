@@ -1,25 +1,36 @@
 # KINGMAST
 
-KINGMAST is a safety-first ADAS research platform for electric vehicles. The production boundary remains **warning-only Level 0 driver assistance**: speed, forward/rear gap, THW/TTC, surround awareness, GPS positioning, road-object detection, location-aware alerts, navigation context, sensor health and event logging.
+**Development version: v0.0.6**
+
+KINGMAST is a safety-first ADAS research platform for electric vehicles. The production boundary remains **warning-only Level 0 driver assistance**: speed, forward/rear gap, THW/TTC, surround awareness, GPS positioning, road-object detection, location-aware alerts, navigation context, EV route intelligence, sensor health and event logging.
 
 > Safety boundary: this repository does **not** issue steering, braking, throttle or drivetrain commands. Vehicle adapters are read-only by design. Autonomous-driving work belongs in a separate simulation-only lab.
 
-## V2.4 highlights
+## Current development highlights
 - Apple-inspired automotive HMI with a navigation-first driver hierarchy.
 - Native MapLibre map rendering with configurable production style provider and OSM demo fallback.
 - Route geometry, destination, vehicle, camera and object markers in one map coordinate system.
 - Route-aware traffic-camera matching with direction filtering when metadata is available.
 - Camera warning bands around 1 km / 500 m / 300 m / immediate.
 - Current speed-limit awareness fused from mapped road metadata and high-confidence sign vision.
+- Upcoming speed-zone preview along the active route.
 - Turn-by-turn maneuver urgency, advisory lane hint, route progress, remaining distance and dynamic ETA.
+- Route alternatives with deterministic EV energy and projected arrival battery estimates.
+- Route-aware mapped junction, crossing, roundabout and charging-station context.
+- Blind-spot and low-speed rear cross-traffic advisories from fused object metadata.
 - Sustained off-route detection with cooldown-protected rerouting.
 - Optional short voice prompts for turns, camera context, speed limits and rerouting.
-- Moving destination-edit lock for real vehicle sources.
+- Moving destination-edit and route-selection lock for real vehicle sources.
 - Short-lived route cache and recent destinations for degraded/offline continuity.
 - Auto / Day / Night appearance modes and reduced-motion support.
 - Realtime ESP32/GNSS + radar ingestion and camera detection publisher.
 - Camera + radar fusion for person, car, motorcycle, bicycle, truck, bus and obstacles.
 - Warning-only CI safety gate that rejects actuator-command APIs.
+
+## Versioning during development
+KINGMAST is still in active development. Adding a feature batch does **not** automatically create a new product version. The repository stays on **v0.0.6** until an explicit release checkpoint is approved.
+
+API paths such as `/v3`, `/v4` and `/v5` are **interface generations**, not the KINGMAST product version. See `docs/VERSIONING.md`.
 
 ## Monorepo
 ```text
@@ -55,6 +66,8 @@ The HMI falls back to a deterministic simulator when the edge WebSocket is unava
 - `POST /v4/perception/speed-sign` — authenticated high-confidence local speed-sign observation.
 - `POST /v4/road-context/cameras` — authenticated runtime camera-provider metadata.
 - `GET /v4/road-context/providers` — provider/coverage policy.
+- `POST /v5/navigation/alternatives` — route alternatives and EV estimates.
+- `POST /v5/navigation/intelligence` — route speed zones, junctions and charging context.
 
 ## Realtime API
 - `POST /v3/edge/frame` — authenticated protocol-v1 ESP32 packet.
@@ -83,7 +96,5 @@ database/003_edge_operations.sql
 
 ## Safety model
 `THW = range / egoSpeed`. `closingSpeed = egoSpeed - targetSpeed`. `TTC = range / closingSpeed` only when the gap is closing. Safety decisions are timestamp/confidence aware; stale camera/radar/GNSS inputs are degraded or rejected. GPS, map and navigation context never create vehicle-control authority.
-
-See `docs/APPLE_AUTOMOTIVE_HMI_V4.md` for the consolidated V2.4 HMI/navigation upgrade and verification gates.
 
 KINGMAST is Apple-inspired but is not an official Apple CarPlay app, not AEB/ACC and not a homologated safety product.

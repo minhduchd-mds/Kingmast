@@ -1,6 +1,8 @@
-# KINGMAST V2.5 — Route Intelligence, EV and Surround Safety
+# KINGMAST v0.0.6 — Route Intelligence, EV and Surround Safety
 
-V2.5 continues the Apple-inspired automotive HMI direction while preserving the project safety boundary: **warning-only Level 0 driver assistance**. Nothing in this batch can command steering, braking, throttle, drivetrain, gear selection or CAN writes.
+This feature batch extends the active **v0.0.6** development build while preserving the project safety boundary: **warning-only Level 0 driver assistance**. Nothing in this batch can command steering, braking, throttle, drivetrain, gear selection or CAN writes.
+
+> Versioning note: this document describes a feature batch, not a product-version bump. KINGMAST remains on v0.0.6 during active development. See `docs/VERSIONING.md`.
 
 ## 20 consolidated upgrades
 1. Add OSRM route alternatives instead of assuming a single route is always best.

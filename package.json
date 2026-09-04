@@ -1,5 +1,6 @@
 {
   "name": "kingmast",
+  "version": "0.0.6",
   "private": true,
   "packageManager": "pnpm@10.15.0",
   "scripts": {

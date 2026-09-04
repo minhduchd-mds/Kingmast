@@ -4,3 +4,4 @@
 @media(max-width:1179px){.v5Drive,.v5Navigate,.v5Energy{grid-template-columns:1fr}.v5DriveSide{grid-template-columns:1fr 1fr}.v5RoadStage{grid-template-columns:150px minmax(310px,1fr) 120px}.v5NavAside{grid-template-columns:1fr 1fr}.v5Cockpit{min-height:auto}.v5RoadScene{min-height:450px}}
 @media(max-width:820px){.v5DriveSide,.v5NavAside{grid-template-columns:1fr}.v5RoadStage{grid-template-columns:1fr}.v5RoadScene{min-height:420px}.v5RoadStage .speedReadout{padding:20px 0 8px}.v5RoadStage .cockpitMetrics{grid-template-columns:repeat(3,1fr);display:grid}.blindRail{top:42%}.hmiV5 .topbarStatus .systemReady{display:none}}
 @media(prefers-reduced-motion:reduce){.hmiV5 *{scroll-behavior:auto!important}.blindRail,.crossTraffic,.routeOption,.nextSpeedZone{transition:none!important}}
+.hmiV5 .hmiTopbar .eyebrow{font-size:0}.hmiV5 .hmiTopbar .eyebrow::after{content:'KINGMAST v0.0.6';font-size:11px;letter-spacing:.12em}
