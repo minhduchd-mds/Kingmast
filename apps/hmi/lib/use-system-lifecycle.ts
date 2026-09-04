@@ -48,7 +48,7 @@ export function useSystemLifecycle(){
     const onVisibility=()=>{if(bridge)return;if(document.hidden)commit(browserSnapshot('sleeping'));else wakeBrowser();};
     const onPageShow=(event:PageTransitionEvent)=>{if(!bridge&&event.persisted)wakeBrowser('page-restore');};
     document.addEventListener('visibilitychange',onVisibility);window.addEventListener('pageshow',onPageShow);
-    return()=>{disposed=true;if(wakeTimer.current!==null)window.clearTimeout(wakeTimer.current);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('pageshow',onPageShow);unsubscribe?.();};
+    return()=>{disposed=true;if(wakeTimer.current!==null)window.clearTimeout(wakeTimer.current);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('pageshow',onPageShow);if(typeof unsubscribe==='function')unsubscribe();};
   },[]);
 
   return useMemo(()=>state,[state]);
