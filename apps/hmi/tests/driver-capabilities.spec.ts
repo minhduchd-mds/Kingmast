@@ -9,18 +9,39 @@ async function openReturningDriver(page:Page,width:number,height:number){
 }
 
 test.describe('driver-facing assistance capability rail',()=>{
-  test('shows truthful LDW DMS AI and 360 status without creating control authority',async({page})=>{
+  test('shows truthful staged status without creating control authority',async({page})=>{
     await openReturningDriver(page,1366,768);
     const rail=page.getByTestId('driver-capability-rail');
     await expect(rail).toBeVisible();
+    await expect(rail).toHaveAttribute('data-runtime','awaiting');
     await expect(rail).toContainText('Warning-only · no vehicle control');
-    await expect(rail.locator('[data-capability="ldw"]')).toContainText('LDW');
     await expect(rail.locator('[data-capability="ldw"]')).toContainText('Software ready');
     await expect(rail.locator('[data-capability="dms"]')).toContainText('DMS');
-    await expect(rail.locator('[data-capability="assistant"]')).toContainText('AI assistant');
     await expect(rail.locator('[data-capability="assistant"]')).toContainText('Read-only assistant');
-    await expect(rail.locator('[data-capability="surround"]')).toContainText('Camera 360');
     await expect(rail.locator('[data-capability="surround"]')).toContainText('Requires vehicle integration');
+    await expect(rail.getByRole('button')).toHaveCount(0);
+  });
+
+  test('promotes only authenticated runtime truth to live driver-facing state',async({page})=>{
+    await openReturningDriver(page,1366,768);
+    await page.evaluate(()=>{
+      const now=Date.now();
+      window.dispatchEvent(new CustomEvent('kingmast:telemetry',{detail:{frame:{assist:{
+        generatedAtMs:now,
+        controlAuthority:'none',
+        ldw:{availability:'live',observedAtMs:now,ageMs:20,severity:'caution',side:'right',timeToLineCrossingS:1.2,confidence:.93,reason:'lane-departure-right',advisoryOnly:true},
+        dms:{availability:'live',observedAtMs:now,ageMs:15,state:'attentive',confidence:.91,perclos:.08,gazeAwayRatio:.12,faceAvailability:.98,reason:'attention-within-thresholds',storesRawVideo:false,advisoryOnly:true},
+        assistant:{availability:'live',observedAtMs:now,ageMs:0,reason:'read-only-context-ready',readOnly:true,actuatorTools:false},
+        surround:{availability:'live',observedAtMs:now,ageMs:30,cameraCount:4,calibratedCameraCount:4,synchronizedCameraCount:4,maxReprojectionErrorPx:1.7,reason:'surround-calibration-ready',visualizationOnly:true},
+      }}}}));
+    });
+    const rail=page.getByTestId('driver-capability-rail');
+    await expect(rail).toHaveAttribute('data-runtime','connected');
+    await expect(rail.locator('[data-capability="ldw"]')).toContainText('Departure risk · right');
+    await expect(rail.locator('[data-capability="ldw"]')).toContainText('TTLC 1.2 s');
+    await expect(rail.locator('[data-capability="dms"]')).toContainText('Driver attentive');
+    await expect(rail.locator('[data-capability="assistant"]')).toContainText('Read-only context online');
+    await expect(rail.locator('[data-capability="surround"]')).toContainText('Calibrated 360 ready');
     await expect(rail.getByRole('button')).toHaveCount(0);
   });
 
