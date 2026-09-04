@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle,Bell,CloudRain,Construction,Navigation,Route,School,ShieldCheck } from 'lucide-react';
+import { AlertTriangle,Bell,CloudRain,Construction,Navigation,Route,School,ShieldCheck,WifiOff } from 'lucide-react';
 import { useEffect,useMemo,useRef,useState } from 'react';
 import type { ConnectedRoadAdvisory,NavigationRoute,TelemetryFrame } from '@kingmast/contracts';
 import KingmastV5 from './KingmastV5';
@@ -30,13 +30,23 @@ function advisoryIcon(item:ConnectedRoadAdvisory){
   return AlertTriangle;
 }
 
+function DegradedConnectedRoad({title,message}:{title:string;message:string}){
+  return <aside className="connectedRoadHud connectedRoadDegraded" aria-label="Connected road intelligence status" role="status">
+    <div className="connectedRoadHead"><span><WifiOff strokeWidth={1.8}/><strong>{title}</strong><small>advisory unavailable</small></span></div>
+    <div className="connectedClear"><AlertTriangle/><span><strong>{title}</strong><small>{message}</small></span></div>
+    <div className="connectedSafetyNote"><AlertTriangle/> Continue using posted signs, signals and direct road observation.</div>
+  </aside>;
+}
+
 function ConnectedRoadHud(){
   const[sequence,setSequence]=useState(0);
   const[route,setRoute]=useState<NavigationRoute|null>(null);
   const[liveFrame,setLiveFrame]=useState<TelemetryFrame|null>(null);
+  const[nowMs,setNowMs]=useState(()=>Date.now());
   const liveFrameAtRef=useRef(0);
 
   useEffect(()=>{const timer=window.setInterval(()=>setSequence((value)=>value+1),2800);return()=>window.clearInterval(timer);},[]);
+  useEffect(()=>{const timer=window.setInterval(()=>setNowMs(Date.now()),1000);return()=>window.clearInterval(timer);},[]);
   useEffect(()=>{const load=()=>setRoute(readCachedRoute());load();const timer=window.setInterval(load,2_000);return()=>window.clearInterval(timer);},[]);
   useEffect(()=>{
     const onTelemetry=(event:Event)=>{
@@ -50,29 +60,38 @@ function ConnectedRoadHud(){
   },[]);
 
   const simulated=useMemo(()=>createSimulationFrame(sequence),[sequence]);
-  const liveFresh=liveFrame!==null&&Date.now()-liveFrameAtRef.current<=LIVE_FRAME_MAX_AGE_MS;
-  const frame=liveFresh&&liveFrame?liveFrame:simulated;
-  const collisionCritical=frame.alerts.some((item)=>item.severity==='critical');
-  const connected=useConnectedRoadContext(frame.vehicle,route,collisionCritical);
+  const hasSeenLive=liveFrame!==null;
+  const liveFresh=hasSeenLive&&nowMs-liveFrameAtRef.current<=LIVE_FRAME_MAX_AGE_MS;
+  const frame=hasSeenLive?liveFrame:simulated;
+  const contextVehicle=hasSeenLive?(liveFresh?liveFrame.vehicle:null):simulated.vehicle;
+  const collisionCritical=liveFresh||!hasSeenLive?frame.alerts.some((item)=>item.severity==='critical'):false;
+  const connected=useConnectedRoadContext(contextVehicle,route,collisionCritical);
+
+  if(hasSeenLive&&!liveFresh)return <DegradedConnectedRoad title="Connected road paused" message="Vehicle telemetry is stale. KINGMAST will not substitute simulator road context over a live vehicle session."/>;
+  if(connected.error&&!connected.context)return <DegradedConnectedRoad title="Connected road unavailable" message="The connected-road service did not return valid context. Primary collision and navigation warnings remain separate."/>;
+  if(!connected.context){
+    return <aside className="connectedRoadHud connectedRoadLoading" aria-label="Connected road intelligence status" role="status"><div className="connectedRoadHead"><span><ShieldCheck strokeWidth={1.8}/><strong>Connected road</strong><small>{hasSeenLive?'connecting':'demo context'}</small></span></div><div className="connectedClear"><ShieldCheck/><span><strong>Loading road context</strong><small>Checking route-relevant connected-road advisories.</small></span></div></aside>;
+  }
+
   const context=connected.context;
-  const signal=context?.spat[0]?.movements[0]??null;
-  const nextExit=context?.exits[0]??null;
-  const lane=context?.laneTopology??null;
+  const spatAdvisory=context.advisories.find((item)=>item.category==='spat')??null;
+  const relevantIntersection=spatAdvisory?context.spat.find((item)=>spatAdvisory.id===`spat-${item.intersectionId}`)??null:null;
+  const signal=relevantIntersection?.movements[0]??null;
+  const exitAdvisory=context.advisories.find((item)=>item.category==='highway-exit')??null;
+  const lane=route?context.laneTopology:null;
 
-  if(!context)return null;
-
-  return <aside className={`connectedRoadHud coverage-${context.coverage}`} aria-label="Connected road intelligence" aria-live="polite">
+  return <aside className={`connectedRoadHud coverage-${context.coverage}`} aria-label="Connected road intelligence">
     <div className="connectedRoadHead">
       <span><ShieldCheck strokeWidth={1.8}/><strong>Connected road</strong><small>{context.coverage.replaceAll('-',' ')}</small></span>
       {context.suppressionReason?<em>Driver-priority suppression active</em>:null}
     </div>
     {context.advisories.length?
-      <div className="connectedAdvisories">{context.advisories.map((item)=>{const Icon=advisoryIcon(item);return <div className={`connectedAdvisory severity-${item.severity}`} key={item.id}><Icon strokeWidth={1.9}/><span><strong>{item.title}</strong><small>{item.message}</small></span></div>;})}</div>:
-      <div className="connectedClear"><ShieldCheck/><span><strong>{collisionCritical?'Connected context suppressed':'Road context clear'}</strong><small>{collisionCritical?'Collision warning has display priority.':'No connected-road caution currently requires attention.'}</small></span></div>}
-    <div className="connectedMeta">
-      <span><Bell/>{signal?<><b>{signal.state.replaceAll('-',' ')}</b><small>SPaT</small></>:<><b>No live phase</b><small>SPaT</small></>}</span>
+      <div className="connectedAdvisories" aria-live="polite" aria-atomic="false">{context.advisories.map((item)=>{const Icon=advisoryIcon(item);return <div className={`connectedAdvisory severity-${item.severity}`} key={item.id}><Icon strokeWidth={1.9}/><span><strong>{item.title}</strong><small>{item.message}</small></span></div>;})}</div>:
+      <div className="connectedClear" aria-live="polite"><ShieldCheck/><span><strong>{collisionCritical?'Connected context suppressed':'Road context clear'}</strong><small>{collisionCritical?'Collision warning has display priority.':'No route-relevant connected-road caution currently requires attention.'}</small></span></div>}
+    <div className="connectedMeta" aria-hidden="true">
+      <span><Bell/>{signal?<><b>{signal.state.replaceAll('-',' ')}</b><small>Route SPaT</small></>:<><b>No relevant live phase</b><small>Route SPaT</small></>}</span>
       <span><Navigation/><b>{lane?`${lane.laneCount} lanes`:'Lane data partial'}</b><small>Topology</small></span>
-      <span><Route/><b>{nextExit?`${Math.round(nextExit.distanceM)} m`:'No exit due'}</b><small>Next exit</small></span>
+      <span><Route/><b>{exitAdvisory?.distanceM!==null&&exitAdvisory?.distanceM!==undefined?`${Math.round(exitAdvisory.distanceM)} m`:'No exit due'}</b><small>Next exit</small></span>
     </div>
     <div className="connectedSafetyNote"><AlertTriangle/> Advisory only · verify signs, signals, emergency vehicles and road conditions.</div>
   </aside>;
