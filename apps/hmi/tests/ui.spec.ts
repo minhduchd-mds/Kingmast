@@ -12,6 +12,13 @@ async function openHmi(page:Page,width:number,height:number,reducedMotion=true){
   await expect(page.locator('main.appShell')).toBeVisible({timeout:7_000});
 }
 
+async function openConnectivitySettings(page:Page){
+  await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
+  await expect(page.getByTestId('hmi-settings')).toBeVisible();
+  await page.getByRole('tab',{name:'Connectivity'}).click();
+  await expect(page.getByTestId('wifi-settings')).toBeVisible();
+}
+
 async function hasHorizontalOverflow(page:Page){
   return page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
 }
@@ -121,9 +128,8 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
 
   test('web preview reports Wi-Fi as host-managed instead of faking radio control',async({page})=>{
     await openHmi(page,1366,768);
-    await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
+    await openConnectivitySettings(page);
     const wifi=page.getByTestId('wifi-settings');
-    await expect(wifi).toBeVisible();
     await expect(wifi).toContainText('Managed by host device');
     await expect(wifi).toContainText('web preview cannot switch the Wi-Fi radio');
   });
@@ -140,7 +146,7 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
       }};
     });
     await openHmi(page,1366,768);
-    await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
+    await openConnectivitySettings(page);
     const wifi=page.getByTestId('wifi-settings');
     await expect(wifi.getByRole('switch',{name:'Wi-Fi'})).toHaveAttribute('aria-checked','true');
     await wifi.getByRole('button',{name:/Scan/}).click();
@@ -164,7 +170,7 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
       }};
     });
     await openHmi(page,1366,768);
-    await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
+    await openConnectivitySettings(page);
     const wifi=page.getByTestId('wifi-settings');
     await wifi.getByRole('button',{name:/Scan/}).click();
     await expect(wifi).toContainText('Known network');
