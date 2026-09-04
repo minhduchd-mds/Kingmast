@@ -33,7 +33,7 @@ test.describe('KINGMAST v0.0.6 parked system management',()=>{
     expect(stored.route).toBeNull();expect(stored.recents).toBeNull();expect(stored.privacy.diagnosticUpload).toBe(true);
   });
 
-  test('driver profile and accessibility preferences restore at root runtime',async({page})=>{
+  test('driver profile restores accessibility and switches driver safety units atomically',async({page})=>{
     await openSettings(page);
     await page.getByRole('tab',{name:'Profile'}).click();
     const panel=page.getByTestId('driver-profile-controls');
@@ -41,8 +41,9 @@ test.describe('KINGMAST v0.0.6 parked system management',()=>{
     await panel.getByRole('button',{name:'Imperial'}).click();
     await panel.getByRole('switch',{name:'Large text'}).click();await panel.getByRole('switch',{name:'High contrast'}).click();await panel.getByRole('switch',{name:'Reduce motion'}).click();
     await expect(page.locator('html')).toHaveAttribute('data-kingmast-units','imperial');await expect(page.locator('html')).toHaveAttribute('data-kingmast-text-scale','large');await expect(page.locator('html')).toHaveAttribute('data-kingmast-contrast','high');await expect(page.locator('html')).toHaveAttribute('data-kingmast-motion','reduced');
+    await page.getByRole('button',{name:'Done'}).click();await expect(page.locator('.speedUnit')).toHaveText('mph');
     const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('kingmast:v006:driver-profile')??'{}'));expect(stored.name).toBe('Primary Driver');expect(stored.units).toBe('imperial');
-    await page.reload();await expect(page.locator('html')).toHaveAttribute('data-kingmast-motion','reduced');await expect(page.locator('main.appShell')).toBeVisible({timeout:5_000});
+    await page.reload();await expect(page.locator('html')).toHaveAttribute('data-kingmast-motion','reduced');await expect(page.locator('html')).toHaveAttribute('data-kingmast-units','imperial');await expect(page.locator('main.appShell')).toBeVisible({timeout:5_000});await expect(page.locator('.speedUnit')).toHaveText('mph');
   });
 
   test('native service bridge can report calibration completion and a signed update state',async({page})=>{
@@ -54,5 +55,9 @@ test.describe('KINGMAST v0.0.6 parked system management',()=>{
     await openSettings(page);await page.getByRole('tab',{name:'Vehicle & updates'}).click();
     const sensor=page.getByTestId('sensor-maintenance');await expect(sensor).toContainText('Calibration required');await sensor.getByRole('button',{name:'Calibrate'}).click();await sensor.getByRole('group',{name:'Confirm sensor maintenance action'}).getByRole('button',{name:'Start calibration'}).click();await expect(sensor).toContainText('Calibration complete.');
     const updates=page.getByTestId('software-update');await expect(updates).toContainText('v0.0.6-dev2 available');await updates.getByRole('button',{name:'Download'}).click();await updates.getByRole('button',{name:'Install signed update'}).click();await updates.getByRole('group',{name:'Confirm software update action'}).getByRole('button',{name:'Install update'}).click();await expect(updates).toContainText('Restart required');
+  });
+
+  test('native ignition recovery is explicit without fabricating readiness',async({page})=>{
+    await page.setViewportSize({width:1366,height:768});await page.emulateMedia({reducedMotion:'reduce'});await page.addInitScript(()=>{localStorage.setItem('kingmast:v006:first-run-complete','1');(window as any).kingmastNative={lifecycle:{getState:async()=>({ignition:'on',phase:'recovering',recoveryReason:'watchdog',timestampMs:Date.now()})}};});await page.goto('/');await expect(page.locator('main.appShell')).toBeVisible({timeout:5_000});const status=page.getByTestId('system-lifecycle-status');await expect(status).toBeVisible();await expect(status).toContainText('Restoring driver view');await expect(status).toContainText('Watchdog recovery');await expect(status).toContainText('on ignition');
   });
 });
