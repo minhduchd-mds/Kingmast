@@ -14,7 +14,9 @@ import './hmi-first-run.css';
 import './hmi-system-management.css';
 import './hmi-resilience.css';
 import './hmi-capabilities.css';
+import './hmi-driver-capabilities.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
+import DriverCapabilityRail from '../components/DriverCapabilityRail';
 
 export const metadata={
   title:'KINGMAST Driver Safety',
@@ -22,5 +24,5 @@ export const metadata={
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){
-  return <html lang="en"><body><DriverProfileRuntime/>{children}</body></html>;
+  return <html lang="en"><body><DriverProfileRuntime/><DriverCapabilityRail/>{children}</body></html>;
 }

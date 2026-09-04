@@ -10,6 +10,7 @@ const settings=read('components/HmiSettingsPanel.tsx');
 const shell=read('components/KingmastV006.tsx');
 const cockpit=read('components/KingmastV5.tsx');
 const interaction=read('components/DriverInteractionLayer.tsx');
+const driverCapabilities=read('components/DriverCapabilityRail.tsx');
 const capabilityCenter=read('components/CapabilityCenter.tsx');
 const capabilityRegistry=read('lib/capability-registry.ts');
 const connectedRoad=read('lib/connected-road.ts');
@@ -23,6 +24,7 @@ const checks=[
   ['development version remains 0.0.6',pkg.version==='0.0.6'],
   ['Apple-inspired base layer is loaded',layout.includes("import './hmi-apple.css';")],
   ['capability design layer is loaded',layout.includes("import './hmi-capabilities.css';")],
+  ['driver-facing capability rail is loaded',layout.includes("import './hmi-driver-capabilities.css';")&&layout.includes('DriverCapabilityRail')&&layout.includes('<DriverCapabilityRail/>')],
   ['startup layer remains present',has('components/StartupExperience.tsx','Warning-only assistance')&&has('components/StartupExperience.tsx','aria-live="polite"')],
   ['first-run keeps warning-only authority',has('components/FirstRunExperience.tsx','Critical collision and vulnerable-road-user warnings always stay active')],
   ['critical warnings cannot be disabled',settings.includes('cannot be disabled in KINGMAST')&&settings.includes('Always on')],
@@ -33,6 +35,10 @@ const checks=[
   ['capability registry covers exactly 36 numbered capabilities',(capabilityRegistry.match(/\{id:\d+,key:/g)??[]).length===36],
   ['capability states distinguish integration truth',capabilityRegistry.includes("'requires-integration'")&&capabilityRegistry.includes("'software-ready'")],
   ['capability center preserves warning-only authority',capabilityCenter.includes('No brake, steering, throttle, gear, torque or CAN write authority')],
+  ['driver capability rail covers LDW DMS AI and 360',['ldw','dms','assistant','surround'].every((key)=>driverCapabilities.includes(`key:'${key}'`))],
+  ['driver capability rail is status-only and truthful',driverCapabilities.includes('Warning-only · no vehicle control')&&driverCapabilities.includes('Read-only assistant')&&driverCapabilities.includes('calibration required')&&!driverCapabilities.includes('<button')],
+  ['short displays shed the secondary driver capability rail',has('app/hmi-driver-capabilities.css','@media(max-height:560px)')&&has('app/hmi-driver-capabilities.css','display:none!important')],
+  ['critical hazard visually suppresses secondary capability rail',has('app/hmi-driver-capabilities.css','body:has(.hmiV5.severity-critical) .driverCapabilityRail')],
   ['driver quick actions remain compact',interaction.includes('driverActionDock')&&interaction.includes('<span>Camera</span>')&&interaction.includes('<span>Alerts</span>')],
   ['driver action sheets are modal with focus return',interaction.includes('aria-modal="true"')&&interaction.includes('returnFocusRef.current?.focus()')],
   ['temporary voice mute preserves visual safety warnings',interaction.includes('Voice muted for 5 minutes')&&interaction.includes('Critical visual safety warnings remain active')],
@@ -47,8 +53,8 @@ const checks=[
   ['roadwork lane topology presentation remains present',roadEvents.includes("kind:'roadwork'")&&roadEvents.includes('preferredLaneIndexes')],
   ['SPaT countdown sanity guard remains present',roadEvents.includes('movement.minEndTimeMs-nowMs<120_000')],
   ['emergency advisory requires approach confidence',roadEvents.includes("item.approach==='approaching'")&&roadEvents.includes('item.confidence>=.65')],
-  ['reduced motion exists across capability and motion layers',has('app/hmi-motion.css','@media(prefers-reduced-motion:reduce)')&&has('app/hmi-capabilities.css','@media(prefers-reduced-motion:reduce)')],
-  ['high contrast capability styling exists',has('app/hmi-capabilities.css','@media(prefers-contrast:more)')],
+  ['reduced motion exists across capability and motion layers',has('app/hmi-motion.css','@media(prefers-reduced-motion:reduce)')&&has('app/hmi-capabilities.css','@media(prefers-reduced-motion:reduce)')&&has('app/hmi-driver-capabilities.css','@media(prefers-reduced-motion:reduce)')],
+  ['high contrast capability styling exists',has('app/hmi-capabilities.css','@media(prefers-contrast:more)')&&has('app/hmi-driver-capabilities.css','@media(prefers-contrast:more)')],
   ['52px automotive touch token remains present',has('app/hmi-apple.css','--apple-touch-target:52px')],
   ['56px quick action targets remain present',has('app/hmi-interactions.css','min-height:56px')],
   ['Playwright UI test script remains configured',pkg.scripts?.['test:ui']==='playwright test'],
