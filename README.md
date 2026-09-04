@@ -30,6 +30,14 @@ KINGMAST is a safety-first ADAS research platform for electric vehicles. The pro
 - Camera + radar fusion for person, car, motorcycle, bicycle, truck, bus and obstacles.
 - Warning-only CI safety gate that rejects actuator-command APIs.
 
+## ESP32 prototype hardware
+
+The current proof-of-concept uses an ESP32-class controller for bench and closed-track experiments on vehicles that do not already provide the required ADAS sensing stack. Vehicle data access remains read-only, and the research unit uses a separately protected power path.
+
+![KINGMAST ESP32 prototype hardware schematic](docs/hardware/kingmast-esp32-prototype-schematic.svg)
+
+The diagram is a development reference, not a homologated automotive ECU or a vehicle-certified wiring harness. GPIO assignment, power conditioning, radar protocol and adapter design must be validated against the selected hardware and each target vehicle. See `docs/EDGE_REALTIME_INTEGRATION.md` for the software/data path.
+
 ## Versioning during development
 KINGMAST is still in active development. Adding a feature batch does **not** automatically create a new product version. The repository stays on **v0.0.6** until an explicit release checkpoint is approved.
 
