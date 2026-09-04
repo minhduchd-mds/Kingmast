@@ -108,3 +108,11 @@ export interface NavigationRoute {
   steps:NavigationStep[];
   fetchedAtMs:number;
 }
+
+export interface NavigationPlace {
+  id:string;
+  name:string;
+  subtitle:string|null;
+  position:GeoPoint;
+  source:'geocoder';
+}

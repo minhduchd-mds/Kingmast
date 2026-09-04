@@ -1,32 +1,30 @@
 # KINGMAST
 
-KINGMAST is a safety-first ADAS research platform for electric vehicles. The production boundary remains **warning-only Level 0 driver assistance**: speed, forward/rear gap, THW/TTC, surround awareness, GPS positioning, road-object detection, navigation context, speed-limit awareness, location-aware alerts, sensor health, event logging, and parked-only settings.
+KINGMAST is a safety-first ADAS research platform for electric vehicles. The production boundary remains **warning-only Level 0 driver assistance**. It does not issue steering, braking, throttle, drivetrain or CAN-write commands.
 
-> Safety boundary: this repository does **not** issue steering, braking, throttle, or drivetrain commands. Vehicle adapters are read-only by design. Autonomous-driving work belongs in a separate simulation-only lab.
-
-## V2.2 highlights
-- Apple-inspired automotive system-app HMI with free Lucide outline icons.
-- Realtime ESP32/GNSS + radar + camera metadata fusion with replay/freshness protection.
-- Navigation routing through an OSRM-compatible provider.
-- Current speed-limit awareness from map `maxspeed` metadata plus optional high-confidence local sign recognition.
-- HMI speed-limit badge, over-limit warning state and route maneuver summary.
-- Nearby traffic-camera metadata from OpenStreetMap plus explicitly authorized provider registries.
-- Runtime camera-provider ingest for municipal/partner integrations.
-- Camera metadata is contextual only: KINGMAST does not bypass protected CCTV authentication and does not claim complete global camera coverage.
-- PostgreSQL storage model for traffic-camera sources, camera metadata, speed-limit observations and navigation routes.
+## V2.3 — Apple-inspired automotive HMI + navigation safety
+- Navigation-first Drive cockpit: next maneuver, current speed, verified speed limit, primary safety warning and route-relevant camera context.
+- Dynamic speed-limit sign on Drive; the old hard-coded limit is removed.
+- Speed-limit changes are surfaced as short, non-blocking notices.
+- Route-aware traffic-camera filtering: cameras are matched to the active route corridor before being described as "ahead".
+- Driver mode keeps only Drive, Navigate and Alerts in the primary interaction path.
+- Detailed Objects, Trip and Vehicle diagnostics are parked-only for real moving vehicles; simulator remains inspectable for bench testing.
+- Larger driver typography and 44+ px interaction targets; most primary controls are 48–56 px.
+- Reduced decorative glass and motion. Safety state uses text + icon + shape + color.
+- Destination UX is now a single **Where to?** search instead of latitude/longitude inputs.
+- Configurable Nominatim-compatible geocoding plus OSRM routing.
+- Existing public/authorized traffic-camera policy is preserved; camera completeness is never claimed.
 
 ## Monorepo
 ```text
 apps/hmi/                  Next.js automotive HMI
-services/risk-engine/      Fastify risk, fusion, road-context and realtime API
+services/risk-engine/      Fastify risk, fusion, navigation, road-context and realtime API
 packages/contracts/        Shared typed telemetry/navigation contracts
 edge/esp32/                GNSS/radar edge publisher reference firmware
-edge/camera-detector/      Object + optional speed-sign metadata publishers
+edge/camera-detector/      Camera object + speed-sign metadata publisher
 database/                  PostgreSQL migrations
 safety/                    Safety policy and traceability
-skills/ecc-plan/           Engineering Control & Compliance planning skill
-docs/                      Architecture, HMI, navigation, GPS/object and ECU plans
-tests/scenarios/           Deterministic ADAS scenarios
+docs/                      Architecture and HMI guidance
 autonomy-lab/              Simulation-only R&D boundary
 ```
 
@@ -38,35 +36,22 @@ cp .env.example .env
 pnpm dev
 ```
 HMI: http://localhost:3000  
-Risk API: http://localhost:4000
+API: http://localhost:4000
 
-The HMI falls back to a deterministic simulator when the edge WebSocket is unavailable. **Use device GPS** requests browser geolocation for bench/mobile preview only.
+The HMI falls back to a deterministic simulator when realtime edge data is unavailable. Browser device GPS is intended for bench/mobile preview only.
 
-## Realtime and road-context API
-- `POST /v3/edge/frame` — authenticated protocol-v1 ESP32 packet.
-- `POST /v3/perception/radar` — radar tracks.
-- `POST /v3/perception/camera` — camera class/bearing metadata; raw frames are not uploaded.
-- `GET /v3/stream` — HMI WebSocket telemetry + heartbeat.
-- `GET /v3/diagnostics` — edge source ages, clients and rejected-packet count.
-- `GET /v3/events` — recent stable warning transitions.
-- `GET /v4/road-context` — current mapped speed limit + nearby authorized/public traffic-camera metadata.
-- `POST /v4/navigation/route` — OSRM-compatible route calculation.
-- `POST /v4/perception/speed-sign` — authenticated high-confidence sign observation.
-- `POST /v4/road-context/cameras` — authenticated provider camera registry ingest.
-- `GET /v1/capabilities` — explicit warning-only capability boundary.
+## Navigation and road-context API
+- `GET /v4/navigation/search?q=...&lat=...&lng=...` — place search through a configurable geocoder.
+- `POST /v4/navigation/route` — OSRM route and turn steps.
+- `GET /v4/road-context` — speed limit, compliance and nearby public/authorized camera metadata.
+- `POST /v4/perception/speed-sign` — high-confidence local speed-sign observation.
+- `POST /v4/road-context/cameras` — runtime authorized camera-provider metadata.
 
-## Database
-Run migrations in order:
-```text
-database/001_init.sql
-database/002_location_object_detection.sql
-database/003_edge_operations.sql
-database/004_navigation_speed_context.sql
-```
+The default public geocoding/routing endpoints are for development and evaluation. Production deployments should use an owned or contracted provider that meets availability, privacy and usage-policy requirements.
 
-## Safety model
-`THW = range / egoSpeed`. `closingSpeed = egoSpeed - targetSpeed`. `TTC = range / closingSpeed` only when the gap is closing. Safety decisions are timestamp/confidence aware; stale camera/radar/GNSS inputs are degraded or rejected. GPS, navigation, map speed limits and camera context never create vehicle-control authority.
+## Safety boundary
+`THW = range / egoSpeed`. `closingSpeed = egoSpeed - targetSpeed`. `TTC = range / closingSpeed` only while the gap is closing. Stale camera/radar/GNSS data is degraded or rejected. Navigation, speed-limit and camera context remain advisory and never create control authority.
 
-See `docs/NAVIGATION_SPEED_LIMIT_CAMERAS.md` for V2.2 architecture, data-source rules and validation gates.
+See `docs/APPLE_AUTOMOTIVE_HMI_V3.md` for the HMI V3 design and verification rules.
 
 KINGMAST is not an official Apple CarPlay app, not AEB/ACC, and not a homologated safety product.
