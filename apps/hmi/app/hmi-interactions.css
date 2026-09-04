@@ -1,0 +1,199 @@
+/* KINGMAST v0.0.6 interaction layer — Apple-inspired OEM automotive HMI */
+.driverActionDock{
+  position:fixed;
+  left:calc(176px + 22px);
+  right:22px;
+  bottom:max(12px,env(safe-area-inset-bottom));
+  z-index:96;
+  min-height:68px;
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  padding:7px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:24px;
+  background:rgba(17,19,24,.9);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 18px 52px rgba(0,0,0,.32);
+  backdrop-filter:blur(24px) saturate(1.14);
+  -webkit-backdrop-filter:blur(24px) saturate(1.14);
+}
+.driverActionDock button{
+  position:relative;
+  min-width:0;
+  min-height:56px;
+  border:1px solid transparent;
+  border-radius:18px;
+  background:transparent;
+  color:#c6c9d0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:0 14px;
+  font:inherit;
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .16s ease,border-color .16s ease,color .16s ease,transform .08s ease;
+}
+.driverActionDock button:hover:not(:disabled){background:rgba(255,255,255,.055);color:#fff}
+.driverActionDock button:active:not(:disabled){transform:scale(.985)}
+.driverActionDock button.isActive{color:#fff;background:linear-gradient(180deg,rgba(48,135,255,.2),rgba(21,75,145,.14));border-color:rgba(73,151,255,.2)}
+.driverActionDock button.hasAlert{color:#fff;background:rgba(255,214,10,.07);border-color:rgba(255,214,10,.18)}
+.driverActionDock button.hasAlert.severity-critical{background:rgba(255,69,58,.09);border-color:rgba(255,69,58,.24)}
+.driverActionDock button:disabled{opacity:.38;cursor:default}
+.driverActionDock svg{width:24px;height:24px;stroke-width:1.8}
+.driverActionDock i{position:absolute;right:15px;top:12px;width:7px;height:7px;border-radius:50%;background:var(--apple-yellow);box-shadow:0 0 10px rgba(255,214,10,.36)}
+.driverActionDock .severity-critical i{background:var(--apple-red);box-shadow:0 0 10px rgba(255,69,58,.4)}
+
+.kingmastExperience:has(.driverActionDock) .connectedRoadHud{bottom:92px}
+.kingmastExperience:has(.driverActionDock) .hmiV5 .workspace{padding-bottom:194px;scroll-padding-bottom:194px}
+
+.driverSheetBackdrop{
+  position:fixed;
+  inset:0;
+  z-index:108;
+  display:grid;
+  align-items:end;
+  padding:0 max(22px,env(safe-area-inset-right)) max(92px,calc(84px + env(safe-area-inset-bottom))) max(calc(176px + 22px),env(safe-area-inset-left));
+  background:linear-gradient(180deg,rgba(0,0,0,.02) 25%,rgba(0,0,0,.44));
+}
+.driverActionSheet{
+  width:min(1180px,100%);
+  justify-self:center;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:26px;
+  background:linear-gradient(150deg,rgba(28,31,38,.97),rgba(14,16,21,.985));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 32px 80px rgba(0,0,0,.48);
+  backdrop-filter:blur(30px) saturate(1.12);
+  -webkit-backdrop-filter:blur(30px) saturate(1.12);
+  color:#f7f7f9;
+  overflow:hidden;
+  animation:driverSheetIn .28s cubic-bezier(.16,1,.3,1) both;
+}
+.driverActionSheet.severity-caution{border-color:rgba(255,214,10,.23)}
+.driverActionSheet.severity-critical{border-color:rgba(255,69,58,.3)}
+.driverSheetHandle{width:42px;height:4px;margin:8px auto 2px;border-radius:999px;background:rgba(255,255,255,.17)}
+.driverActionSheet header{min-height:92px;display:grid;grid-template-columns:58px minmax(0,1fr) 52px;align-items:center;gap:14px;padding:15px 18px 12px}
+.driverSheetIcon{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:rgba(255,214,10,.08);color:var(--apple-yellow);border:1px solid rgba(255,214,10,.16)}
+.driverActionSheet.severity-critical .driverSheetIcon{background:rgba(255,69,58,.1);color:var(--apple-red);border-color:rgba(255,69,58,.2)}
+.driverSheetIcon svg{width:28px;height:28px;stroke-width:1.8}
+.driverActionSheet header>span:nth-child(2){display:grid;gap:3px;min-width:0}
+.driverActionSheet header small{font-size:11px;letter-spacing:.14em;color:#8f96a3}
+.driverActionSheet header strong{font-size:clamp(22px,2vw,30px);line-height:1.12;letter-spacing:-.025em}
+.driverActionSheet header em{font-size:14px;line-height:1.35;font-style:normal;color:#aeb2bb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.driverSheetClose{width:52px;height:52px;border:0;border-radius:17px;background:rgba(255,255,255,.055);color:#d7d9de;display:grid;place-items:center;cursor:pointer}
+.driverSheetClose svg{width:22px;height:22px}
+.driverSheetActions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;padding:4px 18px 16px}
+.driverSheetActions.cameraActions{grid-template-columns:repeat(3,minmax(0,1fr))}
+.driverSheetActions button{
+  min-height:74px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:19px;
+  background:rgba(255,255,255,.04);
+  color:#f4f5f7;
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr);
+  align-items:center;
+  gap:11px;
+  padding:10px 14px;
+  text-align:left;
+  cursor:pointer;
+  transition:background .16s ease,border-color .16s ease,transform .08s ease;
+}
+.driverSheetActions button:hover:not(:disabled){background:rgba(255,255,255,.07)}
+.driverSheetActions button:active:not(:disabled){transform:scale(.988)}
+.driverSheetActions button:disabled{opacity:.42;cursor:default}
+.driverSheetActions button.sheetPrimary{background:linear-gradient(180deg,rgba(31,126,255,.2),rgba(18,77,157,.16));border-color:rgba(67,151,255,.38)}
+.driverSheetActions button>svg{width:25px;height:25px;stroke-width:1.8;color:#8bc4ff}
+.driverSheetActions button>span{display:grid;gap:3px}
+.driverSheetActions strong{font-size:14px}
+.driverSheetActions small{font-size:11px;line-height:1.3;color:#9499a3}
+.driverActionSheet footer{min-height:48px;display:grid;grid-template-columns:20px minmax(0,1fr) 18px;align-items:center;gap:9px;padding:9px 18px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;line-height:1.35;color:#898f9a}
+.driverActionSheet footer svg{width:17px;height:17px}
+
+.settingsWorkspace{max-width:1380px;margin:0 auto}
+.settingsSurface{padding:20px}
+.settingsIntro{margin:7px 0 18px;max-width:760px;font-size:13px;line-height:1.5;color:var(--secondary)}
+.settingsGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,.9fr);gap:16px}
+.settingsColumn{display:grid;gap:10px;align-content:start}
+.settingsToggleRow{min-height:82px;display:grid;grid-template-columns:48px minmax(0,1fr) 62px;align-items:center;gap:13px;padding:10px 14px;border:1px solid rgba(255,255,255,.08);border-radius:19px;background:rgba(255,255,255,.032)}
+.settingsRowIcon{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:rgba(255,255,255,.045);color:#a9cfff}
+.settingsRowIcon svg{width:24px;height:24px}
+.settingsRowCopy{display:grid;gap:3px}
+.settingsRowCopy strong{font-size:15px}
+.settingsRowCopy small{font-size:12px;line-height:1.35;color:var(--secondary)}
+.appleSwitch{width:58px;height:34px;border:0;border-radius:999px;padding:3px;background:#3b3e46;justify-self:end;cursor:pointer;transition:background .18s ease}
+.appleSwitch span{display:block;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.28);transition:transform .2s cubic-bezier(.16,1,.3,1)}
+.appleSwitch.isOn{background:var(--apple-blue)}
+.appleSwitch.isOn span{transform:translateX(24px)}
+.settingsControls{grid-template-rows:repeat(3,1fr)}
+.settingsControlCard{min-height:128px;display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;align-items:start;padding:15px;border:1px solid rgba(255,255,255,.08);border-radius:20px;background:rgba(255,255,255,.032)}
+.settingsControlCard>svg{width:27px;height:27px;color:#a9cfff;margin-top:2px}
+.settingsSegmented{display:grid;gap:12px}
+.settingsSegmented>strong{font-size:15px}
+.settingsSegmented>div{display:grid;grid-template-columns:repeat(3,1fr);padding:3px;border-radius:14px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.06)}
+.settingsSegmented button{min-height:48px;border:0;border-radius:11px;background:transparent;color:#bfc2c9;font:inherit;font-size:13px;cursor:pointer}
+.settingsSegmented button.selected{background:linear-gradient(180deg,#2188ff,#1268d0);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 7px 18px rgba(10,132,255,.17)}
+.settingsFooter{min-height:70px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.065);display:flex;align-items:center;justify-content:space-between;gap:16px;color:var(--secondary);font-size:12px}
+.settingsFooter>span{display:flex;align-items:center;gap:8px}
+.settingsFooter svg{width:18px;height:18px}
+.settingsDone{min-width:180px;min-height:54px;border:1px solid rgba(71,154,255,.3);border-radius:17px;background:linear-gradient(180deg,#248cff,#0b68d4);color:#fff;font:inherit;font-size:15px;font-weight:650;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 10px 28px rgba(10,132,255,.16)}
+
+.theme-day .driverActionDock,.theme-day~.driverActionDock{background:rgba(246,247,250,.92);border-color:rgba(0,0,0,.1);box-shadow:0 16px 40px rgba(0,0,0,.12)}
+.theme-day .driverActionDock button{color:#42454b}
+.theme-day .driverActionDock button:hover:not(:disabled){background:rgba(0,0,0,.045);color:#15171a}
+.theme-day .settingsToggleRow,.theme-day .settingsControlCard{background:rgba(0,0,0,.025);border-color:rgba(0,0,0,.09)}
+.theme-day .settingsSegmented>div{background:rgba(0,0,0,.045);border-color:rgba(0,0,0,.06)}
+
+.driverActionDock button:focus-visible,.driverActionSheet button:focus-visible,.settingsSurface button:focus-visible{
+  outline:3px solid #79bfff;
+  outline-offset:3px;
+}
+
+@keyframes driverSheetIn{from{opacity:0;transform:translateY(24px) scale(.985)}to{opacity:1;transform:none}}
+
+@media(max-width:1179px){
+  .driverActionDock{left:18px;right:18px;bottom:10px}
+  .driverSheetBackdrop{padding-left:18px;padding-right:18px}
+  .kingmastExperience:has(.driverActionDock) .connectedRoadHud{bottom:90px}
+  .settingsGrid{grid-template-columns:1fr}
+}
+
+@media(max-width:820px){
+  .driverActionDock{left:12px;right:12px;min-height:64px;padding:6px;gap:4px;border-radius:21px}
+  .driverActionDock button{min-height:54px;padding:0 8px;gap:5px;font-size:11px;flex-direction:column}
+  .driverActionDock svg{width:21px;height:21px}
+  .driverActionDock i{right:10px;top:8px}
+  .driverSheetBackdrop{padding:0 10px 84px}
+  .driverActionSheet{border-radius:22px}
+  .driverSheetActions,.driverSheetActions.cameraActions{grid-template-columns:1fr 1fr}
+  .driverActionSheet header{grid-template-columns:50px minmax(0,1fr) 48px;padding-left:13px;padding-right:13px}
+  .driverSheetIcon{width:48px;height:48px;border-radius:15px}
+  .driverActionSheet header em{white-space:normal}
+  .settingsSurface{padding:14px}
+  .settingsToggleRow{grid-template-columns:42px minmax(0,1fr) 58px}
+  .settingsFooter{align-items:stretch;flex-direction:column}
+  .settingsDone{width:100%}
+}
+
+@media(max-height:560px) and (min-width:821px){
+  .kingmastExperience:has(.driverActionDock) .connectedRoadHud{display:none}
+  .kingmastExperience:has(.driverActionDock) .hmiV5 .workspace{padding-bottom:92px;scroll-padding-bottom:92px}
+  .driverActionDock{min-height:60px;padding:5px}
+  .driverActionDock button{min-height:50px}
+  .driverSheetBackdrop{padding-bottom:80px}
+  .driverActionSheet header{min-height:72px;padding-top:9px;padding-bottom:8px}
+  .driverSheetActions button{min-height:60px}
+  .driverActionSheet footer{display:none}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .driverActionSheet{animation:none!important}
+  .driverActionDock button,.driverSheetActions button,.appleSwitch,.appleSwitch span{transition:none!important}
+}
+
+@media(prefers-contrast:more){
+  .driverActionDock,.driverActionSheet,.settingsToggleRow,.settingsControlCard{border-width:2px}
+  .driverActionDock button,.driverSheetActions button,.settingsSegmented button{font-weight:700}
+}

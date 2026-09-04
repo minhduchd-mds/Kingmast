@@ -24,14 +24,15 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await expect(page.locator('main.appShell')).toBeVisible({timeout:5_000});
     await expect(page.locator('.speedValue')).toBeVisible();
     await expect(page.locator('.speedLimitSign')).toBeVisible();
+    await expect(page.getByTestId('driver-action-dock')).toBeVisible();
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 
   test('primary navigation and driver controls keep automotive touch targets',async({page})=>{
     await openHmi(page,1366,768);
-    const controls=page.locator('.navItem,.voiceToggle,.maneuverBanner>button');
+    const controls=page.locator('.navItem,.voiceToggle,.maneuverBanner>button,.driverActionDock button');
     const count=await controls.count();
-    expect(count).toBeGreaterThan(3);
+    expect(count).toBeGreaterThan(8);
     for(let index=0;index<count;index++){
       const control=controls.nth(index);
       if(!(await control.isVisible()))continue;
@@ -40,8 +41,37 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     }
     await page.getByRole('button',{name:'Navigate'}).click();
     await expect(page.getByRole('heading',{name:'Navigate'})).toBeVisible();
-    await page.getByRole('button',{name:/Alerts/}).click();
+    await page.getByRole('button',{name:/Alerts/}).first().click();
     await expect(page.getByRole('heading',{name:'Alerts'})).toBeVisible();
+  });
+
+  test('quick action dock opens route and parked settings without cluttering Drive',async({page})=>{
+    await openHmi(page,1366,768);
+    const dock=page.getByTestId('driver-action-dock');
+    await dock.getByRole('button',{name:/Route/}).click();
+    await expect(page.getByRole('heading',{name:'Navigate'})).toBeVisible();
+    await page.getByRole('button',{name:'Drive'}).click();
+    await dock.getByRole('button',{name:'Open settings'}).click();
+    await expect(page.getByTestId('hmi-settings')).toBeVisible();
+    const laneSwitch=page.getByRole('switch',{name:/Lane guidance/});
+    await expect(laneSwitch).toBeVisible();
+    await laneSwitch.click();
+    await page.getByRole('button',{name:'Done'}).click();
+    await expect(page.locator('.v5Cockpit')).toBeVisible();
+  });
+
+  test('active caution opens a non-destructive driver action sheet',async({page})=>{
+    await openHmi(page,1366,768);
+    const dock=page.getByTestId('driver-action-dock');
+    const alertButton=dock.getByRole('button',{name:/Alerts/});
+    await expect(alertButton).toHaveClass(/hasAlert/,{timeout:5_000});
+    await alertButton.click();
+    const sheet=page.getByTestId('driver-action-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole('button',{name:/Keep current route/})).toBeVisible();
+    await expect(sheet.getByRole('button',{name:/Mute voice/})).toBeVisible();
+    await sheet.getByRole('button',{name:/Keep current route/}).click();
+    await expect(sheet).toBeHidden();
   });
 
   test('1366x768 keeps the driving hierarchy readable without horizontal clipping',async({page})=>{
@@ -62,6 +92,7 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await expect(page.locator('.v5Cockpit')).toBeVisible();
     await expect(page.locator('.v5RoadScene')).toBeVisible();
     await expect(page.locator('.driverAlert')).toBeVisible();
+    await expect(page.getByTestId('driver-action-dock')).toBeVisible();
     expect(await hasHorizontalOverflow(page)).toBe(false);
   });
 
@@ -71,6 +102,7 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await expect(page.locator('.speedValue')).toBeVisible();
     await expect(page.locator('.driverAlert')).toBeVisible();
     await expect(page.locator('.v5DriveSide')).toBeHidden();
+    await expect(page.locator('.connectedRoadHud')).toBeHidden();
     const alertHeight=await page.locator('.driverAlert').evaluate((node)=>parseFloat(getComputedStyle(node).minHeight));
     expect(alertHeight).toBeGreaterThanOrEqual(56);
     expect(await hasHorizontalOverflow(page)).toBe(false);
