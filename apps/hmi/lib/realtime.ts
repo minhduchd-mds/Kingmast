@@ -6,10 +6,20 @@ import type { EdgeDiagnostics, RealtimeMessage, TelemetryFrame } from '@kingmast
 export type RealtimeState='disabled'|'connecting'|'live'|'stale'|'offline';
 export type RealtimeQuality='excellent'|'good'|'degraded'|'none';
 
+export interface KingmastTelemetryEventDetail {
+  frame: TelemetryFrame;
+  receivedAtMs: number;
+  diagnostics: EdgeDiagnostics | null;
+}
+
 function streamUrl(){
   const explicit=process.env.NEXT_PUBLIC_KINGMAST_WS_URL;if(explicit)return explicit;
   const api=process.env.NEXT_PUBLIC_KINGMAST_API_URL;if(api)return`${api.replace(/^http/,'ws').replace(/\/$/,'')}/v3/stream`;
   return'ws://localhost:4000/v3/stream';
+}
+
+function publishTelemetryEvent(detail:KingmastTelemetryEventDetail){
+  window.dispatchEvent(new CustomEvent<KingmastTelemetryEventDetail>('kingmast:telemetry',{detail}));
 }
 
 export function useRealtimeTelemetry(enabled=true){
@@ -51,7 +61,9 @@ export function useRealtimeTelemetry(enabled=true){
           if(sessionRef.current!==session){sessionRef.current=session;sequenceRef.current=-1;}
           sequenceRef.current=Math.max(sequenceRef.current,message.frame.sequence);
           telemetryAtRef.current=receivedNow;
-          setFrame(message.frame);setLastReceivedAt(message.receivedAtMs);setDiagnostics(message.diagnostics??null);setState('live');setQuality('excellent');
+          const nextDiagnostics=message.diagnostics??null;
+          setFrame(message.frame);setLastReceivedAt(message.receivedAtMs);setDiagnostics(nextDiagnostics);setState('live');setQuality('excellent');
+          publishTelemetryEvent({frame:message.frame,receivedAtMs:message.receivedAtMs,diagnostics:nextDiagnostics});
         }catch{/* malformed edge messages are ignored */}
       };
       socket.onerror=()=>{setState('offline');setQuality('none');};
