@@ -17,13 +17,15 @@ export type AlertType =
   | 'object-in-danger-zone'
   | 'geofence-entry'
   | 'sensor-degraded';
+export type PerceptionSource = 'radar-camera' | 'radar-only' | 'camera-only' | 'simulator';
+export type EdgeHealthState = 'live' | 'degraded' | 'offline';
 
 export interface GeoPoint { lat:number; lng:number; }
 export interface VehicleSample { timestampMs:number; egoSpeedMps:number; targetSpeedMps:number; rangeM:number; confidence:number; canHealthy:boolean; radarHealthy:boolean; cameraHealthy:boolean; }
 export interface RiskAssessment { severity:Severity; ttcS:number|null; thwS:number|null; closingSpeedMps:number; confidence:number; reasons:string[]; }
 export interface SensorHealth { radarFront:SensorState; radarRear:SensorState; camera:SensorState; can:SensorState; gnssImu:SensorState; ecu:SensorState; }
 export interface VehiclePosition extends GeoPoint { speedKmh:number; headingDeg:number; accuracyM:number; timestampMs:number; source:'gnss'|'device-gps'|'simulator'; }
-export interface DetectedObject { id:string; kind:ObjectKind; confidence:number; distanceM:number; bearingDeg:number; zone:RelativeZone; severity:Severity; relativeSpeedMps:number; position:GeoPoint; timestampMs:number; }
+export interface DetectedObject { id:string; kind:ObjectKind; confidence:number; distanceM:number; bearingDeg:number; zone:RelativeZone; severity:Severity; relativeSpeedMps:number; position:GeoPoint; timestampMs:number; source?:PerceptionSource; }
 export interface LocationAlert { id:string; type:AlertType; severity:Severity; title:string; message:string; distanceM:number|null; objectId:string|null; position:GeoPoint; timestampMs:number; acknowledged:boolean; }
 export interface Geofence { id:string; name:string; center:GeoPoint; radiusM:number; severity:Exclude<Severity,'safe'>; enabled:boolean; }
 export interface TelemetryFrame { sequence:number; vehicle:VehiclePosition; sensors:SensorHealth; objects:DetectedObject[]; alerts:LocationAlert[]; }
@@ -58,12 +60,12 @@ export interface RadarTrackFrame {
   tracks:RadarTrack[];
 }
 
-export interface EdgeGnssSample extends VehiclePosition {
-  source:'gnss';
-}
+export interface EdgeGnssSample extends VehiclePosition { source:'gnss'; }
 
 export interface EdgeTelemetryPacket {
+  protocolVersion:1;
   deviceId:string;
+  bootId:string;
   sequence:number;
   timestampMs:number;
   gnss:EdgeGnssSample;
@@ -72,9 +74,49 @@ export interface EdgeTelemetryPacket {
   camera?:CameraDetectionFrame;
 }
 
+export interface EdgeSensorAges {
+  gnss:number|null;
+  radarFront:number|null;
+  camera:number|null;
+}
+
+export interface EdgeDiagnostics {
+  status:EdgeHealthState;
+  deviceId:string|null;
+  bootId:string|null;
+  lastSequence:number;
+  lastIngressAtMs:number|null;
+  lastPublishAtMs:number|null;
+  connectedClients:number;
+  rejectedPackets:number;
+  sensorAgesMs:EdgeSensorAges;
+}
+
 export interface RealtimeTelemetryEnvelope {
   type:'telemetry';
   source:'edge'|'simulator';
   receivedAtMs:number;
   frame:TelemetryFrame;
+  diagnostics?:EdgeDiagnostics;
+}
+
+export interface RealtimeHeartbeatEnvelope {
+  type:'heartbeat';
+  receivedAtMs:number;
+  lastSequence:number;
+  connectedClients:number;
+}
+
+export type RealtimeMessage = RealtimeTelemetryEnvelope | RealtimeHeartbeatEnvelope;
+
+export interface EdgeEventRecord {
+  id:string;
+  timestampMs:number;
+  sequence:number;
+  severity:Severity;
+  type:AlertType;
+  title:string;
+  message:string;
+  objectId:string|null;
+  position:GeoPoint;
 }

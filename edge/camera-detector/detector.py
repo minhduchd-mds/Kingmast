@@ -1,19 +1,17 @@
 import argparse
-import math
+import os
 import time
 from typing import Any
 
 import cv2
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from ultralytics import YOLO
 
 SUPPORTED = {
-    'person': 'person',
-    'bicycle': 'bicycle',
-    'car': 'car',
-    'motorcycle': 'motorcycle',
-    'bus': 'bus',
-    'truck': 'truck',
+    'person': 'person', 'bicycle': 'bicycle', 'car': 'car',
+    'motorcycle': 'motorcycle', 'bus': 'bus', 'truck': 'truck',
 }
 
 
@@ -22,34 +20,34 @@ def bearing_from_center(center_x: float, frame_width: int, horizontal_fov_deg: f
     return normalized * horizontal_fov_deg
 
 
-def frame_payload(model: YOLO, frame: Any, camera_id: str, horizontal_fov_deg: float) -> dict[str, Any]:
+def frame_payload(model: YOLO, frame: Any, camera_id: str, horizontal_fov_deg: float, confidence_floor: float, max_detections: int) -> dict[str, Any]:
     timestamp_ms = int(time.time() * 1000)
     detections: list[dict[str, Any]] = []
     result = model.predict(frame, verbose=False)[0]
     names = result.names
+    candidates: list[tuple[float, dict[str, Any]]] = []
 
     for index, box in enumerate(result.boxes):
         class_id = int(box.cls[0].item())
-        raw_name = str(names[class_id])
-        kind = SUPPORTED.get(raw_name)
+        kind = SUPPORTED.get(str(names[class_id]))
         if kind is None:
             continue
         confidence = float(box.conf[0].item())
-        if confidence < 0.45:
+        if confidence < confidence_floor:
             continue
-
         x1, _, x2, _ = [float(v) for v in box.xyxy[0].tolist()]
         bearing = bearing_from_center((x1 + x2) / 2, frame.shape[1], horizontal_fov_deg)
-        detections.append({
+        candidates.append((confidence, {
             'id': f'{camera_id}-{timestamp_ms}-{index}',
             'kind': kind,
             'confidence': round(confidence, 4),
             'bearingDeg': round(bearing, 2),
-            # Distance stays null on purpose. Radar is the primary metric distance source.
             'estimatedDistanceM': None,
             'timestampMs': timestamp_ms,
-        })
+        }))
 
+    for _, detection in sorted(candidates, key=lambda item: item[0], reverse=True)[:max_detections]:
+        detections.append(detection)
     return {'cameraId': camera_id, 'timestampMs': timestamp_ms, 'detections': detections}
 
 
@@ -59,8 +57,11 @@ def main() -> None:
     parser.add_argument('--model', default='yolo11n.pt')
     parser.add_argument('--source', default='0', help='OpenCV camera index or video/RTSP URL')
     parser.add_argument('--camera-id', default='front-camera')
-    parser.add_argument('--fov', type=float, default=78.0, help='Horizontal camera field of view in degrees')
+    parser.add_argument('--fov', type=float, default=78.0)
     parser.add_argument('--fps', type=float, default=10.0)
+    parser.add_argument('--confidence', type=float, default=0.45)
+    parser.add_argument('--max-detections', type=int, default=48)
+    parser.add_argument('--token', default=os.getenv('KINGMAST_EDGE_TOKEN', ''))
     args = parser.parse_args()
 
     source: int | str = int(args.source) if args.source.isdigit() else args.source
@@ -71,6 +72,11 @@ def main() -> None:
     model = YOLO(args.model)
     period = 1.0 / max(args.fps, 1.0)
     session = requests.Session()
+    retry = Retry(total=2, connect=2, read=1, backoff_factor=0.15, status_forcelist=(429, 500, 502, 503, 504), allowed_methods=frozenset({'POST'}))
+    session.mount('http://', HTTPAdapter(max_retries=retry))
+    session.mount('https://', HTTPAdapter(max_retries=retry))
+    if args.token:
+        session.headers.update({'x-kingmast-edge-token': args.token})
 
     try:
         while True:
@@ -79,7 +85,7 @@ def main() -> None:
             if not ok:
                 time.sleep(0.1)
                 continue
-            payload = frame_payload(model, frame, args.camera_id, args.fov)
+            payload = frame_payload(model, frame, args.camera_id, args.fov, max(0.0, min(1.0, args.confidence)), max(1, args.max_detections))
             try:
                 session.post(args.api, json=payload, timeout=0.8).raise_for_status()
             except requests.RequestException as exc:

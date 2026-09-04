@@ -1,68 +1,78 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { RealtimeTelemetryEnvelope, TelemetryFrame } from '@kingmast/contracts';
+import type { EdgeDiagnostics, RealtimeMessage, TelemetryFrame } from '@kingmast/contracts';
 
-export type RealtimeState = 'disabled' | 'connecting' | 'live' | 'stale' | 'offline';
+export type RealtimeState='disabled'|'connecting'|'live'|'stale'|'offline';
+export type RealtimeQuality='excellent'|'good'|'degraded'|'none';
 
-function streamUrl() {
-  const explicit = process.env.NEXT_PUBLIC_KINGMAST_WS_URL;
-  if (explicit) return explicit;
-  const api = process.env.NEXT_PUBLIC_KINGMAST_API_URL;
-  if (api) return `${api.replace(/^http/,'ws').replace(/\/$/,'')}/v3/stream`;
-  return 'ws://localhost:4000/v3/stream';
+function streamUrl(){
+  const explicit=process.env.NEXT_PUBLIC_KINGMAST_WS_URL;if(explicit)return explicit;
+  const api=process.env.NEXT_PUBLIC_KINGMAST_API_URL;if(api)return`${api.replace(/^http/,'ws').replace(/\/$/,'')}/v3/stream`;
+  return'ws://localhost:4000/v3/stream';
 }
 
-export function useRealtimeTelemetry(enabled = true) {
-  const [frame,setFrame] = useState<TelemetryFrame|null>(null);
-  const [state,setState] = useState<RealtimeState>(enabled ? 'connecting' : 'disabled');
-  const [lastReceivedAt,setLastReceivedAt] = useState<number|null>(null);
-  const retryRef = useRef<number|null>(null);
+export function useRealtimeTelemetry(enabled=true){
+  const[frame,setFrame]=useState<TelemetryFrame|null>(null);
+  const[state,setState]=useState<RealtimeState>(enabled?'connecting':'disabled');
+  const[quality,setQuality]=useState<RealtimeQuality>('none');
+  const[lastReceivedAt,setLastReceivedAt]=useState<number|null>(null);
+  const[diagnostics,setDiagnostics]=useState<EdgeDiagnostics|null>(null);
+  const retryRef=useRef<number|null>(null);
+  const telemetryAtRef=useRef<number|null>(null);
+  const heartbeatAtRef=useRef<number|null>(null);
+  const sequenceRef=useRef(-1);
+  const sessionRef=useRef('');
 
-  useEffect(() => {
-    if (!enabled) { setState('disabled'); return; }
-    let socket:WebSocket|null = null;
-    let disposed = false;
-    let reconnectMs = 1000;
+  useEffect(()=>{
+    if(!enabled){setState('disabled');setQuality('none');return;}
+    let socket:WebSocket|null=null;let disposed=false;let reconnectMs=800;
 
-    const connect = () => {
-      if (disposed) return;
-      setState((current)=>current === 'live' ? current : 'connecting');
-      socket = new WebSocket(streamUrl());
-      socket.onopen = () => { reconnectMs = 1000; };
-      socket.onmessage = (event) => {
-        try {
-          const envelope = JSON.parse(String(event.data)) as RealtimeTelemetryEnvelope;
-          if (envelope.type !== 'telemetry' || !envelope.frame) return;
-          setFrame(envelope.frame);
-          setLastReceivedAt(envelope.receivedAtMs);
-          setState('live');
-        } catch { /* ignore malformed edge messages */ }
+    const scheduleReconnect=()=>{
+      if(disposed)return;
+      const jitter=.8+Math.random()*.4;
+      retryRef.current=window.setTimeout(connect,Math.round(reconnectMs*jitter));
+      reconnectMs=Math.min(12_000,Math.round(reconnectMs*1.8));
+    };
+    const connect=()=>{
+      if(disposed)return;
+      if(!navigator.onLine){setState('offline');setQuality('none');return;}
+      if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;
+      setState('connecting');
+      socket=new WebSocket(streamUrl());
+      socket.onopen=()=>{reconnectMs=800;heartbeatAtRef.current=Date.now();};
+      socket.onmessage=(event)=>{
+        try{
+          const message=JSON.parse(String(event.data)) as RealtimeMessage;
+          const receivedNow=Date.now();heartbeatAtRef.current=receivedNow;
+          if(message.type==='heartbeat')return;
+          const session=message.diagnostics?.deviceId&&message.diagnostics.bootId?`${message.diagnostics.deviceId}:${message.diagnostics.bootId}`:message.source;
+          if(sessionRef.current===session&&message.frame.sequence<sequenceRef.current)return;
+          if(sessionRef.current!==session){sessionRef.current=session;sequenceRef.current=-1;}
+          sequenceRef.current=Math.max(sequenceRef.current,message.frame.sequence);
+          telemetryAtRef.current=receivedNow;
+          setFrame(message.frame);setLastReceivedAt(message.receivedAtMs);setDiagnostics(message.diagnostics??null);setState('live');setQuality('excellent');
+        }catch{/* malformed edge messages are ignored */}
       };
-      socket.onerror = () => setState('offline');
-      socket.onclose = () => {
-        if (disposed) return;
-        setState('offline');
-        retryRef.current = window.setTimeout(connect,reconnectMs);
-        reconnectMs = Math.min(10_000,reconnectMs*1.8);
-      };
+      socket.onerror=()=>{setState('offline');setQuality('none');};
+      socket.onclose=()=>{socket=null;if(disposed)return;setState('offline');setQuality('none');scheduleReconnect();};
     };
 
+    const onOnline=()=>connect();
+    const onOffline=()=>{setState('offline');setQuality('none');socket?.close();};
+    window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);
     connect();
-    const staleTimer = window.setInterval(() => {
-      setLastReceivedAt((last) => {
-        if (last && Date.now()-last > 2500) setState('stale');
-        return last;
-      });
-    },1000);
 
-    return () => {
-      disposed = true;
-      if (retryRef.current !== null) window.clearTimeout(retryRef.current);
-      window.clearInterval(staleTimer);
-      socket?.close();
-    };
+    const freshnessTimer=window.setInterval(()=>{
+      const now=Date.now();const telemetryAge=telemetryAtRef.current===null?Number.POSITIVE_INFINITY:now-telemetryAtRef.current;const heartbeatAge=heartbeatAtRef.current===null?Number.POSITIVE_INFINITY:now-heartbeatAtRef.current;
+      if(heartbeatAge>5_000){setState('offline');setQuality('none');return;}
+      if(telemetryAge>2_500){setState('stale');setQuality('degraded');return;}
+      if(telemetryAge>1_200){setState('live');setQuality('good');return;}
+      if(telemetryAge<Number.POSITIVE_INFINITY){setState('live');setQuality('excellent');}
+    },500);
+
+    return()=>{disposed=true;if(retryRef.current!==null)window.clearTimeout(retryRef.current);window.clearInterval(freshnessTimer);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);socket?.close();};
   },[enabled]);
 
-  return { frame,state,lastReceivedAt,url:streamUrl() };
+  return{frame,state,quality,lastReceivedAt,diagnostics,url:streamUrl()};
 }

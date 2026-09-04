@@ -1,167 +1,43 @@
 'use client';
 
-import {
-  AlertTriangle,
-  BatteryMedium,
-  Bell,
-  Camera,
-  CarFront,
-  ChevronRight,
-  CircleParking,
-  Cpu,
-  Gauge,
-  LocateFixed,
-  Map,
-  MapPinned,
-  Navigation,
-  Radio,
-  Route,
-  Satellite,
-  Settings,
-  ShieldCheck,
-  Wifi,
-  WifiOff,
-} from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { DetectedObject, SensorState, Severity, VehiclePosition } from '@kingmast/contracts';
-import GpsSafetyMap, { ObjectGlyph } from '../components/GpsSafetyMap';
-import { MOTION, useAnimatedNumber } from '../lib/motion';
-import { useRealtimeTelemetry } from '../lib/realtime';
-import { createSimulationFrame, withDevicePosition } from '../lib/telemetry';
+import {AlertTriangle,BatteryMedium,Bell,Camera,CarFront,ChevronRight,CircleParking,Cpu,Gauge,LocateFixed,Map,MapPinned,Navigation,Radio,Route,Satellite,Settings,ShieldCheck,Wifi,WifiOff} from 'lucide-react';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import type {DetectedObject,SensorState,Severity,VehiclePosition} from '@kingmast/contracts';
+import GpsSafetyMap,{ObjectGlyph} from '../components/GpsSafetyMap';
+import {MOTION,useAnimatedNumber} from '../lib/motion';
+import {useRealtimeTelemetry} from '../lib/realtime';
+import {createSimulationFrame,withDevicePosition} from '../lib/telemetry';
 
-type ViewKey = 'drive' | 'map' | 'objects' | 'alerts' | 'trip' | 'vehicle';
-type GpsState = 'simulator' | 'requesting' | 'device' | 'denied';
-
-const views:Array<{key:ViewKey;label:string;icon:typeof CarFront}> = [
-  {key:'drive',label:'Drive',icon:CarFront},
-  {key:'map',label:'Map',icon:Map},
-  {key:'objects',label:'Objects',icon:Radio},
-  {key:'alerts',label:'Alerts',icon:Bell},
-  {key:'trip',label:'Trip',icon:Route},
-  {key:'vehicle',label:'Vehicle',icon:Gauge},
-];
-
+type ViewKey='drive'|'map'|'objects'|'alerts'|'trip'|'vehicle';
+type GpsState='simulator'|'requesting'|'device'|'denied';
+const views:Array<{key:ViewKey;label:string;icon:typeof CarFront}>=[{key:'drive',label:'Drive',icon:CarFront},{key:'map',label:'Map',icon:Map},{key:'objects',label:'Objects',icon:Radio},{key:'alerts',label:'Alerts',icon:Bell},{key:'trip',label:'Trip',icon:Route},{key:'vehicle',label:'Vehicle',icon:Gauge}];
 const severityRank:Record<Severity,number>={safe:1,caution:2,critical:3};
 const formatCoordinate=(value:number)=>value.toFixed(5);
-
-function statusCopy(severity:Severity){
-  if(severity==='critical')return{title:'Slow down',subtitle:'Immediate hazard in the safety zone.'};
-  if(severity==='caution')return{title:'Increase awareness',subtitle:'A nearby object requires attention.'};
-  return{title:'Clear ahead',subtitle:'KINGMAST is monitoring the road around you.'};
-}
-
-function nearestFrontObject(objects:DetectedObject[]){
-  return objects.filter((object)=>['front','front-left','front-right'].includes(object.zone)).sort((a,b)=>a.distanceM-b.distanceM)[0]??null;
-}
-
-function Metric({label,value,unit}:{label:string;value:string;unit?:string}){
-  return <div className="metricTile"><small>{label}</small><strong>{value}{unit?<em>{unit}</em>:null}</strong></div>;
-}
-
-function SensorStatus({label,icon:Icon,state}:{label:string;icon:typeof Radio;state:SensorState}){
-  const text=state==='ok'?'Available':state==='degraded'?'Degraded':'Unavailable';
-  return <div className={`sensorStatus sensor-${state}`}><span className="sensorGlyph"><Icon strokeWidth={1.7}/></span><span><strong>{label}</strong><small>{text}</small></span><i aria-hidden="true"/></div>;
-}
+function statusCopy(severity:Severity){if(severity==='critical')return{title:'Slow down',subtitle:'Immediate hazard in the safety zone.'};if(severity==='caution')return{title:'Increase awareness',subtitle:'A nearby object requires attention.'};return{title:'Clear ahead',subtitle:'KINGMAST is monitoring the road around you.'};}
+function nearestFrontObject(objects:DetectedObject[]){return objects.filter((object)=>['front','front-left','front-right'].includes(object.zone)).sort((a,b)=>a.distanceM-b.distanceM)[0]??null;}
+function Metric({label,value,unit}:{label:string;value:string;unit?:string}){return <div className="metricTile"><small>{label}</small><strong>{value}{unit?<em>{unit}</em>:null}</strong></div>;}
+function SensorStatus({label,icon:Icon,state}:{label:string;icon:typeof Radio;state:SensorState}){const text=state==='ok'?'Available':state==='degraded'?'Degraded':'Unavailable';return <div className={`sensorStatus sensor-${state}`}><span className="sensorGlyph"><Icon strokeWidth={1.7}/></span><span><strong>{label}</strong><small>{text}</small></span><i aria-hidden="true"/></div>;}
 
 export default function Page(){
-  const [view,setView]=useState<ViewKey>('drive');
-  const [sequence,setSequence]=useState(0);
-  const [gpsState,setGpsState]=useState<GpsState>('simulator');
-  const [devicePosition,setDevicePosition]=useState<VehiclePosition|null>(null);
-  const gpsWatchId=useRef<number|null>(null);
-  const live=useRealtimeTelemetry(true);
-
+  const[view,setView]=useState<ViewKey>('drive');const[sequence,setSequence]=useState(0);const[gpsState,setGpsState]=useState<GpsState>('simulator');const[devicePosition,setDevicePosition]=useState<VehiclePosition|null>(null);const gpsWatchId=useRef<number|null>(null);const live=useRealtimeTelemetry(true);
   useEffect(()=>{const timer=window.setInterval(()=>setSequence((n)=>n+1),2800);return()=>window.clearInterval(timer);},[]);
   useEffect(()=>()=>{if(gpsWatchId.current!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatchId.current);},[]);
-
-  const simulated=useMemo(()=>createSimulationFrame(sequence),[sequence]);
-  const baseFrame=live.frame??simulated;
-  const frame=useMemo(()=>devicePosition?withDevicePosition(baseFrame,devicePosition):baseFrame,[baseFrame,devicePosition]);
-  const alerts=useMemo(()=>[...frame.alerts].sort((a,b)=>severityRank[b.severity]-severityRank[a.severity]),[frame.alerts]);
-  const primaryAlert=alerts[0]??null;
-  const severity:Severity=primaryAlert?.severity??'safe';
-  const frontObject=nearestFrontObject(frame.objects);
-  const closingMps=frontObject?Math.max(0,-frontObject.relativeSpeedMps):0;
-  const ttcTarget=frontObject&&closingMps>.1?frontObject.distanceM/closingMps:9.9;
-  const speed=useAnimatedNumber(frame.vehicle.speedKmh,MOTION.ms.emphasized);
-  const gap=useAnimatedNumber(frontObject?.distanceM??50,MOTION.ms.emphasized);
-  const ttc=useAnimatedNumber(Math.min(9.9,ttcTarget),MOTION.ms.standard);
-  const status=statusCopy(severity);
-
-  const sensors:Array<{label:string;icon:typeof Radio;state:SensorState}>=[
-    {label:'Front radar',icon:Radio,state:frame.sensors.radarFront},
-    {label:'Rear radar',icon:Radio,state:frame.sensors.radarRear},
-    {label:'Camera',icon:Camera,state:frame.sensors.camera},
-    {label:'Vehicle CAN',icon:Wifi,state:frame.sensors.can},
-    {label:'GNSS / IMU',icon:Satellite,state:frame.sensors.gnssImu},
-    {label:'Safety ECU',icon:Cpu,state:frame.sensors.ecu},
-  ];
-
-  function useDeviceGps(){
-    if(!navigator.geolocation){setGpsState('denied');return;}
-    if(gpsWatchId.current!==null)navigator.geolocation.clearWatch(gpsWatchId.current);
-    setGpsState('requesting');
-    gpsWatchId.current=navigator.geolocation.watchPosition((position)=>{
-      setDevicePosition({lat:position.coords.latitude,lng:position.coords.longitude,speedKmh:position.coords.speed!==null?Math.max(0,position.coords.speed*3.6):baseFrame.vehicle.speedKmh,headingDeg:position.coords.heading??baseFrame.vehicle.headingDeg,accuracyM:position.coords.accuracy,timestampMs:position.timestamp,source:'device-gps'});
-      setGpsState('device');
-    },()=>{setGpsState('denied');setDevicePosition(null);},{enableHighAccuracy:true,maximumAge:1000,timeout:12000});
-  }
-
-  function useSimulator(){
-    if(gpsWatchId.current!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatchId.current);
-    gpsWatchId.current=null;setDevicePosition(null);setGpsState('simulator');
-  }
-
-  const edgeLabel=live.state==='live'?'EDGE LIVE':live.state==='stale'?'EDGE STALE':live.state==='connecting'?'CONNECTING':'SIMULATOR';
-  const edgeLive=live.state==='live';
-
+  const simulated=useMemo(()=>createSimulationFrame(sequence),[sequence]);const baseFrame=live.frame??simulated;const frame=useMemo(()=>devicePosition?withDevicePosition(baseFrame,devicePosition):baseFrame,[baseFrame,devicePosition]);
+  const alerts=useMemo(()=>[...frame.alerts].sort((a,b)=>severityRank[b.severity]-severityRank[a.severity]),[frame.alerts]);const primaryAlert=alerts[0]??null;const severity:Severity=primaryAlert?.severity??'safe';const frontObject=nearestFrontObject(frame.objects);const closingMps=frontObject?Math.max(0,-frontObject.relativeSpeedMps):0;const ttcTarget=frontObject&&closingMps>.1?frontObject.distanceM/closingMps:9.9;const speed=useAnimatedNumber(frame.vehicle.speedKmh,MOTION.ms.emphasized);const gap=useAnimatedNumber(frontObject?.distanceM??50,MOTION.ms.emphasized);const ttc=useAnimatedNumber(Math.min(9.9,ttcTarget),MOTION.ms.standard);const status=statusCopy(severity);
+  const sensors:Array<{label:string;icon:typeof Radio;state:SensorState}>=[{label:'Front radar',icon:Radio,state:frame.sensors.radarFront},{label:'Rear radar',icon:Radio,state:frame.sensors.radarRear},{label:'Camera',icon:Camera,state:frame.sensors.camera},{label:'Vehicle CAN',icon:Wifi,state:frame.sensors.can},{label:'GNSS / IMU',icon:Satellite,state:frame.sensors.gnssImu},{label:'Safety ECU',icon:Cpu,state:frame.sensors.ecu}];
+  function useDeviceGps(){if(!navigator.geolocation){setGpsState('denied');return;}if(gpsWatchId.current!==null)navigator.geolocation.clearWatch(gpsWatchId.current);setGpsState('requesting');gpsWatchId.current=navigator.geolocation.watchPosition((position)=>{setDevicePosition({lat:position.coords.latitude,lng:position.coords.longitude,speedKmh:position.coords.speed!==null?Math.max(0,position.coords.speed*3.6):baseFrame.vehicle.speedKmh,headingDeg:position.coords.heading??baseFrame.vehicle.headingDeg,accuracyM:position.coords.accuracy,timestampMs:position.timestamp,source:'device-gps'});setGpsState('device');},()=>{setGpsState('denied');setDevicePosition(null);},{enableHighAccuracy:true,maximumAge:1000,timeout:12000});}
+  function useSimulator(){if(gpsWatchId.current!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatchId.current);gpsWatchId.current=null;setDevicePosition(null);setGpsState('simulator');}
+  const edgeLabel=live.state==='live'?`EDGE ${live.quality.toUpperCase()}`:live.state==='stale'?'EDGE STALE':live.state==='connecting'?'CONNECTING':'SIMULATOR';const edgeLive=live.state==='live';const edgeDevice=live.diagnostics?.deviceId??'—';
   return <main className={`appShell severity-${severity}`}>
-    <aside className="sidebar" aria-label="KINGMAST navigation">
-      <div className="appBrand"><span className="brandMark"><CarFront strokeWidth={1.8}/></span><span><strong>KINGMAST</strong><small>Safety system</small></span></div>
-      <nav className="navList">{views.map(({key,label,icon:Icon})=><button type="button" key={key} className={view===key?'navItem selected':'navItem'} onClick={()=>setView(key)} aria-current={view===key?'page':undefined}><Icon strokeWidth={1.7}/><span>{label}</span>{key==='alerts'&&alerts.length>0?<b>{alerts.length}</b>:null}</button>)}</nav>
-      <div className="sidebarFooter"><div className="parkedState"><CircleParking strokeWidth={1.7}/><span>Warning-only · no vehicle control</span></div></div>
-    </aside>
-
+    <aside className="sidebar" aria-label="KINGMAST navigation"><div className="appBrand"><span className="brandMark"><CarFront strokeWidth={1.8}/></span><span><strong>KINGMAST</strong><small>Safety system</small></span></div><nav className="navList">{views.map(({key,label,icon:Icon})=><button type="button" key={key} className={view===key?'navItem selected':'navItem'} onClick={()=>setView(key)} aria-current={view===key?'page':undefined}><Icon strokeWidth={1.7}/><span>{label}</span>{key==='alerts'&&alerts.length>0?<b>{alerts.length}</b>:null}</button>)}</nav><div className="sidebarFooter"><div className="parkedState"><CircleParking strokeWidth={1.7}/><span>Warning-only · no vehicle control</span></div></div></aside>
     <section className="workspace">
-      <header className="topbar">
-        <div><span className="eyebrow">WARNING-ONLY ADAS</span><h1>{views.find((item)=>item.key===view)?.label}</h1></div>
-        <div className="topbarStatus">
-          <span className="systemReady" title={live.url}>{edgeLive?<Wifi strokeWidth={1.7}/>:<WifiOff strokeWidth={1.7}/>} {edgeLabel}</span>
-          <button type="button" className={`gpsControl gps-${gpsState}`} onClick={gpsState==='device'?useSimulator:useDeviceGps}><LocateFixed strokeWidth={1.7}/>{gpsState==='requesting'?'Requesting GPS…':gpsState==='device'?'Device GPS':gpsState==='denied'?'GPS unavailable':'Use device GPS'}</button>
-          <span className="battery"><BatteryMedium strokeWidth={1.7}/> 76%</span>
-        </div>
-      </header>
-
-      {view==='drive'?<div className="driveLayout viewEnter">
-        <section className="driveHero surface">
-          <div className="driveHeader"><span className="liveState"><i/> {edgeLive?'EDGE SENSOR FUSION':'SIMULATED SAFETY VIEW'}</span><span className="locationLine"><MapPinned strokeWidth={1.6}/> {formatCoordinate(frame.vehicle.lat)}, {formatCoordinate(frame.vehicle.lng)}</span></div>
-          <div className="driveStage">
-            <div className="speedCluster"><span className="speedValue">{Math.round(speed)}</span><span className="speedUnit">km/h</span><span className="speedLimit">80</span></div>
-            <div className="roadScene">
-              <div className="roadPerspective"/><div className="lane leftLane"/><div className="lane rightLane"/><div className="rangeArc arcOne"/><div className="rangeArc arcTwo"/>
-              {frontObject?<div className={`leadVehicle severity-${frontObject.severity}`} style={{top:`${Math.max(11,Math.min(35,40-frontObject.distanceM*.65))}%`,transform:`translateX(-50%) scale(${Math.max(.84,Math.min(1.16,1.24-frontObject.distanceM/88))})`}}><ObjectGlyph kind={frontObject.kind}/><span>{Math.round(frontObject.distanceM)} m</span></div>:null}
-              <div className="egoVehicle"><CarFront strokeWidth={1.6}/><i/></div>
-              <div className={`driveStatus severity-${severity}`}>{severity==='critical'?<AlertTriangle strokeWidth={1.8}/>:<ShieldCheck strokeWidth={1.8}/>}<span><strong>{status.title}</strong><small>{primaryAlert?.message??status.subtitle}</small></span></div>
-            </div>
-            <div className="driveMetrics"><Metric label="Front gap" value={gap.toFixed(0)} unit="m"/><Metric label="TTC" value={ttc.toFixed(1)} unit="s"/><Metric label="Heading" value={Math.round(frame.vehicle.headingDeg).toString()} unit="°"/></div>
-          </div>
-        </section>
-        <aside className="driveSide">
-          <section className={`attentionCard surface severity-${severity}`}><div className="attentionIcon">{severity==='critical'?<AlertTriangle strokeWidth={1.7}/>:<ShieldCheck strokeWidth={1.7}/>}</div><div><span className="eyebrow">CURRENT STATUS</span><h2>{status.title}</h2><p>{primaryAlert?.message??status.subtitle}</p></div>{primaryAlert?<button type="button" onClick={()=>setView('map')}>View location <ChevronRight/></button>:null}</section>
-          <section className="miniMapCard surface"><div className="sectionTitle"><span><Navigation strokeWidth={1.7}/> Nearby</span><button type="button" onClick={()=>setView('map')}>Open map</button></div><GpsSafetyMap vehicle={frame.vehicle} objects={frame.objects} compact/></section>
-          <section className="nearbyCard surface"><div className="sectionTitle"><span><Radio strokeWidth={1.7}/> Detected objects</span><b>{frame.objects.length}</b></div><div className="nearbyList">{frame.objects.slice(0,3).map((object)=><button type="button" key={object.id} onClick={()=>setView('objects')} className="nearbyRow"><span className={`objectGlyph severity-${object.severity}`}><ObjectGlyph kind={object.kind}/></span><span><strong>{object.kind}</strong><small>{object.zone.replace('-',' ')} · {Math.round(object.confidence*100)}%</small></span><b>{object.distanceM.toFixed(0)} m</b></button>)}</div></section>
-        </aside>
-      </div>:null}
-
+      <header className="topbar"><div><span className="eyebrow">WARNING-ONLY ADAS</span><h1>{views.find((item)=>item.key===view)?.label}</h1></div><div className="topbarStatus"><span className="systemReady" title={`${live.url} · ${edgeDevice}`}>{edgeLive?<Wifi strokeWidth={1.7}/>:<WifiOff strokeWidth={1.7}/>} {edgeLabel}</span><button type="button" className={`gpsControl gps-${gpsState}`} onClick={gpsState==='device'?useSimulator:useDeviceGps}><LocateFixed strokeWidth={1.7}/>{gpsState==='requesting'?'Requesting GPS…':gpsState==='device'?'Device GPS':gpsState==='denied'?'GPS unavailable':'Use device GPS'}</button><span className="battery"><BatteryMedium strokeWidth={1.7}/> 76%</span></div></header>
+      {view==='drive'?<div className="driveLayout viewEnter"><section className="driveHero surface"><div className="driveHeader"><span className="liveState"><i/> {edgeLive?'EDGE SENSOR FUSION':'SIMULATED SAFETY VIEW'}</span><span className="locationLine"><MapPinned strokeWidth={1.6}/> {formatCoordinate(frame.vehicle.lat)}, {formatCoordinate(frame.vehicle.lng)}</span></div><div className="driveStage"><div className="speedCluster"><span className="speedValue">{Math.round(speed)}</span><span className="speedUnit">km/h</span><span className="speedLimit">80</span></div><div className="roadScene"><div className="roadPerspective"/><div className="lane leftLane"/><div className="lane rightLane"/><div className="rangeArc arcOne"/><div className="rangeArc arcTwo"/>{frontObject?<div className={`leadVehicle severity-${frontObject.severity}`} style={{top:`${Math.max(11,Math.min(35,40-frontObject.distanceM*.65))}%`,transform:`translateX(-50%) scale(${Math.max(.84,Math.min(1.16,1.24-frontObject.distanceM/88))})`}}><ObjectGlyph kind={frontObject.kind}/><span>{Math.round(frontObject.distanceM)} m</span></div>:null}<div className="egoVehicle"><CarFront strokeWidth={1.6}/><i/></div><div className={`driveStatus severity-${severity}`}>{severity==='critical'?<AlertTriangle strokeWidth={1.8}/>:<ShieldCheck strokeWidth={1.8}/>}<span><strong>{status.title}</strong><small>{primaryAlert?.message??status.subtitle}</small></span></div></div><div className="driveMetrics"><Metric label="Front gap" value={gap.toFixed(0)} unit="m"/><Metric label="TTC" value={ttc.toFixed(1)} unit="s"/><Metric label="Heading" value={Math.round(frame.vehicle.headingDeg).toString()} unit="°"/></div></div></section><aside className="driveSide"><section className={`attentionCard surface severity-${severity}`}><div className="attentionIcon">{severity==='critical'?<AlertTriangle strokeWidth={1.7}/>:<ShieldCheck strokeWidth={1.7}/>}</div><div><span className="eyebrow">CURRENT STATUS</span><h2>{status.title}</h2><p>{primaryAlert?.message??status.subtitle}</p></div>{primaryAlert?<button type="button" onClick={()=>setView('map')}>View location <ChevronRight/></button>:null}</section><section className="miniMapCard surface"><div className="sectionTitle"><span><Navigation strokeWidth={1.7}/> Nearby</span><button type="button" onClick={()=>setView('map')}>Open map</button></div><GpsSafetyMap vehicle={frame.vehicle} objects={frame.objects} compact/></section><section className="nearbyCard surface"><div className="sectionTitle"><span><Radio strokeWidth={1.7}/> Detected objects</span><b>{frame.objects.length}</b></div><div className="nearbyList">{frame.objects.slice(0,3).map((object)=><button type="button" key={object.id} onClick={()=>setView('objects')} className="nearbyRow"><span className={`objectGlyph severity-${object.severity}`}><ObjectGlyph kind={object.kind}/></span><span><strong>{object.kind}</strong><small>{object.zone.replace('-',' ')} · {Math.round(object.confidence*100)}%</small></span><b>{object.distanceM.toFixed(0)} m</b></button>)}</div></section></aside></div>:null}
       {view==='map'?<div className="mapLayout viewEnter"><section className="mapMain surface"><div className="sectionTitle large"><span><MapPinned strokeWidth={1.7}/> Live position</span><div className="mapMeta"><span>{formatCoordinate(frame.vehicle.lat)}</span><span>{formatCoordinate(frame.vehicle.lng)}</span><span>{Math.round(frame.vehicle.headingDeg)}°</span></div></div><GpsSafetyMap vehicle={frame.vehicle} objects={frame.objects}/></section><aside className="mapSide"><section className="positionCard surface"><span className="eyebrow">POSITION SOURCE</span><div className="positionSource"><LocateFixed strokeWidth={1.7}/><span><strong>{frame.vehicle.source==='device-gps'?'Device GPS':edgeLive?'ESP32 / GNSS':'GNSS simulator'}</strong><small>Accuracy ±{frame.vehicle.accuracyM.toFixed(1)} m</small></span></div><div className="positionGrid"><Metric label="Latitude" value={formatCoordinate(frame.vehicle.lat)}/><Metric label="Longitude" value={formatCoordinate(frame.vehicle.lng)}/><Metric label="Heading" value={Math.round(frame.vehicle.headingDeg).toString()} unit="°"/><Metric label="Speed" value={Math.round(frame.vehicle.speedKmh).toString()} unit="km/h"/></div></section><section className="surface nearbyCard"><div className="sectionTitle"><span><Bell strokeWidth={1.7}/> Located alerts</span><b>{alerts.length}</b></div><div className="nearbyList">{alerts.slice(0,4).map((alert)=><button type="button" className="nearbyRow" key={alert.id} onClick={()=>setView('alerts')}><span className={`objectGlyph severity-${alert.severity}`}><AlertTriangle/></span><span><strong>{alert.title}</strong><small>{formatCoordinate(alert.position.lat)}, {formatCoordinate(alert.position.lng)}</small></span><ChevronRight/></button>)}</div></section></aside></div>:null}
-
-      {view==='objects'?<div className="viewEnter"><section className="surface"><div className="sectionTitle large"><span><Radio strokeWidth={1.7}/> Fused detections</span><b>{frame.objects.length}</b></div><div className="nearbyList">{frame.objects.map((object)=><div className="nearbyRow" key={object.id}><span className={`objectGlyph severity-${object.severity}`}><ObjectGlyph kind={object.kind}/></span><span><strong>{object.kind}</strong><small>{object.zone.replace('-',' ')} · confidence {Math.round(object.confidence*100)}% · bearing {Math.round(object.bearingDeg)}° · {formatCoordinate(object.position.lat)}, {formatCoordinate(object.position.lng)}</small></span><b>{object.distanceM.toFixed(1)} m</b></div>)}</div></section></div>:null}
-
+      {view==='objects'?<div className="viewEnter"><section className="surface"><div className="sectionTitle large"><span><Radio strokeWidth={1.7}/> Fused detections</span><b>{frame.objects.length}</b></div><div className="nearbyList">{frame.objects.map((object)=><div className="nearbyRow" key={object.id}><span className={`objectGlyph severity-${object.severity}`}><ObjectGlyph kind={object.kind}/></span><span><strong>{object.kind}</strong><small>{object.zone.replace('-',' ')} · {object.source??'simulator'} · confidence {Math.round(object.confidence*100)}% · bearing {Math.round(object.bearingDeg)}° · {formatCoordinate(object.position.lat)}, {formatCoordinate(object.position.lng)}</small></span><b>{object.distanceM.toFixed(1)} m</b></div>)}</div></section></div>:null}
       {view==='alerts'?<div className="viewEnter"><section className="surface"><div className="sectionTitle large"><span><Bell strokeWidth={1.7}/> Safety alerts</span><b>{alerts.length}</b></div><div className="nearbyList">{alerts.length?alerts.map((alert)=><div className="nearbyRow" key={alert.id}><span className={`objectGlyph severity-${alert.severity}`}><AlertTriangle/></span><span><strong>{alert.title}</strong><small>{alert.message} · {formatCoordinate(alert.position.lat)}, {formatCoordinate(alert.position.lng)}</small></span><b>{alert.distanceM===null?'GPS':`${alert.distanceM.toFixed(0)} m`}</b></div>):<div className="nearbyRow"><span className="objectGlyph severity-safe"><ShieldCheck/></span><span><strong>No active alerts</strong><small>Road environment is within configured thresholds.</small></span></div>}</div></section></div>:null}
-
       {view==='trip'?<div className="viewEnter"><section className="surface"><div className="sectionTitle large"><span><Route strokeWidth={1.7}/> Current trip</span><b>{edgeLive?'EDGE LIVE':'SIMULATED'}</b></div><div className="positionGrid"><Metric label="Safety score" value="92" unit="/100"/><Metric label="Detected" value={frame.objects.length.toString()} unit="objects"/><Metric label="Alerts" value={alerts.length.toString()}/><Metric label="Sequence" value={frame.sequence.toString()}/></div><GpsSafetyMap vehicle={frame.vehicle} objects={frame.objects}/></section></div>:null}
-
-      {view==='vehicle'?<div className="viewEnter"><section className="surface"><div className="sectionTitle large"><span><Settings strokeWidth={1.7}/> Vehicle systems</span><b>{edgeLive?'EDGE CONNECTED':'FALLBACK MODE'}</b></div><div className="sensorGrid">{sensors.map((sensor)=><SensorStatus key={sensor.label} {...sensor}/>)}</div><div className="positionGrid"><Metric label="Control authority" value="None"/><Metric label="CAN writes" value="Disabled"/><Metric label="Stream" value={edgeLabel}/><Metric label="GPS source" value={frame.vehicle.source}/></div></section></div>:null}
+      {view==='vehicle'?<div className="viewEnter"><section className="surface"><div className="sectionTitle large"><span><Settings strokeWidth={1.7}/> Vehicle systems</span><b>{edgeLive?'EDGE CONNECTED':'FALLBACK MODE'}</b></div><div className="sensorGrid">{sensors.map((sensor)=><SensorStatus key={sensor.label} {...sensor}/>)}</div><div className="positionGrid"><Metric label="Control authority" value="None"/><Metric label="CAN writes" value="Disabled"/><Metric label="Edge quality" value={live.quality}/><Metric label="Edge device" value={edgeDevice}/><Metric label="Clients" value={(live.diagnostics?.connectedClients??0).toString()}/><Metric label="Rejected packets" value={(live.diagnostics?.rejectedPackets??0).toString()}/><Metric label="GPS source" value={frame.vehicle.source}/><Metric label="Stream" value={edgeLabel}/></div></section></div>:null}
     </section>
   </main>;
 }

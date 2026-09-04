@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: 22
       - run: pnpm install --frozen-lockfile=false
+      - run: pnpm safety:boundary
+      - run: python -m py_compile edge/camera-detector/detector.py
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
