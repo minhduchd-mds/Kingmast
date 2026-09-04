@@ -7,11 +7,11 @@ function apiBase(){return(process.env.NEXT_PUBLIC_KINGMAST_API_URL??'http://loca
 
 export interface ConnectedRoadController{context:ConnectedRoadContext|null;loading:boolean;error:string|null;}
 
-export function useConnectedRoadContext(vehicle:VehiclePosition|null,route:NavigationRoute|null,collisionCritical:boolean):ConnectedRoadController{
+export function useConnectedRoadContext(vehicle:VehiclePosition|null,route:NavigationRoute|null,collisionCritical:boolean,enabled=true):ConnectedRoadController{
   const[context,setContext]=useState<ConnectedRoadContext|null>(null);const[loading,setLoading]=useState(false);const[error,setError]=useState<string|null>(null);
   const vehicleRef=useRef<VehiclePosition|null>(vehicle);const routeRef=useRef<NavigationRoute|null>(route);const collisionRef=useRef(collisionCritical);
   vehicleRef.current=vehicle;routeRef.current=route;collisionRef.current=collisionCritical;
-  const active=vehicle!==null;const routeRevision=route?.fetchedAtMs??0;
+  const active=vehicle!==null&&enabled;const routeRevision=route?.fetchedAtMs??0;
 
   useEffect(()=>{
     if(!active){setContext(null);setLoading(false);setError(null);return;}
@@ -30,7 +30,7 @@ export function useConnectedRoadContext(vehicle:VehiclePosition|null,route:Navig
     };
     void load();const timer=window.setInterval(()=>void load(),5_000);
     return()=>{cancelled=true;window.clearInterval(timer);};
-  },[active,routeRevision,collisionCritical]);
+  },[active,routeRevision,collisionCritical,enabled]);
 
   return{context,loading,error};
 }

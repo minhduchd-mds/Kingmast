@@ -60,6 +60,57 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await expect(page.locator('.v5Cockpit')).toBeVisible();
   });
 
+  test('optional road advisories require confirmation and preserve critical safety messaging',async({page})=>{
+    await openHmi(page,1366,768);
+    await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
+    const advisorySwitch=page.getByRole('switch',{name:'Optional road advisories'});
+    await expect(advisorySwitch).toHaveAttribute('aria-checked','true');
+    await advisorySwitch.click();
+    const confirm=page.getByRole('group',{name:'Confirm turning off optional road advisories'});
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toContainText('Critical safety warnings remain active');
+    await confirm.getByRole('button',{name:'Turn off advisories'}).click();
+    await expect(advisorySwitch).toHaveAttribute('aria-checked','false');
+    await expect(page.getByRole('switch',{name:'Camera alerts'})).toBeDisabled();
+    await page.getByRole('button',{name:'Done'}).click();
+    await expect(page.getByTestId('advisory-mode-off')).toBeVisible();
+    await expect(page.locator('.connectedRoadHud')).toHaveCount(0);
+    const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('kingmast:v006:hmi-preferences')??'{}'));
+    expect(stored.advisoryAlerts).toBe(false);
+  });
+
+  test('web preview reports Wi-Fi as host-managed instead of faking radio control',async({page})=>{
+    await openHmi(page,1366,768);
+    await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
+    const wifi=page.getByTestId('wifi-settings');
+    await expect(wifi).toBeVisible();
+    await expect(wifi).toContainText('Managed by host device');
+    await expect(wifi).toContainText('web preview cannot switch the Wi-Fi radio');
+  });
+
+  test('native Wi-Fi bridge supports parked scan and secure connect flow',async({page})=>{
+    await page.addInitScript(()=>{
+      let enabled=true;let connectedSsid:string|null=null;
+      (window as unknown as {kingmastNative:unknown}).kingmastNative={wifi:{
+        getState:async()=>({enabled,connectedSsid}),
+        setEnabled:async(next:boolean)=>{enabled=next;if(!next)connectedSsid=null;return{enabled,connectedSsid};},
+        scan:async()=>[{ssid:'KINGMAST Lab',signal:4,secure:true,saved:false},{ssid:'Guest',signal:2,secure:false,saved:false}],
+        connect:async(input:{ssid:string;password?:string})=>{if(input.ssid==='KINGMAST Lab'&&input.password!=='test-pass')throw new Error('bad password');connectedSsid=input.ssid;return{enabled,connectedSsid};},
+        disconnect:async()=>{connectedSsid=null;return{enabled,connectedSsid};},
+      }};
+    });
+    await openHmi(page,1366,768);
+    await page.getByTestId('driver-action-dock').getByRole('button',{name:'Open settings'}).click();
+    const wifi=page.getByTestId('wifi-settings');
+    await expect(wifi.getByRole('switch',{name:'Wi-Fi'})).toHaveAttribute('aria-checked','true');
+    await wifi.getByRole('button',{name:/Scan/}).click();
+    await expect(wifi.getByText('KINGMAST Lab')).toBeVisible();
+    await wifi.getByRole('button',{name:/KINGMAST Lab/}).click();
+    await wifi.getByLabel('Network password').fill('test-pass');
+    await wifi.getByRole('button',{name:'Connect'}).click();
+    await expect(wifi).toContainText('Connected to KINGMAST Lab');
+  });
+
   test('voice action gives immediate non-blocking feedback',async({page})=>{
     await openHmi(page,1366,768);
     const dock=page.getByTestId('driver-action-dock');
