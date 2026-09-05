@@ -20,6 +20,12 @@ function objectAlert(object: DetectedObject): LocationAlert | null {
 
   const isFront = object.zone === 'front' || object.zone === 'front-left' || object.zone === 'front-right';
   const isLateralOnly = object.zone === 'left' || object.zone === 'right';
+
+  // Left/right object detection is spatial context only. The current fusion severity is
+  // distance-based and is not a dedicated lateral-collision assessment, so it must not
+  // create a textual driver alert. A future lateral warning needs its own validated risk signal.
+  if (isLateralOnly) return null;
+
   if (object.kind === 'person' && isFront && object.distanceM <= 22) {
     const severity: Severity = object.distanceM <= 10 ? 'critical' : 'caution';
     return {
@@ -53,9 +59,6 @@ function objectAlert(object: DetectedObject): LocationAlert | null {
   }
 
   if (vulnerableKinds.has(object.kind) && object.distanceM <= 12) {
-    // Plain left/right proximity is spatial context, not a textual driver alert.
-    // Keep it in the vehicle/surround view and only escalate when the lateral hazard is critical.
-    if (isLateralOnly && object.distanceM > 6 && object.severity !== 'critical') return null;
     const severity: Severity = object.distanceM <= 6 || object.severity === 'critical' ? 'critical' : 'caution';
     return {
       id: `vru-${object.id}-${object.timestampMs}`,
