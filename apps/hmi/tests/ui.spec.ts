@@ -191,7 +191,7 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await expect(dock.getByRole('button',{name:/Turn voice guidance on/})).toBeVisible();
   });
 
-  test('active caution opens a non-destructive modal sheet and returns focus on Escape',async({page})=>{
+  test('active caution opens a compact non-destructive modal and returns focus on Escape',async({page})=>{
     await openHmi(page,1366,768);
     const dock=page.getByTestId('driver-action-dock');
     const alertButton=dock.getByRole('button',{name:/Alerts/});
@@ -202,10 +202,11 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     const sheet=page.getByTestId('driver-action-sheet');
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute('aria-modal','true');
-    const keepRoute=sheet.getByRole('button',{name:/Keep current route/});
-    await expect(keepRoute).toBeVisible();
-    await expect(keepRoute).toBeFocused();
-    await expect(sheet.getByRole('button',{name:/Mute voice/})).toBeVisible();
+    const primary=sheet.locator('[data-sheet-primary="true"]');
+    await expect(primary).toBeVisible();
+    await expect(primary).toBeFocused();
+    expect(await sheet.locator('.driverSheetActions button').count()).toBeLessThanOrEqual(2);
+    await expect(sheet.getByText('Mute voice')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(sheet).toBeHidden();
     await expect(alertButton).toBeFocused();
