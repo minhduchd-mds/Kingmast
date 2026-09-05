@@ -195,7 +195,9 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
     await openHmi(page,1366,768);
     const dock=page.getByTestId('driver-action-dock');
     const alertButton=dock.getByRole('button',{name:/Alerts/});
-    await expect(alertButton).toHaveClass(/hasAlert/,{timeout:5_000});
+    // The first lateral-only simulator event is intentionally not a textual alert.
+    // Wait for the subsequent genuine forward caution before exercising the hazard sheet.
+    await expect(alertButton).toHaveClass(/hasAlert/,{timeout:9_000});
     await alertButton.click();
     const sheet=page.getByTestId('driver-action-sheet');
     await expect(sheet).toBeVisible();
@@ -212,7 +214,7 @@ test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
   test('modal sheet traps keyboard focus inside driver actions',async({page})=>{
     await openHmi(page,1366,768);
     const alertButton=page.getByTestId('driver-action-dock').getByRole('button',{name:/Alerts/});
-    await expect(alertButton).toHaveClass(/hasAlert/,{timeout:5_000});
+    await expect(alertButton).toHaveClass(/hasAlert/,{timeout:9_000});
     await alertButton.click();
     const sheet=page.getByTestId('driver-action-sheet');
     await expect(sheet).toBeVisible();
