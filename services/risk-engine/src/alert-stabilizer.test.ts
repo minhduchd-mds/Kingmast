@@ -21,4 +21,11 @@ describe('AlertStabilizer',()=>{
     expect(stabilizer.update([],1800)).toHaveLength(1);
     expect(stabilizer.update([],2301)).toHaveLength(0);
   });
+
+  it('previews time-based alert state without mutating committed state',()=>{
+    const stabilizer=new AlertStabilizer();
+    stabilizer.update([makeAlert('caution',1000)],1000);
+    expect(stabilizer.preview([],2301)).toHaveLength(0);
+    expect(stabilizer.update([],1800)).toHaveLength(1);
+  });
 });

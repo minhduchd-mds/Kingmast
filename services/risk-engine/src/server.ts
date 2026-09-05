@@ -108,19 +108,18 @@ function diagnostics(nowMs=Date.now()):EdgeDiagnostics{
   const essentialDegraded=freshSensors.gnssImu!=='ok'||freshSensors.radarFront!=='ok'||freshSensors.camera!=='ok';
   return{status:ingressAge>5_000?'offline':essentialDegraded?'degraded':'live',deviceId:latestDeviceId,bootId:latestBootId,lastSequence:latestSequence,lastIngressAtMs,lastPublishAtMs,connectedClients:clients.size,rejectedPackets:packetGuard.rejectedPackets,sensorAgesMs};
 }
-function currentEnvelope(source:'edge'|'simulator'='edge'):RealtimeTelemetryEnvelope|null{
+function currentEnvelope(source:'edge'|'simulator'='edge',commit=false):RealtimeTelemetryEnvelope|null{
   if(!latestVehicle)return null;
   const nowMs=Date.now();
   const objects=fuseEdgePerception({vehicle:latestVehicle,camera:latestCamera,radar:latestRadar,nowMs});
   const sensors=applySensorFreshness({sensors:latestSensors,vehicle:latestVehicle,radarTimestampMs:latestRadar?.timestampMs,cameraTimestampMs:latestCamera?.timestampMs,nowMs});
   const rawAlerts=buildLocationAlerts({vehicle:latestVehicle,sensors,objects,geofences});
-  const alerts=alertStabilizer.update(rawAlerts,nowMs);
+  const alerts=commit?alertStabilizer.update(rawAlerts,nowMs):alertStabilizer.preview(rawAlerts,nowMs);
   const frame:TelemetryFrame={sequence:latestSequence,vehicle:latestVehicle,sensors,objects,alerts,assist:driverAssistRuntime.snapshot(nowMs,hasFreshVehicleContext(nowMs))};
-  eventBuffer.ingest(frame);
   return{type:'telemetry',source,receivedAtMs:nowMs,frame,diagnostics:diagnostics(nowMs)};
 }
 function broadcast(payload:object){const data=JSON.stringify(payload);for(const client of clients)if(client.readyState===1)client.send(data);}
-function publish(source:'edge'|'simulator'='edge'){const envelope=currentEnvelope(source);if(!envelope)return null;lastPublishAtMs=envelope.receivedAtMs;envelope.diagnostics=diagnostics(envelope.receivedAtMs);broadcast(envelope);return envelope;}
+function publish(source:'edge'|'simulator'='edge'){const envelope=currentEnvelope(source,true);if(!envelope)return null;eventBuffer.ingest(envelope.frame);lastPublishAtMs=envelope.receivedAtMs;envelope.diagnostics=diagnostics(envelope.receivedAtMs);broadcast(envelope);return envelope;}
 function heartbeat(){const payload:RealtimeHeartbeatEnvelope={type:'heartbeat',receivedAtMs:Date.now(),lastSequence:latestSequence,connectedClients:clients.size};broadcast(payload);}
 const heartbeatTimer=setInterval(heartbeat,1_000);heartbeatTimer.unref();
 
