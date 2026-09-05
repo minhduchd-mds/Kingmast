@@ -1,5 +1,6 @@
 /* Driver-facing LDW / DMS / AI / 360 runtime rail.
-   Informational only: live means fresh validated input, never actuator authority. */
+   Informational only: live means fresh validated input, never actuator authority.
+   While the vehicle is moving, normal secondary status collapses so the primary driving task owns attention. */
 .driverCapabilityRail{display:none}
 body:has(.v5Drive) .driverCapabilityRail{
   position:fixed;
@@ -16,13 +17,14 @@ body:has(.v5Drive) .driverCapabilityRail{
   border-radius:22px;
   background:rgba(15,17,22,.91);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 16px 46px rgba(0,0,0,.28);
-  backdrop-filter:blur(22px) saturate(1.12);
-  -webkit-backdrop-filter:blur(22px) saturate(1.12);
+  backdrop-filter:blur(22px) saturate(1.08);
+  -webkit-backdrop-filter:blur(22px) saturate(1.08);
+  transition:opacity .22s cubic-bezier(.16,1,.3,1),filter .22s cubic-bezier(.16,1,.3,1),max-width .28s cubic-bezier(.16,1,.3,1);
 }
 .driverCapabilityIntro{display:flex;flex-direction:column;justify-content:center;gap:5px;padding:9px 12px;border-right:1px solid rgba(255,255,255,.07)}
 .driverCapabilityIntro strong{font-size:15px;letter-spacing:-.01em;color:#f7f8fb}
 .driverCapabilityIntro span{font-size:12px;line-height:1.35;color:#a3aab5}
-.driverCapabilityItem{min-width:0;display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;gap:10px;padding:9px 10px;border:1px solid rgba(255,255,255,.065);border-radius:17px;background:rgba(255,255,255,.025)}
+.driverCapabilityItem{min-width:0;display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;gap:10px;padding:9px 10px;border:1px solid rgba(255,255,255,.065);border-radius:17px;background:rgba(255,255,255,.025);transition:background .2s cubic-bezier(.16,1,.3,1),border-color .2s cubic-bezier(.16,1,.3,1),opacity .2s cubic-bezier(.16,1,.3,1)}
 .driverCapabilityIcon{width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:rgba(255,255,255,.045);color:#b8c8de}
 .driverCapabilityIcon svg{width:22px;height:22px}
 .driverCapabilityCopy{min-width:0;display:grid;gap:2px}
@@ -38,13 +40,37 @@ body:has(.v5Drive) .driverCapabilityRail{
 .driverCapabilityItem.tone-research .driverCapabilityIcon{color:#c4a7ff;background:rgba(191,90,242,.08)}
 .driverCapabilityItem.tone-degraded,.driverCapabilityItem.tone-unavailable{border-color:rgba(255,214,10,.11)}
 .driverCapabilityRail[data-runtime="connected"]{border-color:rgba(255,255,255,.12)}
+
+/* Quiet driving state: collapse normal readiness cards. At most two attention-relevant states remain. */
+body:has(.v5Drive) .driverCapabilityRail.isQuiet{
+  right:auto;
+  max-width:min(760px,calc(100vw - 220px));
+  min-height:64px;
+  grid-template-columns:minmax(250px,340px) repeat(2,minmax(190px,1fr));
+  gap:6px;
+  padding:6px;
+  border-radius:20px;
+  background:rgba(14,16,20,.86);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 34px rgba(0,0,0,.2);
+}
+.driverCapabilityRail.isQuiet .driverCapabilityIntro{padding:8px 12px}
+.driverCapabilityRail.isQuiet .driverCapabilityIntro span{color:#8f98a6}
+.driverCapabilityRail.isQuiet .driverCapabilityItem{grid-template-columns:36px minmax(0,1fr);padding:7px 9px;border-radius:15px;background:rgba(255,255,255,.018)}
+.driverCapabilityRail.isQuiet .driverCapabilityIcon{width:36px;height:36px;border-radius:12px}
+.driverCapabilityRail.isQuiet .driverCapabilityIcon svg{width:20px;height:20px}
+.driverCapabilityRail.isQuiet .driverCapabilityCopy p{display:none}
+.driverCapabilityRail.isQuiet .driverCapabilityCopy small{font-size:12px}
+
 body:has(.v5Drive) .hmiV5 .workspace{padding-bottom:288px;scroll-padding-bottom:288px}
+body:has(.v5Drive):has(.driverCapabilityRail.isQuiet) .hmiV5 .workspace{padding-bottom:224px;scroll-padding-bottom:224px}
 body:has(.v5Drive) .connectedRoadHud{bottom:186px}
-body:has(.hmiV5.severity-critical) .driverCapabilityRail{opacity:.26;filter:saturate(.5)}
+body:has(.v5Drive):has(.driverCapabilityRail.isQuiet) .connectedRoadHud{bottom:154px}
+body:has(.hmiV5.severity-critical) .driverCapabilityRail{opacity:.18;filter:saturate(.35);pointer-events:none}
 
 @media(max-width:1180px){
-  body:has(.v5Drive) .driverCapabilityRail{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .driverCapabilityIntro{display:none}
+  body:has(.v5Drive) .driverCapabilityRail:not(.isQuiet){grid-template-columns:repeat(4,minmax(0,1fr))}
+  .driverCapabilityRail:not(.isQuiet) .driverCapabilityIntro{display:none}
+  body:has(.v5Drive) .driverCapabilityRail.isQuiet{max-width:calc(100vw - 220px);grid-template-columns:minmax(210px,1fr) repeat(2,minmax(170px,1fr))}
 }
 @media(max-height:560px){
   body:has(.v5Drive) .driverCapabilityRail{display:none!important}
