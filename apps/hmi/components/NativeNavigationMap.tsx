@@ -43,7 +43,7 @@ export default function NativeNavigationMap({vehicle,objects,cameras,route,headi
     const onContextLost=(event:Event)=>{event.preventDefault();fail('webgl-context-lost');};
     canvas.addEventListener('webglcontextlost',onContextLost,false);
     return()=>{disposed=true;canvas.removeEventListener('webglcontextlost',onContextLost,false);dynamicMarkers.current.forEach((marker)=>{try{marker.remove();}catch{}});dynamicMarkers.current=[];try{vehicleMarker.current?.remove();}catch{}vehicleMarker.current=null;try{map.remove();}catch{}mapRef.current=null;};
-  },[compact,headingUp,rendererFailure,vehicle.headingDeg,vehicle.lat,vehicle.lng]);
+  },[rendererFailure]);
 
   useEffect(()=>{const map=mapRef.current;if(!map||rendererFailure)return;try{map.easeTo({center:[vehicle.lng,vehicle.lat],bearing:headingUp?vehicle.headingDeg:0,duration:280,essential:true});if(!vehicleMarker.current){vehicleMarker.current=new maplibregl.Marker({element:markerElement('vehicle','primary','Vehicle position'),anchor:'center'}).setLngLat([vehicle.lng,vehicle.lat]).addTo(map);}else vehicleMarker.current.setLngLat([vehicle.lng,vehicle.lat]);}catch{setRendererFailure('map-vehicle-update-failed');}},[headingUp,rendererFailure,vehicle.headingDeg,vehicle.lat,vehicle.lng]);
 
