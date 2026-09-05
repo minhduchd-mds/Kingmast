@@ -18,6 +18,7 @@ expect('viewer cookie domain is explicitly configurable',sessionRoute.includes('
 expect('realtime establishes viewer session before websocket',realtime.indexOf('establishViewerSession')>=0&&realtime.indexOf('await establishViewerSession')<realtime.indexOf('new WebSocket'));
 expect('realtime session request includes credentials',realtime.includes("credentials:'include'"));
 expect('realtime aborts pending session request on teardown',realtime.includes('sessionAbort.abort()'));
+expect('missing or invalid production viewer session fails closed without retry loop',realtime.includes("payload.error==='viewer-session-unavailable'")&&realtime.includes("payload.error==='viewer-session-misconfigured'")&&realtime.includes("sessionResult==='unavailable'")&&realtime.includes('sessionUnavailable=true')&&realtime.includes('if(disposed||sessionUnavailable||retryRef.current!==null)return'));
 expect('LDW ingress requires edge authentication',riskServer.includes("app.post('/v3/assist/lane'")&&riskServer.includes("if(!requireEdgeAuth(request,reply))return"));
 expect('DMS ingress requires edge authentication',riskServer.includes("app.post('/v3/assist/dms'")&&riskServer.includes("dms-sample-rejected"));
 expect('surround ingress requires edge authentication',riskServer.includes("app.post('/v3/assist/surround'")&&riskServer.includes("surround-observation-rejected"));
