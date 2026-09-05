@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect,useState } from 'react';
+import { useEffect,useMemo,useState } from 'react';
 import { Bot,Camera,Eye,Route } from 'lucide-react';
 import type { DriverAssistAvailability,DriverAssistRuntimeSnapshot } from '@kingmast/contracts';
 import { KINGMAST_CAPABILITIES,capabilityStateLabel,type CapabilityState } from '../lib/capability-registry';
@@ -51,24 +51,43 @@ function runtimePresentation(key:DriverCapabilityKey,runtime:DriverAssistRuntime
   if(key==='assistant')return assistantRuntime(runtime);
   return surroundRuntime(runtime);
 }
+function attentionRelevant(key:DriverCapabilityKey,runtime:DriverAssistRuntimeSnapshot){
+  if(key==='ldw')return runtime.ldw.availability!=='live'||runtime.ldw.severity!=='safe';
+  if(key==='dms')return runtime.dms.availability!=='live'||runtime.dms.state!=='attentive';
+  return false;
+}
 
 export default function DriverCapabilityRail(){
   const[runtime,setRuntime]=useState<DriverAssistRuntimeSnapshot|null>(null);
+  const[moving,setMoving]=useState(false);
   useEffect(()=>{
     const onTelemetry=(event:Event)=>{
       const detail=(event as CustomEvent<KingmastTelemetryEventDetail>).detail;
-      if(detail?.frame.assist)setRuntime(detail.frame.assist);
+      if(!detail?.frame)return;
+      setMoving(detail.frame.vehicle.source!=='simulator'&&detail.frame.vehicle.speedKmh>=5);
+      if(detail.frame.assist)setRuntime(detail.frame.assist);
     };
     window.addEventListener('kingmast:telemetry',onTelemetry);
     return()=>window.removeEventListener('kingmast:telemetry',onTelemetry);
   },[]);
 
-  const items=DRIVER_CAPABILITIES.map((item)=>({...item,capability:KINGMAST_CAPABILITIES.find((capability)=>capability.key===item.key)})).filter((item)=>item.capability!==undefined);
+  const items=useMemo(()=>{
+    const all=DRIVER_CAPABILITIES
+      .map((item)=>({...item,capability:KINGMAST_CAPABILITIES.find((capability)=>capability.key===item.key)}))
+      .filter((item)=>item.capability!==undefined);
+    if(!moving)return all;
+    if(!runtime)return [];
+    return all.filter((item)=>attentionRelevant(item.key,runtime)).slice(0,2);
+  },[moving,runtime]);
 
-  return <aside className="driverCapabilityRail" aria-label="Driver assistance capability status" data-testid="driver-capability-rail" data-runtime={runtime?'connected':'awaiting'}>
+  const introCopy=moving
+    ?runtime?'Quiet monitoring · only attention-relevant status is shown.':'Assist status awaiting fresh telemetry.'
+    :'Warning-only · no vehicle control';
+
+  return <aside className={`driverCapabilityRail ${moving?'isQuiet':'isExpanded'}`} aria-label="Driver assistance capability status" data-testid="driver-capability-rail" data-runtime={runtime?'connected':'awaiting'} data-quiet={moving?'true':'false'}>
     <div className="driverCapabilityIntro">
       <strong>Driver assist</strong>
-      <span>Warning-only · no vehicle control</span>
+      <span>{introCopy}</span>
     </div>
     {items.map(({key,icon:Icon,summary,detail,capability})=>{
       if(!capability)return null;
