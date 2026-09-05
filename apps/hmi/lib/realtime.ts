@@ -12,10 +12,10 @@ export interface KingmastTelemetryEventDetail {
   diagnostics: EdgeDiagnostics | null;
 }
 
-function streamUrl(){
-  const explicit=process.env.NEXT_PUBLIC_KINGMAST_WS_URL;if(explicit)return explicit;
-  const api=process.env.NEXT_PUBLIC_KINGMAST_API_URL;if(api)return`${api.replace(/^http/,'ws').replace(/\/$/,'')}/v3/stream`;
-  return'ws://localhost:4000/v3/stream';
+function streamUrl():string|null{
+  const explicit=process.env.NEXT_PUBLIC_KINGMAST_WS_URL?.trim();if(explicit)return explicit;
+  const api=process.env.NEXT_PUBLIC_KINGMAST_API_URL?.trim();if(api)return`${api.replace(/^http/,'ws').replace(/\/$/,'')}/v3/stream`;
+  return null;
 }
 
 async function establishViewerSession(signal:AbortSignal){
@@ -28,8 +28,9 @@ function publishTelemetryEvent(detail:KingmastTelemetryEventDetail){
 }
 
 export function useRealtimeTelemetry(enabled=true){
+  const targetUrl=streamUrl();
   const[frame,setFrame]=useState<TelemetryFrame|null>(null);
-  const[state,setState]=useState<RealtimeState>(enabled?'connecting':'disabled');
+  const[state,setState]=useState<RealtimeState>(enabled&&targetUrl?'connecting':'disabled');
   const[quality,setQuality]=useState<RealtimeQuality>('none');
   const[lastReceivedAt,setLastReceivedAt]=useState<number|null>(null);
   const[diagnostics,setDiagnostics]=useState<EdgeDiagnostics|null>(null);
@@ -40,7 +41,7 @@ export function useRealtimeTelemetry(enabled=true){
   const sessionRef=useRef('');
 
   useEffect(()=>{
-    if(!enabled){setState('disabled');setQuality('none');return;}
+    if(!enabled||!targetUrl){setState('disabled');setQuality('none');return;}
     let socket:WebSocket|null=null;let disposed=false;let connecting=false;let reconnectMs=800;
     const sessionAbort=new AbortController();
 
@@ -59,7 +60,7 @@ export function useRealtimeTelemetry(enabled=true){
         const sessionReady=await establishViewerSession(sessionAbort.signal);
         if(disposed)return;
         if(!sessionReady){setState('offline');setQuality('none');scheduleReconnect();return;}
-        socket=new WebSocket(streamUrl());
+        socket=new WebSocket(targetUrl);
         socket.onopen=()=>{reconnectMs=800;heartbeatAtRef.current=Date.now();};
         socket.onmessage=(event)=>{
           try{
@@ -97,7 +98,7 @@ export function useRealtimeTelemetry(enabled=true){
     },500);
 
     return()=>{disposed=true;sessionAbort.abort();if(retryRef.current!==null){window.clearTimeout(retryRef.current);retryRef.current=null;}window.clearInterval(freshnessTimer);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);socket?.close();};
-  },[enabled]);
+  },[enabled,targetUrl]);
 
-  return{frame,state,quality,lastReceivedAt,diagnostics,url:streamUrl()};
+  return{frame,state,quality,lastReceivedAt,diagnostics,url:targetUrl};
 }

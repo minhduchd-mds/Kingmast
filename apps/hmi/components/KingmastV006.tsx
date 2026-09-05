@@ -13,13 +13,14 @@ import { useConnectedRoadContext,useConnectedRoadProviderStatus } from '../lib/c
 import { primaryRoadEvent,type RoadEventPresentation } from '../lib/road-event-presentation';
 import { useHmiPreferences } from '../lib/use-hmi-preferences';
 import { useDriverProfile } from '../lib/use-driver-profile';
+import { isNavigationRoute } from '../lib/persisted-navigation';
 import { convertMetricText,formatDistance } from '../lib/units';
 
 const ROUTE_KEYS=['kingmast:v006:route','kingmast:v25:route'];
 const LIVE_FRAME_MAX_AGE_MS=4_000;
 const TRANSIENT_NOTICE_MS=2_200;
 
-function readCachedRoute():NavigationRoute|null{try{for(const key of ROUTE_KEYS){const raw=window.localStorage.getItem(key);if(!raw)continue;const parsed=JSON.parse(raw) as {route?:NavigationRoute};if(parsed?.route)return parsed.route;}}catch{}return null;}
+function readCachedRoute():NavigationRoute|null{try{for(const key of ROUTE_KEYS){const raw=window.localStorage.getItem(key);if(!raw)continue;const parsed=JSON.parse(raw) as {route?:unknown};if(isNavigationRoute(parsed?.route))return parsed.route;window.localStorage.removeItem(key);}}catch{}return null;}
 function advisoryIcon(item:ConnectedRoadAdvisory){if(item.category==='school-zone')return School;if(item.category==='construction-zone')return Construction;if(item.category==='weather'||item.category==='road-hazard')return CloudRain;if(item.category==='highway-exit'||item.category==='lane-guidance')return Route;if(item.category==='spat')return Bell;if(item.category==='emergency-vehicle')return CarFront;return AlertTriangle;}
 function eventIcon(item:RoadEventPresentation){if(item.kind==='roadwork')return Construction;if(item.kind==='spat')return Bell;if(item.kind==='emergency')return CarFront;if(item.kind==='arrival')return Navigation;return AlertTriangle;}
 
