@@ -9,6 +9,7 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "skills:validate": "node scripts/validate-agent-skills.mjs",
     "safety:boundary": "node scripts/safety-boundary-check.mjs"
   },
   "pnpm": {
