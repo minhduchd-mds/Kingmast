@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle,Bell,Camera,Check,ChevronRight,Map,Mic,Route,Settings2,ShieldCheck,Volume2,VolumeX,X } from 'lucide-react';
+import { AlertTriangle,Bell,Camera,Check,Map,Route,Settings2,ShieldCheck,Volume2,VolumeX,X } from 'lucide-react';
 import { useEffect,useMemo,useRef,useState } from 'react';
 import type { Severity } from '@kingmast/contracts';
 import { cameraDistanceBand,useMotionFeedback } from '../lib/motion-feedback';
@@ -35,12 +35,7 @@ type SheetKind='hazard'|'camera'|null;
 
 export default function DriverInteractionLayer(props:DriverInteractionLayerProps){
   const[sheet,setSheet]=useState<SheetKind>(null);
-  const[rerouting,setRerouting]=useState(false);
-  const[mutedUntilMs,setMutedUntilMs]=useState<number|null>(null);
-  const[nowMs,setNowMs]=useState(()=>Date.now());
   const[acknowledgedCamera,setAcknowledgedCamera]=useState<string|null>(null);
-  const muteTimer=useRef<number|null>(null);
-  const restoreVoice=useRef(false);
   const sheetRef=useRef<HTMLElement|null>(null);
   const returnFocusRef=useRef<HTMLElement|null>(null);
   const previousRouteActive=useRef(props.routeActive);
@@ -51,17 +46,16 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
   const{profile}=useDriverProfile();
   const units=profile.units;
   const cameraBand=useMemo(()=>cameraDistanceBand(props.camera?.distanceM),[props.camera?.distanceM]);
-  const mutedMinutes=mutedUntilMs?Math.max(0,Math.ceil((mutedUntilMs-nowMs)/60_000)):0;
 
-  useEffect(()=>()=>{if(muteTimer.current!==null)window.clearTimeout(muteTimer.current);},[]);
+  // A sheet is contextual. If its source condition disappears, the sheet disappears too.
+  // Never leave a stale "driver alert" open over a safe/zero-alert state.
   useEffect(()=>{
-    if(mutedUntilMs===null)return;
-    const timer=window.setInterval(()=>setNowMs(Date.now()),15_000);
-    return()=>window.clearInterval(timer);
-  },[mutedUntilMs]);
-  useEffect(()=>{
-    if(mutedUntilMs!==null&&nowMs>=mutedUntilMs)setMutedUntilMs(null);
-  },[mutedUntilMs,nowMs]);
+    const staleHazard=sheet==='hazard'&&props.severity==='safe';
+    const staleCamera=sheet==='camera'&&!props.camera;
+    if(!staleHazard&&!staleCamera)return;
+    setSheet(null);
+    window.setTimeout(()=>returnFocusRef.current?.focus(),0);
+  },[props.camera,props.severity,sheet]);
 
   // Driver hazards already own the dedicated primary alert surface. Do not mirror
   // severity changes into a second lower toast; that duplicate competes for attention.
@@ -135,54 +129,10 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
     window.setTimeout(()=>returnFocusRef.current?.focus(),0);
   }
 
-  function clearTemporaryMute(){
-    if(muteTimer.current!==null){window.clearTimeout(muteTimer.current);muteTimer.current=null;}
-    restoreVoice.current=false;
-    setMutedUntilMs(null);
-  }
-
   function toggleVoice(){
-    clearTemporaryMute();
     const enabled=!props.voiceEnabled;
     props.onVoiceChange(enabled);
     notify('neutral',enabled?'Voice guidance on':'Voice guidance off',enabled?'Turn and advisory voice prompts are enabled.':'Visual warnings remain active.');
-  }
-
-  function muteFiveMinutes(){
-    clearTemporaryMute();
-    restoreVoice.current=props.voiceEnabled;
-    props.onVoiceChange(false);
-    const until=Date.now()+5*60_000;
-    setNowMs(Date.now());
-    setMutedUntilMs(until);
-    muteTimer.current=window.setTimeout(()=>{
-      if(restoreVoice.current)props.onVoiceChange(true);
-      restoreVoice.current=false;
-      setMutedUntilMs(null);
-      muteTimer.current=null;
-      notify('neutral','Voice guidance restored','Temporary mute ended.');
-    },5*60_000);
-    notify('neutral','Voice muted for 5 minutes','Critical visual safety warnings remain active.');
-    closeSheet();
-  }
-
-  async function reroute(){
-    if(!props.routeActive||rerouting)return;
-    setRerouting(true);
-    notify('neutral','Updating route','Searching for a safer available route.');
-    try{
-      const result=await props.onReroute();
-      if(result===null||result===false){
-        notify('caution','Reroute unavailable','Current route remains active.');
-        return;
-      }
-      notify('positive','Route updated','New guidance is ready.');
-      closeSheet();
-    }catch{
-      notify('caution','Reroute unavailable','Current route remains active.');
-    }finally{
-      setRerouting(false);
-    }
   }
 
   function openAlerts(){
@@ -201,8 +151,8 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
 
   return <>
     <nav className="driverActionDock" aria-label="Driver quick actions" data-testid="driver-action-dock">
-      <button type="button" className={props.voiceEnabled?'isActive':''} onClick={toggleVoice} aria-pressed={props.voiceEnabled} aria-label={mutedMinutes>0?`Voice muted, ${mutedMinutes} minutes remaining`:props.voiceEnabled?'Turn voice guidance off':'Turn voice guidance on'}>
-        {props.voiceEnabled?<Volume2/>:<VolumeX/>}<span>{mutedMinutes>0?`Muted ${mutedMinutes}m`:'Voice'}</span>
+      <button type="button" className={props.voiceEnabled?'isActive':''} onClick={toggleVoice} aria-pressed={props.voiceEnabled} aria-label={props.voiceEnabled?'Turn voice guidance off':'Turn voice guidance on'}>
+        {props.voiceEnabled?<Volume2/>:<VolumeX/>}<span>Voice</span>
       </button>
       <button type="button" className={cameraAcknowledged?'isAcknowledged':''} disabled={!props.camera} onClick={()=>props.camera&&openSheet('camera')} aria-label={props.camera?`Camera warning, ${props.camera.label}${cameraAcknowledged?', acknowledged':''}`:'No route camera warning'}>
         <Camera/><span>Camera</span>{props.camera&&!cameraAcknowledged?<i/>:null}
@@ -222,9 +172,8 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
       {notice.tone==='critical'?<AlertTriangle/>:notice.tone==='positive'?<ShieldCheck/>:<Bell/>}<span><strong>{notice.title}</strong>{notice.detail?<small>{notice.detail}</small>:null}</span>
     </div>:null}
 
-    {sheet?<div className="driverSheetBackdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)closeSheet();}}>
+    {sheet?<div className="driverSheetBackdrop" role="presentation" data-sheet-kind={sheet} onMouseDown={(event)=>{if(event.target===event.currentTarget)closeSheet();}}>
       <section ref={sheetRef} className={`driverActionSheet sheet-${sheet} severity-${sheet==='hazard'?props.severity:'caution'}`} role="dialog" aria-modal="true" aria-labelledby="driver-sheet-title" aria-describedby="driver-sheet-description" data-testid="driver-action-sheet">
-        <div className="driverSheetHandle" aria-hidden="true"/>
         <header>
           <span className="driverSheetIcon">{sheet==='camera'?<Camera/>:<Bell/>}</span>
           <span>
@@ -236,19 +185,12 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
         </header>
 
         {sheet==='hazard'?<div className="driverSheetActions hazardActions">
-          <button type="button" className="sheetPrimary" data-sheet-primary="true" onClick={closeSheet}><Check/><span><strong>Keep current route</strong><small>Continue with current guidance</small></span></button>
-          <button type="button" onClick={()=>void reroute()} disabled={!props.routeActive||rerouting}><Route/><span><strong>{rerouting?'Rerouting…':'Reroute'}</strong><small>{props.routeActive?'Recalculate around the issue':'No active route'}</small></span></button>
-          <button type="button" onClick={()=>{props.onAlternatives();closeSheet();}}><Map/><span><strong>View alternatives</strong><small>Compare route options</small></span></button>
-          <button type="button" onClick={muteFiveMinutes}><VolumeX/><span><strong>Mute voice</strong><small>5 minutes</small></span></button>
+          <button type="button" className="sheetPrimary" data-sheet-primary="true" onClick={closeSheet}><Check/><span><strong>{props.routeActive?'Keep route':'Close'}</strong><small>{props.routeActive?'Return to driving view':'Return to alerts'}</small></span></button>
+          {props.routeActive?<button type="button" onClick={()=>{props.onAlternatives();closeSheet();}}><Map/><span><strong>Route options</strong><small>Compare alternatives</small></span></button>:null}
         </div>:<div className="driverSheetActions cameraActions">
-          <button type="button" className="sheetPrimary" data-sheet-primary="true" onClick={acknowledgeCamera}><Check/><span><strong>Acknowledge</strong><small>Keep visual warning active</small></span></button>
-          <button type="button" onClick={muteFiveMinutes}><VolumeX/><span><strong>Mute voice</strong><small>5 minutes</small></span></button>
+          <button type="button" className="sheetPrimary" data-sheet-primary="true" onClick={acknowledgeCamera}><Check/><span><strong>Acknowledge</strong><small>Keep visual context</small></span></button>
           <button type="button" onClick={()=>{props.onNavigate();closeSheet();}}><Map/><span><strong>Open map</strong><small>Show route context</small></span></button>
         </div>}
-
-        <footer>
-          <Mic/><span>Critical collision and vulnerable-road-user warnings remain active regardless of advisory preferences.</span><ChevronRight aria-hidden="true"/>
-        </footer>
       </section>
     </div>:null}
   </>;

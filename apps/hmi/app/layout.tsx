@@ -18,6 +18,7 @@ import './hmi-driver-capabilities.css';
 import './hmi-attention.css';
 import './hmi-theme-contrast.css';
 import './hmi-control-system.css';
+import './hmi-apple-density.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 import DriverCapabilityRail from '../components/DriverCapabilityRail';
 
