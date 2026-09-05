@@ -15,34 +15,50 @@ function stableKey(alert:LocationAlert) {
   return `${alert.type}:${subject}`;
 }
 
+function evaluate(active:Map<string,ActiveAlert>,incoming:LocationAlert[],nowMs:number):LocationAlert[] {
+  const seen=new Set<string>();
+  for(const next of incoming){
+    const key=stableKey(next);
+    seen.add(key);
+    const previous=active.get(key);
+    let severity=next.severity;
+    let severityChangedAtMs=previous?.severityChangedAtMs??nowMs;
+    if(previous){
+      if(rank[next.severity]<rank[previous.alert.severity] && nowMs-previous.severityChangedAtMs<DOWNGRADE_HOLD_MS) severity=previous.alert.severity;
+      else if(next.severity!==previous.alert.severity) severityChangedAtMs=nowMs;
+    }
+    active.set(key,{
+      alert:{...next,id:key,severity},
+      lastSeenAtMs:nowMs,
+      severityChangedAtMs,
+    });
+  }
+
+  for(const [key,value] of active){
+    if(!seen.has(key) && nowMs-value.lastSeenAtMs>HOLD_MS) active.delete(key);
+  }
+
+  return [...active.values()]
+    .map((entry)=>entry.alert)
+    .sort((a,b)=>rank[b.severity]-rank[a.severity]||b.timestampMs-a.timestampMs);
+}
+
 export class AlertStabilizer {
   private readonly active=new Map<string,ActiveAlert>();
 
   update(incoming:LocationAlert[],nowMs=Date.now()):LocationAlert[] {
-    const seen=new Set<string>();
-    for(const next of incoming){
-      const key=stableKey(next);
-      seen.add(key);
-      const previous=this.active.get(key);
-      let severity=next.severity;
-      let severityChangedAtMs=previous?.severityChangedAtMs??nowMs;
-      if(previous){
-        if(rank[next.severity]<rank[previous.alert.severity] && nowMs-previous.severityChangedAtMs<DOWNGRADE_HOLD_MS) severity=previous.alert.severity;
-        else if(next.severity!==previous.alert.severity) severityChangedAtMs=nowMs;
-      }
-      this.active.set(key,{
-        alert:{...next,id:key,severity},
-        lastSeenAtMs:nowMs,
-        severityChangedAtMs,
+    return evaluate(this.active,incoming,nowMs);
+  }
+
+  preview(incoming:LocationAlert[],nowMs=Date.now()):LocationAlert[] {
+    const snapshot=new Map<string,ActiveAlert>();
+    for(const [key,value] of this.active){
+      snapshot.set(key,{
+        alert:{...value.alert},
+        lastSeenAtMs:value.lastSeenAtMs,
+        severityChangedAtMs:value.severityChangedAtMs,
       });
     }
-
-    for(const [key,value] of this.active){
-      if(!seen.has(key) && nowMs-value.lastSeenAtMs>HOLD_MS) this.active.delete(key);
-    }
-
-    return [...this.active.values()]
-      .map((entry)=>entry.alert)
-      .sort((a,b)=>rank[b.severity]-rank[a.severity]||b.timestampMs-a.timestampMs);
+    return evaluate(snapshot,incoming,nowMs);
   }
 }
