@@ -4,15 +4,13 @@ on:
     branches: [main]
   pull_request:
 permissions:
-  contents: write
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
       - uses: pnpm/action-setup@v6.1.0
         with:
           version: 10.34.0
@@ -20,18 +18,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Install and refresh lockfile
-        run: pnpm install --no-frozen-lockfile
-      - name: Commit regenerated lockfile on hardening PR
-        if: github.event_name == 'pull_request' && github.head_ref == 'chore/ci-security-hardening'
-        run: |
-          if ! git diff --quiet -- pnpm-lock.yaml; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add pnpm-lock.yaml
-            git commit -m "chore(deps): refresh pnpm lockfile"
-            git push origin HEAD:chore/ci-security-hardening
-          fi
+      - name: Install reproducibly
+        run: pnpm install --frozen-lockfile
       - name: Safety boundary
         run: pnpm safety:boundary
       - name: Python syntax
