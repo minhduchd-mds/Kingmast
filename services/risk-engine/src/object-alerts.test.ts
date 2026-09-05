@@ -70,7 +70,7 @@ describe('buildLocationAlerts', () => {
     expect(alerts).toHaveLength(0);
   });
 
-  it('still escalates a critical lateral road-user hazard', () => {
+  it('does not turn close lateral distance into a textual critical alert', () => {
     const alerts = buildLocationAlerts({
       vehicle,
       sensors,
@@ -82,8 +82,7 @@ describe('buildLocationAlerts', () => {
         bearingDeg: 90,
       })],
     });
-    expect(alerts[0]?.type).toBe('vulnerable-road-user');
-    expect(alerts[0]?.severity).toBe('critical');
+    expect(alerts).toHaveLength(0);
   });
 
   it('reports degraded sensors without creating vehicle-control behavior', () => {
