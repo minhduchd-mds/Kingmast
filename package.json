@@ -2,7 +2,7 @@
   "name": "kingmast",
   "version": "0.0.6",
   "private": true,
-  "packageManager": "pnpm@10.15.0",
+  "packageManager": "pnpm@10.34.0",
   "scripts": {
     "dev": "concurrently -n hmi,api \"pnpm --filter @kingmast/hmi dev\" \"pnpm --filter @kingmast/risk-engine dev\"",
     "build": "pnpm -r build",
@@ -16,5 +16,8 @@
       "postcss": "8.5.18"
     }
   },
-  "devDependencies": {"concurrently":"^9.2.1","typescript":"^5.9.2"}
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.2"
+  }
 }
