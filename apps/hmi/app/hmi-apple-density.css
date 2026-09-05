@@ -1,0 +1,332 @@
+/* KINGMAST Apple-style density pass.
+   Goal: fewer competing surfaces, tighter automotive spacing, stronger hierarchy,
+   and progressive disclosure while preserving >=44px touch targets. */
+
+/* ---- Global density / navigation ------------------------------------------------ */
+.hmiV5{
+  grid-template-columns:164px minmax(0,1fr);
+  --apple-density-gap:10px;
+}
+.hmiV5 .sidebar{
+  padding:12px 8px;
+}
+.hmiV5 .appBrand{
+  min-height:56px;
+  padding-inline:8px;
+}
+.hmiV5 .appBrand small{display:none}
+.hmiV5 .navList{gap:4px}
+.hmiV5 .navItem{
+  min-height:48px;
+  padding:0 11px;
+  gap:10px;
+  border-radius:14px;
+}
+.hmiV5 .navItem span{font-size:14px;font-weight:610}
+.hmiV5 .navItem svg{width:21px;height:21px}
+.hmiV5 .parkedNavLabel{
+  margin:15px 8px 5px;
+  font-size:10px;
+  letter-spacing:.08em;
+}
+.hmiV5 .sidebarFooter{padding-top:6px}
+.hmiV5 .parkedState{padding:8px;font-size:10px}
+
+/* ---- Workspace / top bar ------------------------------------------------------- */
+.hmiV5 .workspace{
+  padding:10px 16px 18px;
+}
+.kingmastExperience:has(.driverActionDock) .hmiV5 .workspace{
+  padding-bottom:92px;
+  scroll-padding-bottom:92px;
+}
+.hmiV5 .hmiTopbar{
+  min-height:58px;
+  margin-bottom:8px;
+  padding:0;
+}
+.hmiV5 .hmiTopbar .eyebrow{display:none}
+.hmiV5 .hmiTopbar::after{display:none}
+.hmiV5 .hmiTopbar::before{
+  font-size:16px;
+  letter-spacing:.075em;
+  transform:translate(-50%,-50%);
+}
+.hmiV5 .hmiTopbar h1{
+  font-size:22px;
+  line-height:1.1;
+}
+.hmiV5 .topbarStatus{
+  gap:7px;
+  min-height:44px;
+}
+.hmiV5 .clockLabel{
+  width:auto;
+  min-width:76px;
+  height:44px;
+  min-height:44px;
+  padding:0 4px;
+  font-size:14px;
+}
+.hmiV5 .topbarStatus .systemReady,
+.hmiV5 .topbarStatus .voiceToggle,
+.hmiV5 .topbarStatus .gpsControl{
+  width:124px;
+  min-width:124px;
+  max-width:124px;
+  height:44px;
+  min-height:44px;
+  padding:0 10px;
+  border-radius:14px;
+  gap:7px;
+  font-size:12px;
+  font-weight:600;
+  box-shadow:none;
+}
+.hmiV5 .topbarStatus .systemReady svg,
+.hmiV5 .topbarStatus .voiceToggle svg,
+.hmiV5 .topbarStatus .gpsControl svg{
+  width:17px;
+  height:17px;
+  flex-basis:17px;
+}
+
+/* ---- Surfaces: less card-on-card, less padding -------------------------------- */
+.hmiV5 .surface{
+  border-radius:20px;
+  box-shadow:0 7px 24px rgba(0,0,0,.11);
+}
+.hmiV5 .v5Drive,
+.hmiV5 .v5Navigate,
+.hmiV5 .v5Energy{gap:10px}
+.hmiV5 .v5DriveSide,
+.hmiV5 .v5NavAside{gap:9px}
+.hmiV5 .v5Cockpit,
+.hmiV5 .v5Panel,
+.hmiV5 .navigationSurface,
+.hmiV5 .alertsSurface,
+.hmiV5 .parkedSurface{padding:13px}
+.hmiV5 .v5Ahead{padding:12px;gap:9px}
+.hmiV5 .sectionTitle,
+.hmiV5 .sectionTitle.large{
+  min-height:42px;
+  font-size:13px;
+}
+.hmiV5 .sectionTitle.large{font-size:14px}
+.hmiV5 .sectionTitle button{
+  min-height:44px;
+  padding-inline:8px;
+}
+
+/* Navigation banner stays prominent without becoming a second card header. */
+.hmiV5 .maneuverBanner{
+  min-height:72px;
+  padding:9px 11px;
+  gap:10px;
+  border-radius:17px;
+}
+.hmiV5 .maneuverIcon{
+  width:46px;
+  height:46px;
+  border-radius:14px;
+}
+.hmiV5 .maneuverIcon svg{width:24px;height:24px}
+.hmiV5 .maneuverCopy small,
+.hmiV5 .maneuverCopy em{font-size:12px}
+.hmiV5 .maneuverCopy strong{font-size:18px}
+.hmiV5 .maneuverBanner>button{
+  min-height:44px;
+  padding-inline:12px;
+  border-radius:13px;
+  font-size:12px;
+}
+
+/* Alerts page: content-first instead of a wide empty dashboard card. */
+.hmiV5 .alertsSurface{
+  width:min(1080px,100%);
+  align-self:start;
+}
+.hmiV5 .driverAlertList{gap:6px}
+.hmiV5 .driverAlertRow{
+  min-height:60px;
+  grid-template-columns:40px minmax(0,1fr) auto;
+  gap:10px;
+  padding:6px 9px;
+  border-radius:14px;
+}
+.hmiV5 .driverAlertRow strong{font-size:14px}
+.hmiV5 .driverAlertRow small{font-size:12px;line-height:1.35}
+
+/* ---- Bottom quick actions: compact floating toolbar ---------------------------- */
+.driverActionDock{
+  left:calc(50% + 82px);
+  right:auto;
+  width:min(880px,calc(100vw - 196px));
+  min-height:60px;
+  padding:5px;
+  gap:4px;
+  border-radius:20px;
+  transform:translateX(-50%);
+  box-shadow:0 12px 34px rgba(0,0,0,.20);
+}
+.driverActionDock button{
+  min-height:48px;
+  padding:0 10px;
+  gap:7px;
+  border-radius:15px;
+  font-size:13px;
+}
+.driverActionDock svg{width:21px;height:21px}
+.driverActionDock i{right:11px;top:9px;width:6px;height:6px}
+.kingmastExperience:has(.driverActionDock) .connectedRoadHud{bottom:76px}
+
+/* ---- Driver sheet: progressive disclosure, max two actions -------------------- */
+.driverSheetBackdrop{
+  padding:0 18px 78px calc(164px + 18px);
+  background:rgba(0,0,0,.22);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+}
+.driverActionSheet{
+  width:min(720px,100%);
+  border-radius:22px;
+  box-shadow:0 24px 60px rgba(0,0,0,.34);
+}
+.driverSheetHandle{display:none}
+.driverActionSheet header{
+  min-height:72px;
+  grid-template-columns:44px minmax(0,1fr) 44px;
+  gap:11px;
+  padding:12px 14px 8px;
+}
+.driverSheetIcon{
+  width:42px;
+  height:42px;
+  border-radius:13px;
+}
+.driverSheetIcon svg{width:21px;height:21px}
+.driverActionSheet header small{
+  font-size:10px;
+  letter-spacing:.11em;
+}
+.driverActionSheet header strong{
+  font-size:21px;
+  line-height:1.12;
+}
+.driverActionSheet header em{
+  font-size:12px;
+  line-height:1.35;
+}
+.driverSheetClose{
+  width:44px;
+  height:44px;
+  min-height:44px;
+  border-radius:13px;
+}
+.driverSheetClose svg{width:19px;height:19px}
+.driverSheetActions,
+.driverSheetActions.cameraActions{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  padding:5px 14px 14px;
+}
+.driverSheetActions button{
+  min-height:60px;
+  grid-template-columns:24px minmax(0,1fr);
+  gap:9px;
+  padding:8px 11px;
+  border-radius:15px;
+}
+.driverSheetActions button>svg{width:21px;height:21px}
+.driverSheetActions button>span{gap:2px}
+.driverSheetActions strong{font-size:13px}
+.driverSheetActions small{font-size:11px}
+.driverActionSheet footer{display:none}
+
+/* Day appearance must look active, not disabled or washed out. */
+.hmiV5.theme-day .driverActionSheet,
+.hmiV5.theme-auto .driverActionSheet{
+  background:rgba(252,252,253,.985);
+  color:#15171a;
+  border-color:rgba(20,24,32,.12);
+}
+.hmiV5.theme-day .driverActionSheet header strong,
+.hmiV5.theme-auto .driverActionSheet header strong,
+.hmiV5.theme-day .driverSheetActions strong,
+.hmiV5.theme-auto .driverSheetActions strong{color:#15171a}
+.hmiV5.theme-day .driverActionSheet header em,
+.hmiV5.theme-auto .driverActionSheet header em{color:#656b75}
+.hmiV5.theme-day .driverActionSheet header small,
+.hmiV5.theme-auto .driverActionSheet header small{color:#717784}
+.hmiV5.theme-day .driverSheetClose,
+.hmiV5.theme-auto .driverSheetClose{
+  background:rgba(20,24,32,.055);
+  color:#343941;
+}
+.hmiV5.theme-day .driverSheetActions button,
+.hmiV5.theme-auto .driverSheetActions button{
+  background:rgba(20,24,32,.035);
+  color:#20242a;
+  border-color:rgba(20,24,32,.10);
+}
+.hmiV5.theme-day .driverSheetActions button.sheetPrimary,
+.hmiV5.theme-auto .driverSheetActions button.sheetPrimary{
+  background:rgba(10,132,255,.10);
+  border-color:rgba(10,132,255,.30);
+}
+.hmiV5.theme-day .driverSheetActions small,
+.hmiV5.theme-auto .driverSheetActions small{color:#69707a}
+
+/* Night keeps the same geometry, with quiet material instead of heavy gradients. */
+.hmiV5.theme-night .driverActionSheet{
+  background:rgba(24,27,33,.985);
+  border-color:rgba(255,255,255,.11);
+}
+
+/* ---- Responsive preservation -------------------------------------------------- */
+@media(max-width:900px){
+  .hmiV5{grid-template-columns:76px minmax(0,1fr)}
+  .hmiV5 .sidebar{padding:12px 7px}
+  .hmiV5 .navItem{justify-content:center;padding:0}
+  .driverActionDock{
+    left:calc(50% + 38px);
+    width:min(760px,calc(100vw - 96px));
+  }
+  .driverSheetBackdrop{padding-left:94px}
+}
+
+@media(max-width:680px){
+  .hmiV5{grid-template-columns:1fr}
+  .hmiV5 .workspace{padding:8px 10px 82px}
+  .driverActionDock{
+    left:50%;
+    width:calc(100vw - 20px);
+    min-height:58px;
+  }
+  .driverActionDock button{min-height:48px;padding:0 5px;font-size:11px;flex-direction:column;gap:3px}
+  .driverActionDock svg{width:19px;height:19px}
+  .driverSheetBackdrop{padding:0 10px 76px}
+  .driverActionSheet{width:100%;border-radius:19px}
+  .driverSheetActions,.driverSheetActions.cameraActions{grid-template-columns:1fr}
+}
+
+@media(max-height:560px) and (min-width:821px){
+  .hmiV5 .workspace{padding-top:7px}
+  .hmiV5 .hmiTopbar{min-height:48px;margin-bottom:5px}
+  .hmiV5 .topbarStatus .systemReady,
+  .hmiV5 .topbarStatus .voiceToggle,
+  .hmiV5 .topbarStatus .gpsControl{height:44px;min-height:44px;width:116px;min-width:116px;max-width:116px}
+  .driverActionDock{min-height:56px}
+  .driverActionDock button{min-height:46px}
+  .driverSheetBackdrop{padding-bottom:70px}
+  .driverActionSheet header{min-height:62px;padding-top:8px}
+  .driverSheetActions button{min-height:54px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .driverActionDock,.driverActionSheet{transition:none!important}
+}
+
+@media(prefers-contrast:more){
+  .driverActionSheet,.driverSheetActions button,.hmiV5 .navItem{border-width:2px}
+}
