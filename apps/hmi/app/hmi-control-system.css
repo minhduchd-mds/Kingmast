@@ -1,0 +1,171 @@
+/* KINGMAST unified interaction scale.
+   Loaded last so later feature layers cannot drift core control geometry.
+   Visual material remains token-driven by hmi-attention/theme layers. */
+
+:root{
+  --hmi-touch-min:44px;
+  --hmi-control-sm:44px;
+  --hmi-control-md:48px;
+  --hmi-control-lg:52px;
+  --hmi-control-radius-sm:13px;
+  --hmi-control-radius-md:16px;
+  --hmi-control-radius-lg:18px;
+  --hmi-control-gap:8px;
+  --hmi-control-icon:18px;
+  --hmi-header-control-width:148px;
+}
+
+/* No interactive element in the production HMI may fall below the automotive touch floor. */
+.hmiV5 button{
+  min-height:var(--hmi-touch-min);
+}
+
+/* Header utility cluster: equal geometry, equal visual weight, one alignment baseline. */
+.hmiV5 .topbarStatus{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  min-height:var(--hmi-control-lg);
+  flex-wrap:nowrap;
+}
+.hmiV5 .clockLabel{
+  min-width:82px;
+  height:var(--hmi-control-lg);
+  min-height:var(--hmi-control-lg);
+  padding:0 6px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-end;
+  font-variant-numeric:tabular-nums;
+  line-height:1;
+}
+.hmiV5 .topbarStatus .systemReady,
+.hmiV5 .topbarStatus .voiceToggle,
+.hmiV5 .topbarStatus .gpsControl{
+  width:var(--hmi-header-control-width);
+  min-width:var(--hmi-header-control-width);
+  max-width:var(--hmi-header-control-width);
+  height:var(--hmi-control-lg);
+  min-height:var(--hmi-control-lg);
+  padding:0 14px;
+  border:1px solid var(--hmi-material-line,var(--line));
+  border-radius:var(--hmi-control-radius-md);
+  background:var(--hmi-control-surface);
+  box-shadow:var(--hmi-control-inset);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--hmi-control-gap);
+  font-size:13px;
+  font-weight:600;
+  line-height:1;
+  letter-spacing:-.005em;
+  white-space:nowrap;
+  box-sizing:border-box;
+}
+.hmiV5 .topbarStatus .systemReady svg,
+.hmiV5 .topbarStatus .voiceToggle svg,
+.hmiV5 .topbarStatus .gpsControl svg{
+  width:var(--hmi-control-icon);
+  height:var(--hmi-control-icon);
+  flex:0 0 var(--hmi-control-icon);
+}
+.hmiV5 .topbarStatus .voiceToggle,
+.hmiV5 .topbarStatus .gpsControl{
+  cursor:pointer;
+  transition:background .16s ease,border-color .16s ease,color .16s ease,transform .08s ease,box-shadow .16s ease;
+}
+.hmiV5 .topbarStatus .voiceToggle:hover,
+.hmiV5 .topbarStatus .gpsControl:hover{
+  background:color-mix(in srgb,var(--hmi-control-surface) 82%,var(--hmi-material-text) 6%);
+}
+.hmiV5 .topbarStatus .voiceToggle:active,
+.hmiV5 .topbarStatus .gpsControl:active{
+  transform:scale(.985);
+}
+.hmiV5 .topbarStatus .voiceToggle:focus-visible,
+.hmiV5 .topbarStatus .gpsControl:focus-visible{
+  outline:3px solid #79bfff;
+  outline-offset:2px;
+}
+
+/* Shared geometry for primary driver controls. */
+.hmiV5 .navItem,
+.hmiV5 .maneuverBanner>button,
+.hmiV5 .appearanceBar button{
+  min-height:var(--hmi-control-lg);
+  border-radius:var(--hmi-control-radius-md);
+}
+.hmiV5 .maneuverBanner>button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding-inline:16px;
+  font-size:13px;
+  font-weight:650;
+}
+.hmiV5 .maneuverBanner>button svg{
+  width:18px;
+  height:18px;
+}
+
+/* Secondary text actions remain compact visually but retain a full 44px touch target. */
+.hmiV5 .sectionTitle button{
+  min-height:var(--hmi-control-sm);
+  padding:0 10px;
+  border-radius:var(--hmi-control-radius-sm);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* Bottom dock and settings groups use internally consistent heights. */
+.driverActionDock button{
+  min-height:56px;
+  border-radius:var(--hmi-control-radius-lg);
+}
+.settingsSegmented button{
+  min-height:var(--hmi-control-md);
+}
+.settingsDone{
+  height:var(--hmi-control-lg);
+  min-height:var(--hmi-control-lg);
+  border-radius:var(--hmi-control-radius-md);
+}
+
+/* Prevent utility controls from squeezing into different sizes on common automotive panels. */
+@media(max-width:1365px) and (min-width:821px){
+  :root{--hmi-header-control-width:140px}
+  .hmiV5 .topbarStatus{gap:8px}
+  .hmiV5 .clockLabel{min-width:72px;font-size:15px}
+}
+
+/* Small screens keep equal button geometry but may hide lower-priority status per existing rules. */
+@media(max-width:820px){
+  :root{--hmi-header-control-width:124px}
+  .hmiV5 .topbarStatus{gap:6px}
+  .hmiV5 .clockLabel{min-width:auto;padding-inline:2px}
+  .hmiV5 .topbarStatus .systemReady,
+  .hmiV5 .topbarStatus .voiceToggle,
+  .hmiV5 .topbarStatus .gpsControl{
+    padding-inline:10px;
+    font-size:12px;
+  }
+}
+
+@media(max-height:560px) and (min-width:821px){
+  :root{--hmi-control-lg:48px;--hmi-header-control-width:132px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .hmiV5 .topbarStatus .voiceToggle,
+  .hmiV5 .topbarStatus .gpsControl{transition:none!important}
+}
+
+@media(prefers-contrast:more){
+  .hmiV5 .topbarStatus .systemReady,
+  .hmiV5 .topbarStatus .voiceToggle,
+  .hmiV5 .topbarStatus .gpsControl{border-width:2px;font-weight:700}
+}
