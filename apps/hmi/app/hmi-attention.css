@@ -1,28 +1,82 @@
 /* KINGMAST calm-attention layer.
    Inspired by glanceable automotive HMI principles: one textual driving alert owns attention,
-   secondary state stays quiet, spatial cues remain available, and nothing flashes. */
-:root{
+   secondary state stays quiet, spatial cues remain available, and nothing flashes.
+
+   IMPORTANT: this is the final-loaded HMI style layer. Material colors are therefore tokenized
+   here so explicit Day and automatic daytime appearance cannot be overridden by dark defaults. */
+body{
   --hmi-attention-ease:cubic-bezier(.16,1,.3,1);
+  --hmi-attention-panel:linear-gradient(160deg,rgba(27,30,36,.92),rgba(17,19,24,.96));
+  --hmi-attention-panel-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 34px rgba(0,0,0,.17);
+  --hmi-maneuver-surface:rgba(25,28,34,.94);
+  --hmi-maneuver-active:linear-gradient(180deg,rgba(25,54,91,.58),rgba(22,32,48,.76));
+  --hmi-control-surface:rgba(255,255,255,.027);
+  --hmi-control-inset:inset 0 1px 0 rgba(255,255,255,.025);
   --hmi-focus-surface:rgba(19,21,26,.94);
   --hmi-focus-line:rgba(255,255,255,.10);
+  --hmi-caution-surface:rgba(27,26,21,.95);
+  --hmi-critical-surface:rgba(32,22,22,.96);
+  --hmi-status-caution-surface:rgba(25,25,22,.86);
+  --hmi-connected-surface:rgba(17,19,24,.92);
+  --hmi-row-surface:rgba(255,255,255,.022);
+  --hmi-dock-surface:rgba(17,19,24,.90);
+  --hmi-floating-surface:rgba(18,20,25,.94);
+  --hmi-sheet-surface:linear-gradient(150deg,rgba(28,31,38,.97),rgba(14,16,21,.985));
+  --hmi-capability-surface:rgba(15,17,22,.91);
+  --hmi-capability-quiet:rgba(14,16,20,.86);
+  --hmi-material-line:rgba(255,255,255,.10);
+  --hmi-material-text:#f7f7f9;
+  --hmi-material-secondary:#a6aab3;
+  --hmi-material-shadow:0 16px 46px rgba(0,0,0,.28);
+  --hmi-high-contrast-surface:#111318;
+  --hmi-high-contrast-line:rgba(255,255,255,.38);
+}
+
+/* Explicit Day and Auto during local daytime share one coherent light material system.
+   Auto/day is driven by KingmastV006 ambient-day, not the browser color-scheme preference. */
+body:has(.hmiV5.theme-day),
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto){
+  color-scheme:light;
+  --hmi-attention-panel:linear-gradient(160deg,rgba(255,255,255,.97),rgba(239,242,246,.98));
+  --hmi-attention-panel-shadow:inset 0 1px 0 rgba(255,255,255,.88),0 12px 30px rgba(45,52,60,.10);
+  --hmi-maneuver-surface:rgba(248,250,252,.97);
+  --hmi-maneuver-active:linear-gradient(180deg,rgba(225,239,255,.98),rgba(235,244,255,.98));
+  --hmi-control-surface:rgba(0,0,0,.035);
+  --hmi-control-inset:inset 0 1px 0 rgba(255,255,255,.78);
+  --hmi-focus-surface:rgba(255,255,255,.97);
+  --hmi-focus-line:rgba(20,24,30,.12);
+  --hmi-caution-surface:rgba(255,249,225,.97);
+  --hmi-critical-surface:rgba(255,239,238,.98);
+  --hmi-status-caution-surface:rgba(255,249,230,.96);
+  --hmi-connected-surface:rgba(250,251,252,.97);
+  --hmi-row-surface:rgba(0,0,0,.025);
+  --hmi-dock-surface:rgba(246,247,250,.95);
+  --hmi-floating-surface:rgba(250,251,252,.97);
+  --hmi-sheet-surface:linear-gradient(150deg,rgba(255,255,255,.985),rgba(239,242,246,.985));
+  --hmi-capability-surface:rgba(248,249,251,.96);
+  --hmi-capability-quiet:rgba(248,249,251,.94);
+  --hmi-material-line:rgba(20,24,30,.11);
+  --hmi-material-text:#17191d;
+  --hmi-material-secondary:#5e6670;
+  --hmi-material-shadow:0 14px 34px rgba(36,43,50,.13);
+  --hmi-high-contrast-surface:#fff;
+  --hmi-high-contrast-line:rgba(0,0,0,.55);
 }
 
 /* Refine the production material system without adding decorative noise. */
 .hmiV5 .surface{
-  background:linear-gradient(160deg,rgba(27,30,36,.92),rgba(17,19,24,.96));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 34px rgba(0,0,0,.17);
+  background:var(--hmi-attention-panel);
+  box-shadow:var(--hmi-attention-panel-shadow);
 }
 .hmiV5 .maneuverBanner{
-  background:rgba(25,28,34,.94);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  background:var(--hmi-maneuver-surface);
+  box-shadow:var(--hmi-control-inset);
   transition:background .24s var(--hmi-attention-ease),border-color .24s var(--hmi-attention-ease),transform .24s var(--hmi-attention-ease);
 }
-.hmiV5 .maneuverBanner.routeActive{
-  background:linear-gradient(180deg,rgba(25,54,91,.58),rgba(22,32,48,.76));
-}
+.hmiV5 .maneuverBanner.routeActive{background:var(--hmi-maneuver-active)}
 .hmiV5 .systemReady,.hmiV5 .voiceToggle,.hmiV5 .gpsControl{
-  background:rgba(255,255,255,.027);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  background:var(--hmi-control-surface);
+  box-shadow:var(--hmi-control-inset);
 }
 
 /* The driver alert is the only full textual warning surface in Drive. */
@@ -31,7 +85,7 @@ body:has(.v5Drive) .hmiV5 .driverAlert{
   overflow:hidden;
   background:var(--hmi-focus-surface);
   border:1px solid var(--hmi-focus-line);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 10px 28px rgba(0,0,0,.16);
+  box-shadow:var(--hmi-attention-panel-shadow);
   transition:min-height .24s var(--hmi-attention-ease),padding .24s var(--hmi-attention-ease),background .24s var(--hmi-attention-ease),border-color .24s var(--hmi-attention-ease),opacity .24s var(--hmi-attention-ease),transform .24s var(--hmi-attention-ease);
 }
 body:has(.v5Drive) .hmiV5 .driverAlert::before{
@@ -55,17 +109,17 @@ body:has(.v5Drive) .hmiV5 .driverAlert.severity-safe{
 }
 body:has(.v5Drive) .hmiV5 .driverAlert.severity-safe::before{opacity:.38}
 body:has(.v5Drive) .hmiV5 .driverAlert.severity-safe small{display:none}
-body:has(.v5Drive) .hmiV5 .driverAlert.severity-safe strong{font-size:14px;font-weight:620;color:#aeb5c0}
+body:has(.v5Drive) .hmiV5 .driverAlert.severity-safe strong{font-size:14px;font-weight:620;color:var(--secondary)}
 body:has(.v5Drive) .hmiV5 .driverAlert.severity-safe>svg{width:18px;height:18px;color:#7f9486}
 body:has(.v5Drive) .hmiV5 .driverAlert.severity-caution{
-  background:rgba(27,26,21,.95);
-  border-color:rgba(255,214,10,.18);
+  background:var(--hmi-caution-surface);
+  border-color:rgba(194,145,0,.24);
 }
 body:has(.v5Drive) .hmiV5 .driverAlert.severity-caution::before{background:#ffd60a;opacity:.92}
 body:has(.v5Drive) .hmiV5 .driverAlert.severity-critical{
-  background:rgba(32,22,22,.96);
-  border-color:rgba(255,69,58,.26);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 34px rgba(0,0,0,.22);
+  background:var(--hmi-critical-surface);
+  border-color:rgba(255,69,58,.28);
+  box-shadow:var(--hmi-attention-panel-shadow);
 }
 body:has(.v5Drive) .hmiV5 .driverAlert.severity-critical::before{background:#ff453a;opacity:1}
 
@@ -93,8 +147,8 @@ body:has(.v5Drive) .sensorLossBanner.severity-caution{
   max-width:520px;
   padding:7px 12px;
   border-radius:14px;
-  background:rgba(25,25,22,.86);
-  border-color:rgba(255,214,10,.13);
+  background:var(--hmi-status-caution-surface);
+  border-color:rgba(194,145,0,.18);
   box-shadow:none;
 }
 body:has(.v5Drive) .sensorLossBanner.severity-caution small,
@@ -108,17 +162,71 @@ body:has(.v5Drive) .connectedRoadHud{
   width:min(560px,calc(100vw - 240px));
   min-height:64px;
   border-radius:18px;
-  background:rgba(17,19,24,.92);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 12px 32px rgba(0,0,0,.18);
+  background:var(--hmi-connected-surface);
+  color:var(--hmi-material-text);
+  border-color:var(--hmi-material-line);
+  box-shadow:var(--hmi-material-shadow);
 }
 body:has(.v5Drive) .connectedRoadHead{min-width:0}
-body:has(.v5Drive) .connectedRoadHead small{opacity:.66}
+body:has(.v5Drive) .connectedRoadHead small{opacity:.66;color:var(--hmi-material-secondary)}
 body:has(.v5Drive) .connectedSafetyNote{font-size:12px;opacity:.72}
+
+/* The bottom dock and transient surfaces must follow the same appearance as the HMI.
+   These live outside some theme descendants, so the final layer resolves them from body tokens. */
+.driverActionDock{
+  background:var(--hmi-dock-surface);
+  border-color:var(--hmi-material-line);
+  box-shadow:var(--hmi-material-shadow);
+}
+.interactionToast{
+  background:var(--hmi-floating-surface);
+  color:var(--hmi-material-text);
+  border-color:var(--hmi-material-line);
+  box-shadow:var(--hmi-material-shadow);
+}
+.interactionToast small{color:var(--hmi-material-secondary)}
+.driverActionSheet{
+  background:var(--hmi-sheet-surface);
+  color:var(--hmi-material-text);
+  border-color:var(--hmi-material-line);
+}
+body:has(.hmiV5.theme-day) .driverActionDock button,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverActionDock button{color:#42454b}
+body:has(.hmiV5.theme-day) .driverActionDock button:hover:not(:disabled),
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverActionDock button:hover:not(:disabled){background:rgba(0,0,0,.045);color:#15171a}
+body:has(.hmiV5.theme-day) .driverActionDock button.isActive,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverActionDock button.isActive{color:#15171a;background:rgba(10,132,255,.09);border-color:rgba(10,132,255,.18)}
+body:has(.hmiV5.theme-day) .driverActionDock button.hasAlert,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverActionDock button.hasAlert{color:#24211a;background:rgba(255,188,0,.09);border-color:rgba(155,111,0,.18)}
+
+/* Driver-assist readiness rail is mounted at the body level, so it also consumes body theme tokens. */
+body:has(.v5Drive) .driverCapabilityRail{
+  background:var(--hmi-capability-surface);
+  border-color:var(--hmi-material-line);
+  box-shadow:var(--hmi-material-shadow);
+}
+body:has(.v5Drive) .driverCapabilityRail.isQuiet{background:var(--hmi-capability-quiet)}
+body:has(.hmiV5.theme-day) .driverCapabilityIntro strong,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverCapabilityIntro strong,
+body:has(.hmiV5.theme-day) .driverCapabilityTitle strong,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverCapabilityTitle strong{color:#17191d}
+body:has(.hmiV5.theme-day) .driverCapabilityIntro span,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverCapabilityIntro span,
+body:has(.hmiV5.theme-day) .driverCapabilityCopy p,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverCapabilityCopy p{color:#67707a}
+body:has(.hmiV5.theme-day) .driverCapabilityCopy small,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverCapabilityCopy small,
+body:has(.hmiV5.theme-day) .driverCapabilityTitle em,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverCapabilityTitle em{color:#515a65}
+body:has(.hmiV5.theme-day) .driverCapabilityItem,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverCapabilityItem{background:rgba(0,0,0,.025);border-color:rgba(0,0,0,.07)}
+body:has(.hmiV5.theme-day) .driverCapabilityIntro,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .driverCapabilityIntro{border-right-color:rgba(0,0,0,.08)}
 
 /* Alert history is intentionally dense only in the dedicated Alerts view, never over the road scene. */
 .hmiV5 .driverAlertList{gap:8px}
-.hmiV5 .driverAlertRow{border-radius:16px;background:rgba(255,255,255,.022);box-shadow:none}
-.hmiV5 .driverAlertRow.severity-caution{border-color:rgba(255,214,10,.12)}
+.hmiV5 .driverAlertRow{border-radius:16px;background:var(--hmi-row-surface);box-shadow:none}
+.hmiV5 .driverAlertRow.severity-caution{border-color:rgba(194,145,0,.16)}
 .hmiV5 .driverAlertRow.severity-critical{border-color:rgba(255,69,58,.18)}
 
 @media(max-width:1180px){
@@ -132,8 +240,9 @@ body:has(.v5Drive) .connectedSafetyNote{font-size:12px;opacity:.72}
   .hmiV5 .driverAlert,.hmiV5 .maneuverBanner,.driverCapabilityRail,.connectedRoadHud{transition:none!important;animation:none!important}
 }
 @media(prefers-contrast:more){
-  body:has(.v5Drive) .hmiV5 .driverAlert{border-color:rgba(255,255,255,.38);background:#111318}
-  body:has(.v5Drive) .hmiV5 .driverAlert.severity-caution{border-color:#ffd60a}
+  body:has(.v5Drive) .hmiV5 .driverAlert{border-color:var(--hmi-high-contrast-line);background:var(--hmi-high-contrast-surface)}
+  body:has(.v5Drive) .hmiV5 .driverAlert.severity-caution{border-color:#b18400}
   body:has(.v5Drive) .hmiV5 .driverAlert.severity-critical{border-color:#ff453a}
-  body:has(.v5Drive) .connectedRoadHud{background:#111318;border-color:rgba(255,255,255,.34)}
+  body:has(.v5Drive) .connectedRoadHud{background:var(--hmi-high-contrast-surface);border-color:var(--hmi-high-contrast-line)}
+  body:has(.v5Drive) .driverCapabilityRail{background:var(--hmi-high-contrast-surface);border-color:var(--hmi-high-contrast-line)}
 }
