@@ -31,6 +31,10 @@
 }
 .hmiV5 .sidebarFooter{padding-top:6px}
 .hmiV5 .parkedState{padding:8px;font-size:10px}
+/* Unavailable parked tools are not useful driving content. Hide the whole group
+   instead of filling the rail with disabled controls while the vehicle is moving. */
+.hmiV5 .sidebar:has(.parkedNav .navDisabled) .parkedNavLabel,
+.hmiV5 .sidebar:has(.parkedNav .navDisabled) .parkedNav{display:none}
 
 /* ---- Workspace / top bar ------------------------------------------------------- */
 .hmiV5 .workspace{
