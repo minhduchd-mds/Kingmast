@@ -16,6 +16,7 @@ import './hmi-resilience.css';
 import './hmi-capabilities.css';
 import './hmi-driver-capabilities.css';
 import './hmi-attention.css';
+import './hmi-theme-contrast.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 import DriverCapabilityRail from '../components/DriverCapabilityRail';
 
