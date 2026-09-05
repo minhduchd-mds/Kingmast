@@ -62,7 +62,7 @@ const checks=[
   ['driver action sheets are modal with focus return',interaction.includes('aria-modal="true"')&&interaction.includes('returnFocusRef.current?.focus()')],
   ['context sheets close stale hazard and camera state',interaction.includes("staleHazard=sheet==='hazard'&&props.severity==='safe'")&&interaction.includes("staleCamera=sheet==='camera'&&!props.camera")],
   ['context sheets avoid duplicate voice and footer controls',!interaction.includes('Mute voice')&&!interaction.includes('<footer>')],
-  ['context sheets use progressive disclosure',densityCss.includes('width:min(720px,100%)')&&densityCss.includes('grid-template-columns:repeat(2,minmax(0,1fr))')&&!interaction.includes('Reroute')],
+  ['context sheets use progressive disclosure',densityCss.includes('width:min(720px,100%)')&&densityCss.includes('grid-template-columns:repeat(2,minmax(0,1fr))')&&interaction.includes('<strong>Route options</strong>')&&!interaction.includes('Recalculate around the issue')],
   ['live telemetry is never silently replaced by simulation',shell.includes('KINGMAST will not substitute simulator road context over a live vehicle session')],
   ['offline mode explicitly preserves on-vehicle warnings',shell.includes('Offline mode')&&shell.includes('Primary on-vehicle warnings remain active')],
   ['sensor loss is explicit',cockpit.includes('data-testid="sensor-loss-warning"')],
