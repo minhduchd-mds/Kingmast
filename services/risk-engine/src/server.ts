@@ -18,7 +18,7 @@ import type {
   TelemetryFrame,
   VehiclePosition,
 } from '@kingmast/contracts';
-import { issueViewerSession,verifyViewerSession,VIEWER_SESSION_COOKIE,VIEWER_SESSION_TTL_S } from '@kingmast/contracts/viewer-session';
+import { issueViewerSession,readViewerSession,verifyViewerSession,VIEWER_SESSION_COOKIE,VIEWER_SESSION_TTL_S } from '@kingmast/contracts/viewer-session';
 import { assessRisk } from './risk.js';
 import { buildLocationAlerts } from './object-alerts.js';
 import { projectPoint } from './geo.js';
@@ -144,7 +144,7 @@ app.get('/v3/diagnostics',async(request,reply)=>{if(!requireViewerAuth(request,r
 app.get('/v3/events',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;const parsed=EventsQuerySchema.safeParse(request.query);if(!parsed.success)return reply.code(400).send({error:'invalid-events-query'});return{events:eventBuffer.list(parsed.data.limit,parsed.data.severity as Severity|undefined)};});
 app.get('/v3/geofences',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return{geofences};});
 app.post('/v3/geofences',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=GeofenceReplaceSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-geofences',details:parsed.error.flatten()});geofences=parsed.data.geofences as Geofence[];return{updated:geofences.length,geofences};});
-app.get('/v3/stream',{websocket:true},(socket,request)=>{const client=socket as unknown as SocketLike;if(!viewerAuthorized(request)){client.close(1008,'viewer-auth-required');return;}clients.add(client);const initial=currentEnvelope();if(initial&&client.readyState===1)client.send(JSON.stringify(initial));client.on('close',()=>clients.delete(client));});
+app.get('/v3/stream',{websocket:true},(socket,request)=>{const client=socket as unknown as SocketLike;let expiryTimer:NodeJS.Timeout|null=null;if(localDevAuthorized(request)){clients.add(client);}else{const session=VIEWER_TOKEN?readViewerSession(cookieToken(request,VIEWER_SESSION_COOKIE),VIEWER_TOKEN):null;if(!session){client.close(1008,'viewer-auth-required');return;}clients.add(client);expiryTimer=setTimeout(()=>client.close(1008,'viewer-session-expired'),Math.max(1,session.expiresAtMs-Date.now()));expiryTimer.unref();}const initial=currentEnvelope();if(initial&&client.readyState===1)client.send(JSON.stringify(initial));client.on('close',()=>{if(expiryTimer)clearTimeout(expiryTimer);clients.delete(client);});});
 
 app.get('/v1/capabilities',async()=>({vehicleControl:false,canWrite:false,brake:false,steer:false,throttle:false,gpsPositioning:true,objectDetection:true,radarFusion:true,cameraClassification:true,realtimeWebSocket:true,heartbeat:true,edgeReplayProtection:true,legacyReplayProtection:true,edgeAuthentication:EDGE_TOKEN.length>=16,viewerAuthentication:VIEWER_TOKEN.length>=16,viewerSessionTtlS:VIEWER_SESSION_TTL_S,diagnostics:true,eventHistory:true,geofenceAlerts:true,mapAlerts:true,navigationRouting:true,speedLimitAwareness:true,speedSignVision:true,trafficCameraContext:true,driverAssistRuntime:true,laneDepartureRuntime:true,driverMonitoringRuntime:true,surroundReadinessRuntime:true,readOnlyAssistantPlanner:true,trafficCameraAccessPolicy:'public-or-authorized-only'}));
 await app.listen({port:Number(process.env.PORT??4000),host:HOST});
