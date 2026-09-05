@@ -12,6 +12,8 @@ const cockpit=read('components/KingmastV5.tsx');
 const interaction=read('components/DriverInteractionLayer.tsx');
 const driverCapabilities=read('components/DriverCapabilityRail.tsx');
 const driverCapabilityCss=read('app/hmi-driver-capabilities.css');
+const attentionCss=read('app/hmi-attention.css');
+const driverAssist=read('lib/use-driver-assist.ts');
 const capabilityCenter=read('components/CapabilityCenter.tsx');
 const capabilityRegistry=read('lib/capability-registry.ts');
 const connectedRoad=read('lib/connected-road.ts');
@@ -25,6 +27,7 @@ const contracts=read('../../packages/contracts/src/index.ts');
 const checks=[
   ['development version remains 0.0.6',pkg.version==='0.0.6'],
   ['Apple-inspired base layer is loaded',layout.includes("import './hmi-apple.css';")],
+  ['calm driver attention layer is loaded after capability styling',layout.includes("import './hmi-driver-capabilities.css';\nimport './hmi-attention.css';")],
   ['capability design layer is loaded',layout.includes("import './hmi-capabilities.css';")],
   ['driver-facing capability rail is loaded',layout.includes("import './hmi-driver-capabilities.css';")&&layout.includes('DriverCapabilityRail')&&layout.includes('<DriverCapabilityRail/>')],
   ['startup layer remains present',has('components/StartupExperience.tsx','Warning-only assistance')&&has('components/StartupExperience.tsx','aria-live="polite"')],
@@ -41,9 +44,18 @@ const checks=[
   ['driver capability rail covers LDW DMS AI and 360',['ldw','dms','assistant','surround'].every((key)=>driverCapabilities.includes(`key:'${key}'`))],
   ['driver capability rail is status-only and truthful',driverCapabilities.includes('Warning-only · no vehicle control')&&driverCapabilities.includes('Read-only assistant')&&driverCapabilities.includes('calibration required')&&!driverCapabilities.includes('<button')],
   ['driver capability rail consumes authenticated runtime telemetry',driverCapabilities.includes("'use client'")&&driverCapabilities.includes("kingmast:telemetry")&&driverCapabilities.includes('frame.assist')&&driverCapabilities.includes("data-runtime={runtime?'connected':'awaiting'}")],
+  ['moving driver capability rail is attention-filtered',driverCapabilities.includes('attentionRelevant')&&driverCapabilities.includes('.slice(0,2)')&&driverCapabilities.includes("data-quiet={moving?'true':'false'}")&&driverCapabilities.includes('Quiet monitoring')],
   ['driver capability rail does not use undersized 9-11px labels',!driverCapabilityCss.includes('font-size:9px')&&!driverCapabilityCss.includes('font-size:10px')&&!driverCapabilityCss.includes('font-size:11px')&&driverCapabilityCss.includes('font-size:14px')&&driverCapabilityCss.includes('font-size:13px')],
   ['short displays shed the secondary driver capability rail',driverCapabilityCss.includes('@media(max-height:560px)')&&driverCapabilityCss.includes('display:none!important')],
   ['critical hazard visually suppresses secondary capability rail',driverCapabilityCss.includes('body:has(.hmiV5.severity-critical) .driverCapabilityRail')],
+  ['one textual driving warning owns attention',attentionCss.includes('only full textual warning surface in Drive')&&attentionCss.includes('.routeCameraChip.band-1km')&&attentionCss.includes('.routeCameraChip.band-500m')&&attentionCss.includes('body:has(.hmiV5.severity-critical) .connectedRoadHud')],
+  ['safe driving status is visually quiet instead of warning-shaped',attentionCss.includes('.driverAlert.severity-safe')&&attentionCss.includes('background:transparent')&&attentionCss.includes('.driverAlert.severity-safe small{display:none}')],
+  ['noncritical sensor loss collapses while driving',attentionCss.includes('.sensorLossBanner.severity-caution')&&attentionCss.includes('.sensorLossBanner.severity-caution em{display:none}')],
+  ['connected-road notices stay compact while driving',attentionCss.includes('width:min(560px,calc(100vw - 240px))')&&shell.includes('TRANSIENT_NOTICE_MS=2_200')],
+  ['technical V2X trust notices are deferred while moving',shell.includes('const moving=frame.vehicle.source')&&shell.includes('const driverTrustIssue=moving?null:trustIssue')&&shell.includes('const driverTrustExpiring=moving?null:trustExpiring')],
+  ['voice guidance is serialized by priority',driverAssist.includes('GLOBAL_VOICE_GAP_MS=4_500')&&driverAssist.includes('activeSpeechPriority')&&driverAssist.includes('synthesis.speaking')&&driverAssist.includes('priority<=activeSpeechPriority.current')],
+  ['camera voice avoids repeated distance-band narration',driverAssist.includes("cameraBand!=='300m'")&&driverAssist.includes('120_000')],
+  ['overspeed voice requires persistence',driverAssist.includes('OVERSPEED_CONFIRM_MS=3_500')&&driverAssist.includes('window.setTimeout')&&!driverAssist.includes('Speed limit is now')],
   ['driver quick actions remain compact',interaction.includes('driverActionDock')&&interaction.includes('<span>Camera</span>')&&interaction.includes('<span>Alerts</span>')],
   ['driver action sheets are modal with focus return',interaction.includes('aria-modal="true"')&&interaction.includes('returnFocusRef.current?.focus()')],
   ['temporary voice mute preserves visual safety warnings',interaction.includes('Voice muted for 5 minutes')&&interaction.includes('Critical visual safety warnings remain active')],
@@ -58,8 +70,8 @@ const checks=[
   ['roadwork lane topology presentation remains present',roadEvents.includes("kind:'roadwork'")&&roadEvents.includes('preferredLaneIndexes')],
   ['SPaT countdown sanity guard remains present',roadEvents.includes('movement.minEndTimeMs-nowMs<120_000')],
   ['emergency advisory requires approach confidence',roadEvents.includes("item.approach==='approaching'")&&roadEvents.includes('item.confidence>=.65')],
-  ['reduced motion exists across capability and motion layers',has('app/hmi-motion.css','@media(prefers-reduced-motion:reduce)')&&has('app/hmi-capabilities.css','@media(prefers-reduced-motion:reduce)')&&driverCapabilityCss.includes('@media(prefers-reduced-motion:reduce)')],
-  ['high contrast capability styling exists',has('app/hmi-capabilities.css','@media(prefers-contrast:more)')&&driverCapabilityCss.includes('@media(prefers-contrast:more)')],
+  ['reduced motion exists across capability and attention layers',has('app/hmi-motion.css','@media(prefers-reduced-motion:reduce)')&&has('app/hmi-capabilities.css','@media(prefers-reduced-motion:reduce)')&&driverCapabilityCss.includes('@media(prefers-reduced-motion:reduce)')&&attentionCss.includes('@media(prefers-reduced-motion:reduce)')],
+  ['high contrast capability and attention styling exists',has('app/hmi-capabilities.css','@media(prefers-contrast:more)')&&driverCapabilityCss.includes('@media(prefers-contrast:more)')&&attentionCss.includes('@media(prefers-contrast:more)')],
   ['52px automotive touch token remains present',has('app/hmi-apple.css','--apple-touch-target:52px')],
   ['56px quick action targets remain present',has('app/hmi-interactions.css','min-height:56px')],
   ['Playwright UI test script remains configured',pkg.scripts?.['test:ui']==='playwright test'],
