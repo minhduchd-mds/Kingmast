@@ -24,6 +24,8 @@ jobs:
         run: pnpm skills:validate
       - name: Safety boundary
         run: pnpm safety:boundary
+      - name: Vercel deployment policy
+        run: pnpm vercel:policy
       - name: Python syntax
         run: python -m py_compile edge/camera-detector/detector.py edge/camera-detector/speed_sign_detector.py
       - name: Lint quality gate
