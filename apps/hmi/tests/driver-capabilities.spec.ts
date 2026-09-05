@@ -15,7 +15,7 @@ function dispatchRuntime(page:Page,dmsState:'attentive'|'distracted'='attentive'
       generatedAtMs:now,
       controlAuthority:'none' as const,
       ldw:{availability:'live' as const,observedAtMs:now,ageMs:20,severity:'caution' as const,side:'right' as const,timeToLineCrossingS:1.2,confidence:.93,reason:'lane-departure-right',advisoryOnly:true as const},
-      dms:{availability:'live' as const,observedAtMs:now,ageMs:15,state,confidence:.91,perclos:.08,gazeAwayRatio:state==='attentive'?.12:.72,faceAvailability:.98,reason:state==='attentive'?'attention-within-thresholds':'gaze-away',storesRawVideo:false as const,advisoryOnly:true as const},
+      dms:{availability:'live' as const,observedAtMs:now,ageMs:15,state,confidence:.91,perclos:.08,gazeAwayRatio:state==='attentive'?0.12:0.72,faceAvailability:.98,reason:state==='attentive'?'attention-within-thresholds':'gaze-away',storesRawVideo:false as const,advisoryOnly:true as const},
       assistant:{availability:'live' as const,observedAtMs:now,ageMs:0,reason:'read-only-context-ready',readOnly:true as const,actuatorTools:false as const},
       surround:{availability:'live' as const,observedAtMs:now,ageMs:30,cameraCount:4,calibratedCameraCount:4,synchronizedCameraCount:4,maxReprojectionErrorPx:1.7,reason:'surround-calibration-ready',visualizationOnly:true as const},
     };
