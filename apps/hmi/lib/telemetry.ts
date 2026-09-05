@@ -106,9 +106,11 @@ function severityFor(kind: ObjectKind, distanceM: number, zone: RelativeZone): S
 }
 
 function alertForObject(object: DetectedObject): LocationAlert | null {
-  if (object.severity === 'safe') return null;
   const lateralOnly = object.zone === 'left' || object.zone === 'right';
-  if (lateralOnly && object.severity !== 'critical') return null;
+  // Distance-only left/right severity is a surround-view cue, not a textual warning.
+  // Do not promote it until a dedicated lateral-collision assessment exists.
+  if (lateralOnly) return null;
+  if (object.severity === 'safe') return null;
   const isPedestrian = object.kind === 'person';
   const isVulnerable = isPedestrian || object.kind === 'bicycle' || object.kind === 'motorcycle';
   const type = isPedestrian
