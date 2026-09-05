@@ -5,6 +5,7 @@ import type { EdgeDiagnostics, RealtimeMessage, TelemetryFrame } from '@kingmast
 
 export type RealtimeState='disabled'|'connecting'|'live'|'stale'|'offline';
 export type RealtimeQuality='excellent'|'good'|'degraded'|'none';
+type ViewerSessionResult='ready'|'unavailable'|'retryable';
 
 export interface KingmastTelemetryEventDetail {
   frame: TelemetryFrame;
@@ -18,9 +19,17 @@ function streamUrl():string|null{
   return null;
 }
 
-async function establishViewerSession(signal:AbortSignal){
+async function establishViewerSession(signal:AbortSignal):Promise<ViewerSessionResult>{
   const response=await fetch('/api/kingmast/session',{method:'POST',credentials:'include',cache:'no-store',signal});
-  return response.ok;
+  if(response.ok)return'ready';
+  if(response.status===401||response.status===403)return'unavailable';
+  if(response.status===503){
+    try{
+      const payload=await response.json() as {error?:string};
+      if(payload.error==='viewer-session-unavailable'||payload.error==='viewer-session-misconfigured')return'unavailable';
+    }catch{}
+  }
+  return'retryable';
 }
 
 function publishTelemetryEvent(detail:KingmastTelemetryEventDetail){
@@ -42,24 +51,29 @@ export function useRealtimeTelemetry(enabled=true){
 
   useEffect(()=>{
     if(!enabled||!targetUrl){setState('disabled');setQuality('none');return;}
-    let socket:WebSocket|null=null;let disposed=false;let connecting=false;let reconnectMs=800;
+    let socket:WebSocket|null=null;let disposed=false;let connecting=false;let reconnectMs=800;let sessionUnavailable=false;
     const sessionAbort=new AbortController();
 
     const scheduleReconnect=()=>{
-      if(disposed||retryRef.current!==null)return;
+      if(disposed||sessionUnavailable||retryRef.current!==null)return;
       const jitter=.8+Math.random()*.4;
       retryRef.current=window.setTimeout(()=>{retryRef.current=null;void connect();},Math.round(reconnectMs*jitter));
       reconnectMs=Math.min(12_000,Math.round(reconnectMs*1.8));
     };
     const connect=async()=>{
-      if(disposed||connecting)return;
+      if(disposed||sessionUnavailable||connecting)return;
       if(!navigator.onLine){setState('offline');setQuality('none');return;}
       if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;
       connecting=true;setState('connecting');
       try{
-        const sessionReady=await establishViewerSession(sessionAbort.signal);
+        const sessionResult=await establishViewerSession(sessionAbort.signal);
         if(disposed)return;
-        if(!sessionReady){setState('offline');setQuality('none');scheduleReconnect();return;}
+        if(sessionResult==='unavailable'){
+          sessionUnavailable=true;setState('disabled');setQuality('none');return;
+        }
+        if(sessionResult==='retryable'){
+          setState('offline');setQuality('none');scheduleReconnect();return;
+        }
         socket=new WebSocket(targetUrl);
         socket.onopen=()=>{reconnectMs=800;heartbeatAtRef.current=Date.now();};
         socket.onmessage=(event)=>{
@@ -84,12 +98,13 @@ export function useRealtimeTelemetry(enabled=true){
       }finally{connecting=false;}
     };
 
-    const onOnline=()=>{void connect();};
-    const onOffline=()=>{setState('offline');setQuality('none');socket?.close();};
+    const onOnline=()=>{if(!sessionUnavailable)void connect();};
+    const onOffline=()=>{if(!sessionUnavailable){setState('offline');setQuality('none');}socket?.close();};
     window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);
     void connect();
 
     const freshnessTimer=window.setInterval(()=>{
+      if(sessionUnavailable)return;
       const now=Date.now();const telemetryAge=telemetryAtRef.current===null?Number.POSITIVE_INFINITY:now-telemetryAtRef.current;const heartbeatAge=heartbeatAtRef.current===null?Number.POSITIVE_INFINITY:now-heartbeatAtRef.current;
       if(heartbeatAge>5_000){setState('offline');setQuality('none');return;}
       if(telemetryAge>2_500){setState('stale');setQuality('degraded');return;}
