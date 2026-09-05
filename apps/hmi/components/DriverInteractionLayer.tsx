@@ -32,7 +32,6 @@ interface DriverInteractionLayerProps {
 }
 
 type SheetKind='hazard'|'camera'|null;
-const severityRank:Record<Severity,number>={safe:1,caution:2,critical:3};
 
 export default function DriverInteractionLayer(props:DriverInteractionLayerProps){
   const[sheet,setSheet]=useState<SheetKind>(null);
@@ -44,7 +43,6 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
   const restoreVoice=useRef(false);
   const sheetRef=useRef<HTMLElement|null>(null);
   const returnFocusRef=useRef<HTMLElement|null>(null);
-  const previousSeverity=useRef(props.severity);
   const previousRouteActive=useRef(props.routeActive);
   const previousRouteLoading=useRef(props.routeLoading);
   const previousCameraBand=useRef(cameraDistanceBand(props.camera?.distanceM));
@@ -65,17 +63,8 @@ export default function DriverInteractionLayer(props:DriverInteractionLayerProps
     if(mutedUntilMs!==null&&nowMs>=mutedUntilMs)setMutedUntilMs(null);
   },[mutedUntilMs,nowMs]);
 
-  useEffect(()=>{
-    const previous=previousSeverity.current;
-    if(previous===props.severity)return;
-    if(severityRank[props.severity]>severityRank[previous]){
-      notify(props.severity==='critical'?'critical':'caution',props.title,props.message);
-    }else if(props.severity==='safe'){
-      notify('positive','Road context clear','Primary advisory returned to normal.');
-    }
-    previousSeverity.current=props.severity;
-  },[notify,props.message,props.severity,props.title]);
-
+  // Driver hazards already own the dedicated primary alert surface. Do not mirror
+  // severity changes into a second lower toast; that duplicate competes for attention.
   useEffect(()=>{
     const previous=previousRouteActive.current;
     if(previous!==props.routeActive){

@@ -55,6 +55,37 @@ describe('buildLocationAlerts', () => {
     expect(alerts[0]?.severity).toBe('caution');
   });
 
+  it('keeps ordinary left/right proximity spatial-only', () => {
+    const alerts = buildLocationAlerts({
+      vehicle,
+      sensors,
+      objects: [object({
+        kind: 'motorcycle',
+        zone: 'right',
+        distanceM: 11,
+        severity: 'caution',
+        bearingDeg: 90,
+      })],
+    });
+    expect(alerts).toHaveLength(0);
+  });
+
+  it('still escalates a critical lateral road-user hazard', () => {
+    const alerts = buildLocationAlerts({
+      vehicle,
+      sensors,
+      objects: [object({
+        kind: 'motorcycle',
+        zone: 'right',
+        distanceM: 5,
+        severity: 'critical',
+        bearingDeg: 90,
+      })],
+    });
+    expect(alerts[0]?.type).toBe('vulnerable-road-user');
+    expect(alerts[0]?.severity).toBe('critical');
+  });
+
   it('reports degraded sensors without creating vehicle-control behavior', () => {
     const alerts = buildLocationAlerts({
       vehicle,

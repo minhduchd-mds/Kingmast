@@ -19,6 +19,7 @@ function objectAlert(object: DetectedObject): LocationAlert | null {
   if (object.confidence < 0.55) return null;
 
   const isFront = object.zone === 'front' || object.zone === 'front-left' || object.zone === 'front-right';
+  const isLateralOnly = object.zone === 'left' || object.zone === 'right';
   if (object.kind === 'person' && isFront && object.distanceM <= 22) {
     const severity: Severity = object.distanceM <= 10 ? 'critical' : 'caution';
     return {
@@ -52,7 +53,10 @@ function objectAlert(object: DetectedObject): LocationAlert | null {
   }
 
   if (vulnerableKinds.has(object.kind) && object.distanceM <= 12) {
-    const severity: Severity = object.distanceM <= 6 ? 'critical' : 'caution';
+    // Plain left/right proximity is spatial context, not a textual driver alert.
+    // Keep it in the vehicle/surround view and only escalate when the lateral hazard is critical.
+    if (isLateralOnly && object.distanceM > 6 && object.severity !== 'critical') return null;
+    const severity: Severity = object.distanceM <= 6 || object.severity === 'critical' ? 'critical' : 'caution';
     return {
       id: `vru-${object.id}-${object.timestampMs}`,
       type: 'vulnerable-road-user',

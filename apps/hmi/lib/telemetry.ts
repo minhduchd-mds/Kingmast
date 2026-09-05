@@ -107,6 +107,8 @@ function severityFor(kind: ObjectKind, distanceM: number, zone: RelativeZone): S
 
 function alertForObject(object: DetectedObject): LocationAlert | null {
   if (object.severity === 'safe') return null;
+  const lateralOnly = object.zone === 'left' || object.zone === 'right';
+  if (lateralOnly && object.severity !== 'critical') return null;
   const isPedestrian = object.kind === 'person';
   const isVulnerable = isPedestrian || object.kind === 'bicycle' || object.kind === 'motorcycle';
   const type = isPedestrian
