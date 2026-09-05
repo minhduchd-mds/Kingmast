@@ -1,9 +1,18 @@
-import { expect,test,type Page } from '@playwright/test';
+import { expect,test,type Locator,type Page } from '@playwright/test';
 
 function rgbAverage(value:string){
   const match=value.match(/rgba?\((\d+)[, ]+(\d+)[, ]+(\d+)/);
   if(!match)return 0;
   return (Number(match[1])+Number(match[2])+Number(match[3]))/3;
+}
+
+async function foregroundAverage(locator:Locator){
+  return locator.evaluate((node)=>{
+    const value=getComputedStyle(node).color;
+    const match=value.match(/rgba?\((\d+)[, ]+(\d+)[, ]+(\d+)/);
+    if(!match)return 0;
+    return (Number(match[1])+Number(match[2])+Number(match[3]))/3;
+  });
 }
 
 async function openReturningHmi(page:Page,appearance:'auto'|'day'|'night',daytime=false){
@@ -19,6 +28,30 @@ async function openReturningHmi(page:Page,appearance:'auto'|'day'|'night',daytim
   await page.goto('/');
   await expect(page.locator('main.appShell')).toBeVisible({timeout:7_000});
   await expect(page.getByTestId('driver-action-dock')).toBeVisible();
+}
+
+async function expectReadableDayDrivingCopy(page:Page){
+  const selectors=[
+    '.clockLabel',
+    '.maneuverCopy strong',
+    '.maneuverCopy small',
+    '.maneuverCopy em',
+    '.maneuverBanner>button',
+    '.metricTile small',
+    '.metricTile strong',
+    '.metricTile strong em',
+    '.speedUnit',
+    '.roadName',
+  ];
+  for(const selector of selectors){
+    const node=page.locator(selector).first();
+    await expect(node).toBeVisible();
+    expect(await foregroundAverage(node),`${selector} should use dark readable copy in Day mode`).toBeLessThan(145);
+  }
+  const mapFallback=page.locator('.kingmastNativeMap').first();
+  await expect(mapFallback).toBeVisible();
+  const mapBackground=await mapFallback.evaluate((node)=>getComputedStyle(node).backgroundColor);
+  expect(rgbAverage(mapBackground)).toBeGreaterThan(220);
 }
 
 test.describe('KINGMAST appearance material regression',()=>{
@@ -37,6 +70,14 @@ test.describe('KINGMAST appearance material regression',()=>{
     await expect(rail).toBeVisible();
     const railBackground=await rail.evaluate((node)=>getComputedStyle(node).backgroundColor);
     expect(rgbAverage(railBackground)).toBeGreaterThan(220);
+
+    await expectReadableDayDrivingCopy(page);
+  });
+
+  test('explicit Day uses readable dark copy on all primary light driving surfaces',async({page})=>{
+    await openReturningHmi(page,'day');
+    await expect(page.locator('main.appShell')).toHaveClass(/theme-day/);
+    await expectReadableDayDrivingCopy(page);
   });
 
   test('explicit Night keeps floating driver materials dark',async({page})=>{
