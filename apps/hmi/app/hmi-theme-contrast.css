@@ -1,0 +1,115 @@
+/* KINGMAST final appearance contrast guard.
+   This file is intentionally loaded last. It closes the gap between theme variables
+   and inherited text color so Day/Auto-Day cannot keep white copy from the dark root. */
+
+.hmiV5{
+  color:var(--text);
+}
+
+/* Elements that previously depended on body / UA inherited color must resolve from HMI tokens. */
+.hmiV5 .clockLabel,
+.hmiV5 .maneuverCopy strong,
+.hmiV5 .metricTile strong{
+  color:var(--text);
+}
+.hmiV5 .maneuverBanner>button{
+  color:var(--text);
+}
+.hmiV5 .speedUnit,
+.hmiV5 .roadName,
+.hmiV5 .metricTile strong em{
+  color:var(--secondary);
+}
+.hmiV5 .metricTile small{
+  color:var(--tertiary);
+}
+
+/* Explicit Day and automatic local-time Day share the same readable core palette. */
+.hmiV5.theme-day,
+.kingmastExperience.ambient-day .hmiV5.theme-auto{
+  --text:#15171a;
+  --secondary:#59616b;
+  --tertiary:#6d7681;
+  --line:rgba(20,24,30,.11);
+  --line-strong:rgba(20,24,30,.18);
+}
+
+body:has(.hmiV5.theme-day) .hmiV5 .hmiTopbar,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .hmiTopbar{
+  border-bottom-color:rgba(20,24,30,.08);
+}
+
+body:has(.hmiV5.theme-day) .hmiV5 .clockLabel,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .clockLabel{
+  color:#30353c;
+}
+
+body:has(.hmiV5.theme-day) .hmiV5 .maneuverCopy strong,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .maneuverCopy strong{
+  color:#17191d;
+}
+body:has(.hmiV5.theme-day) .hmiV5 .maneuverCopy small,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .maneuverCopy small{
+  color:#667382;
+}
+body:has(.hmiV5.theme-day) .hmiV5 .maneuverCopy em,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .maneuverCopy em{
+  color:#59616b;
+}
+body:has(.hmiV5.theme-day) .hmiV5 .maneuverBanner>button,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .maneuverBanner>button{
+  color:#20242a;
+  background:rgba(20,24,30,.045);
+  border-color:rgba(20,24,30,.10);
+}
+body:has(.hmiV5.theme-day) .hmiV5 .maneuverBanner>button:hover,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .maneuverBanner>button:hover{
+  background:rgba(20,24,30,.075);
+}
+
+body:has(.hmiV5.theme-day) .hmiV5 .metricTile,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .metricTile{
+  background:rgba(20,24,30,.028);
+  border-color:rgba(20,24,30,.10);
+}
+body:has(.hmiV5.theme-day) .hmiV5 .metricTile small,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .metricTile small{
+  color:#69727d;
+}
+body:has(.hmiV5.theme-day) .hmiV5 .metricTile strong,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .metricTile strong{
+  color:#17191d;
+}
+body:has(.hmiV5.theme-day) .hmiV5 .metricTile strong em,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .metricTile strong em,
+body:has(.hmiV5.theme-day) .hmiV5 .speedUnit,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .speedUnit,
+body:has(.hmiV5.theme-day) .hmiV5 .roadName,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .roadName{
+  color:#5d6671;
+}
+
+body:has(.hmiV5.theme-day) .hmiV5 .nextSpeedZone,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .nextSpeedZone{
+  background:rgba(20,24,30,.035);
+  border-color:rgba(20,24,30,.10);
+}
+
+/* If raster/vector map tiles are late or unavailable, Day mode must not expose a black fallback block. */
+body:has(.hmiV5.theme-day) .hmiV5 .kingmastNativeMap,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .kingmastNativeMap,
+body:has(.hmiV5.theme-day) .hmiV5 .maplibregl-canvas-container,
+body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .maplibregl-canvas-container{
+  background:#e9eef3;
+}
+
+@media(prefers-contrast:more){
+  body:has(.hmiV5.theme-day) .hmiV5 .maneuverCopy small,
+  body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .maneuverCopy small,
+  body:has(.hmiV5.theme-day) .hmiV5 .maneuverCopy em,
+  body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .maneuverCopy em,
+  body:has(.hmiV5.theme-day) .hmiV5 .metricTile small,
+  body:has(.kingmastExperience.ambient-day .hmiV5.theme-auto) .hmiV5 .metricTile small{
+    color:#30353c;
+  }
+}
