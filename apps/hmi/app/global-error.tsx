@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect,useState } from 'react';
+import { reportClientFailure } from '../lib/client-error-report';
 
 const RECOVERY_KEY='kingmast:client-recovery-at';
 const RECOVERY_WINDOW_MS=60_000;
@@ -26,6 +27,7 @@ export default function GlobalError({error}:{error:Error&{digest?:string}}){
 
   useEffect(()=>{
     console.error('[KINGMAST] client runtime failure',error);
+    reportClientFailure(error,'global');
     try{
       const now=Date.now();const previous=Number(window.sessionStorage.getItem(RECOVERY_KEY)??'0');
       if(!Number.isFinite(previous)||now-previous>RECOVERY_WINDOW_MS){
