@@ -48,10 +48,17 @@ async function expectReadableDayDrivingCopy(page:Page){
     await expect(node).toBeVisible();
     expect(await foregroundAverage(node),`${selector} should use dark readable copy in Day mode`).toBeLessThan(145);
   }
-  const mapFallback=page.locator('.kingmastNativeMap').first();
-  await expect(mapFallback).toBeVisible();
-  const mapBackground=await mapFallback.evaluate((node)=>getComputedStyle(node).backgroundColor);
-  expect(rgbAverage(mapBackground)).toBeGreaterThan(220);
+
+  // 1366x768 now intentionally gives the full driving canvas to Surround View.
+  // The surrounding cockpit remains light in Day mode while the spatial scene
+  // stays dark for sensor/object contrast; the legacy side mini-map is no longer
+  // a required surface at this automotive viewport.
+  const surround=page.getByTestId('surround-spatial-layer');
+  await expect(surround).toBeVisible();
+  const scene=page.locator('.v5RoadScene');
+  await expect(scene).toBeVisible();
+  const sceneBackground=await scene.evaluate((node)=>getComputedStyle(node).backgroundColor);
+  expect(rgbAverage(sceneBackground)).toBeLessThan(80);
 }
 
 test.describe('KINGMAST appearance material regression',()=>{
