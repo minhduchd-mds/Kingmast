@@ -1,0 +1,43 @@
+/* Compatibility and safety-preservation pass for Surround Visualization v2.
+   Keep the new spatial hero while preserving established HMI contracts. */
+
+/* These are useful status/control affordances, not duplicate object warnings. */
+body:has(.v5Drive) .hmiV5 .topbarStatus .voiceToggle{display:flex}
+body:has(.v5Drive) .hmiV5 .maneuverBanner.routeIdle .maneuverCopy em{display:block}
+body:has(.v5Drive) .hmiV5 .roadName{display:block}
+
+/* Day/ambient-day must retain the established light material family around the dark
+   surround canvas. The spatial scene itself intentionally remains dark for contrast. */
+.hmiV5.theme-day .v5Cockpit,
+.kingmastExperience.ambient-day .hmiV5.theme-auto .v5Cockpit{
+  background:var(--hmi-attention-panel);
+  border-color:var(--hmi-material-line);
+}
+.hmiV5.theme-day .speedReadout,
+.kingmastExperience.ambient-day .hmiV5.theme-auto .speedReadout{
+  background:rgba(0,0,0,.028);
+  border-color:rgba(20,24,30,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75);
+}
+
+/* Keep the mini-map/WebGL fallback reachable on the common 1280x720 browser/dev
+   viewport. Target automotive panels from 1366px wide upward still use the full
+   spatial-canvas layout defined by hmi-surround-v2.css. */
+@media(min-width:1180px) and (max-width:1319px) and (min-height:561px) and (max-height:820px){
+  body:has(.v5Drive) .hmiV5 .v5Drive{
+    grid-template-columns:minmax(0,1.55fr) minmax(290px,.62fr);
+  }
+  body:has(.v5Drive) .hmiV5 .v5DriveSide{display:grid}
+}
+
+/* Preserve safety-information legibility at the established automotive sizes. */
+@media(min-width:1180px) and (max-width:1499px) and (min-height:620px) and (max-height:820px){
+  body:has(.v5Drive) .hmiV5 .speedValue{font-size:80px}
+}
+@media(min-width:821px) and (max-height:560px){
+  body:has(.v5Drive) .hmiV5 .driverAlert.severity-caution{min-height:56px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .surroundMarker,.surroundMarker.range-near{animation:none!important;transition:none!important}
+}
