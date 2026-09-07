@@ -9,6 +9,7 @@ const required=[
   'docs/safety/HARA_DRAFT_V006.md',
   'docs/safety/SOTIF_SCENARIO_CATALOG_V006.md',
   'docs/cybersecurity/TARA_V006.md',
+  'docs/cybersecurity/DEVICE_IDENTITY_V006.md',
   'docs/updates/SUMS_OTA_ARCHITECTURE_V006.md',
   'docs/validation/SIL_HIL_FAULT_INJECTION_PLAN_V006.md',
   'docs/validation/scenarios/V006_BASELINE.json',
@@ -19,6 +20,10 @@ const required=[
   'services/risk-engine/src/safety-scenarios.test.ts',
   'services/risk-engine/src/bounded-state.ts',
   'services/risk-engine/src/bounded-state.test.ts',
+  'services/risk-engine/src/device-auth.ts',
+  'services/risk-engine/src/device-auth.test.ts',
+  'scripts/secret-scan.mjs',
+  '.github/workflows/codeql.yml',
   '.github/CODEOWNERS',
 ];
 const failures=[];
@@ -36,6 +41,11 @@ const boundedState=read('services/risk-engine/src/bounded-state.ts');
 const roadContextRoutes=read('services/risk-engine/src/road-context-routes.ts');
 const clientError=read('apps/hmi/app/api/kingmast/client-error/route.ts');
 const updateVerifier=read('services/risk-engine/src/update-verifier.ts');
+const deviceAuth=read('services/risk-engine/src/device-auth.ts');
+const riskServer=read('services/risk-engine/src/server.ts');
+const secretScan=read('scripts/secret-scan.mjs');
+const ci=read('.github/workflows/ci.yml');
+const codeql=read('.github/workflows/codeql.yml');
 const scenarioTests=read('services/risk-engine/src/safety-scenarios.test.ts');
 const codeowners=read('.github/CODEOWNERS');
 if(!/warning-only/i.test(plan)||!/no steering|no code path.*actuator|vehicle actuation is prohibited/i.test(plan))failures.push('program plan must preserve explicit Level-0/no-actuation boundary');
@@ -48,6 +58,11 @@ if(!boundedState.includes('class BoundedFixedWindowRateLimiter')||!boundedState.
 if(!roadContextRoutes.includes('BoundedFixedWindowRateLimiter')||!roadContextRoutes.includes('BoundedMonotonicTimestampStore')||!roadContextRoutes.includes("'/v4/runtime/diagnostics'"))failures.push('road-context runtime must use bounded abuse/replay state and authenticated diagnostics');
 if(!clientError.includes('MAX_RATE_KEYS=256')||!clientError.includes("error:'client-report-rate-limited'")||!clientError.includes('function redact('))failures.push('client-error ingestion hardening contract missing');
 if(!updateVerifier.includes('verifyUpdatePackage')||!updateVerifier.includes('artifact-hash-mismatch')||!updateVerifier.includes('rollback-rejected')||!updateVerifier.includes('evaluateInstallEligibility'))failures.push('signed update verification/install eligibility contract missing');
+if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createHmac('sha256'")||!deviceAuth.includes("'device-key-revoked'"))failures.push('per-device signed packet identity/rotation/revocation contract missing');
+if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
+if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
+if(!ci.includes('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1')||!ci.includes('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020')||!ci.includes('pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413'))failures.push('core CI actions must remain pinned to reviewed immutable commits');
+if(!codeql.includes('github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938')||!codeql.includes('github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938'))failures.push('CodeQL workflow must remain pinned to the reviewed v4 commit');
 for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/packages/contracts/','/.github/workflows/'])if(!codeowners.includes(requiredOwnerPath))failures.push(`CODEOWNERS missing ${requiredOwnerPath}`);
 
 try{
