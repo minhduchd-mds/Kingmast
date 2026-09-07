@@ -3,6 +3,7 @@ import { riskRuntimeMetrics } from './risk-observability.js';
 
 const MIN_SPEED_MPS = 0.5;
 const MAX_AGE_MS = 250;
+const MAX_FUTURE_SKEW_MS = 50;
 const clamp01=(n:number)=>Math.max(0,Math.min(1,n));
 
 export function assessRisk(sample: VehicleSample, nowMs=Date.now()): RiskAssessment {
@@ -14,6 +15,7 @@ export function assessRisk(sample: VehicleSample, nowMs=Date.now()): RiskAssessm
   };
   const confidence=clamp01(sample.confidence);
   const reasons:string[]=[];
+  if(sample.timestampMs>nowMs+MAX_FUTURE_SKEW_MS) return finish({severity:'safe',ttcS:null,thwS:null,closingSpeedMps:0,confidence:0,reasons:['future-data-rejected']});
   if(nowMs-sample.timestampMs>MAX_AGE_MS) return finish({severity:'safe',ttcS:null,thwS:null,closingSpeedMps:0,confidence:0,reasons:['stale-data-rejected']});
   if(!sample.radarHealthy) return finish({severity:'safe',ttcS:null,thwS:null,closingSpeedMps:0,confidence:0,reasons:['radar-unavailable']});
   const closingSpeedMps=Math.max(0,sample.egoSpeedMps-sample.targetSpeedMps);
