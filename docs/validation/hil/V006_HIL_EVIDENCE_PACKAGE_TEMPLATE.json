@@ -1,0 +1,26 @@
+{
+  "schema": "kingmast-hil-evidence-package/v1",
+  "version": "0.0.6",
+  "scenarioId": "HIL-011",
+  "claim": "template-only-no-physical-result",
+  "status": "template",
+  "result": null,
+  "requiredResultFields": [
+    "controllerId",
+    "benchId",
+    "softwareCommit",
+    "startedAt",
+    "finishedAt",
+    "operator",
+    "reviewer",
+    "evidenceRefs",
+    "evidenceDigests",
+    "resultSummary"
+  ],
+  "notes": [
+    "Copy this file before use; do not overwrite the baseline template with unreviewed bench data.",
+    "A physical result package must use claim=physical-hil-result and status=passed or failed.",
+    "Every referenced evidence artifact must have a SHA-256 digest in evidenceDigests.",
+    "CI host-soak evidence is supplemental and must not be presented as target-controller or physical HIL qualification."
+  ]
+}
