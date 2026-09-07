@@ -17,6 +17,7 @@ function expect(name,condition){if(!condition)failures.push(name);}
 
 expect('viewer token remains server-only',!envExample.includes('NEXT_PUBLIC_KINGMAST_VIEWER_TOKEN'));
 expect('configuration token remains server-only',envExample.includes('KINGMAST_CONFIG_TOKEN=')&&!envExample.includes('NEXT_PUBLIC_KINGMAST_CONFIG_TOKEN'));
+expect('operator identity registry remains server-only',envExample.includes('KINGMAST_REQUIRE_OPERATOR_AUTH=')&&envExample.includes('KINGMAST_OPERATOR_KEYS_JSON=')&&!envExample.includes('NEXT_PUBLIC_KINGMAST_OPERATOR'));
 expect('browser session cookie contains a signed scoped token rather than the shared viewer secret',sessionRoute.includes('issueViewerSession(token)')&&sessionRoute.includes('name:VIEWER_SESSION_COOKIE')&&sessionRoute.includes('httpOnly:true')&&!sessionRoute.includes('value:token'));
 expect('viewer session is short lived and read-only scoped',viewerSession.includes("VIEWER_SESSION_SCOPE='viewer:read'")&&viewerSession.includes('VIEWER_SESSION_TTL_S=10*60'));
 expect('viewer session signature uses HMAC SHA-256 and constant-time verification',viewerSession.includes("createHmac('sha256'")&&viewerSession.includes('timingSafeEqual'));
@@ -49,7 +50,9 @@ expect('GNSS ingress supports scoped per-device authentication',riskServer.inclu
 expect('LDW ingress supports scoped per-device authentication',riskServer.includes("requireDeviceIngressAuth(request,reply,'assist:lane'"));
 expect('DMS ingress supports scoped per-device authentication',riskServer.includes("requireDeviceIngressAuth(request,reply,'assist:dms'")&&riskServer.includes("dms-sample-rejected"));
 expect('surround ingress supports scoped per-device authentication',riskServer.includes("requireDeviceIngressAuth(request,reply,'assist:surround'")&&riskServer.includes("surround-observation-rejected"));
-expect('configuration writes use dedicated least-privilege auth',riskServer.includes("app.post('/v3/geofences'")&&riskServer.includes('requireConfigAuth(request,reply)')&&riskServer.includes("x-kingmast-config-token"));
+expect('configuration writes use scoped least-privilege operator authority',riskServer.includes("app.post('/v3/geofences'")&&riskServer.includes("requireConfigurationAuthority(request,reply,'configuration:geofences',request.body)")&&riskServer.includes('verifyOperatorRequest({scope')&&riskServer.includes('operatorReplayGuard'));
+expect('configuration mutations are operator-attributed and audited',riskServer.includes('configurationAudit.record({actorId:authority.actorId')&&riskServer.includes('auditSequence:audit.sequence'));
+expect('strict operator-auth mode can disable migration token fallback',riskServer.includes("KINGMAST_REQUIRE_OPERATOR_AUTH==='1'")&&riskServer.includes('if(!REQUIRE_OPERATOR_AUTH&&configAuthorized(request))'));
 expect('assistant planner requires viewer authentication',riskServer.includes("app.post('/v3/assistant/plan'")&&riskServer.includes("if(!requireViewerAuth(request,reply))return"));
 expect('assistant input is bounded',riskServer.includes("max(240)"));
 expect('driver assist preserves zero control authority',riskServer.includes("controlAuthority:'none'")&&riskServer.includes('readOnlyAssistantPlanner:true'));
