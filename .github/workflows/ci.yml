@@ -26,7 +26,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Generate production SBOM
         run: |
-          pnpm supplychain:sbom > /tmp/kingmast.cdx.json
+          node scripts/generate-sbom.mjs > /tmp/kingmast.cdx.json
           node -e "const b=require('/tmp/kingmast.cdx.json'); if(b.bomFormat!=='CycloneDX'||b.specVersion!=='1.5'||!Array.isArray(b.components)) process.exit(1); console.log('KINGMAST CycloneDX SBOM generated with '+b.components.length+' production components.');"
       - name: Agent skill contracts
         run: pnpm skills:validate
