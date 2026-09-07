@@ -1,11 +1,12 @@
 import { generateKeyPairSync } from 'node:crypto';
 import { describe,expect,it } from 'vitest';
 import type { EdgeTelemetryPacket,SensorHealth } from '@kingmast/contracts';
-import { deviceAuthSummary,parseDeviceKeyRegistry,signDevicePacket,signDevicePacketEd25519,verifyDevicePacketAuth } from './device-auth.js';
+import { deviceAuthSummary,parseDeviceKeyRegistry,signDeviceIngress,signDeviceIngressEd25519,signDevicePacket,signDevicePacketEd25519,verifyDeviceIngressAuth,verifyDevicePacketAuth } from './device-auth.js';
 
 const now=1_800_000_000_000;
 const sensors:SensorHealth={radarFront:'ok',radarRear:'unavailable',camera:'ok',can:'unavailable',gnssImu:'ok',ecu:'ok'};
 const packet:EdgeTelemetryPacket={protocolVersion:1,deviceId:'edge-1',bootId:'boot-001',sequence:42,timestampMs:now,gnss:{lat:21.0285,lng:105.8542,speedKmh:40,headingDeg:12,accuracyM:3,timestampMs:now,source:'gnss'},sensors};
+const cameraPayload={cameraId:'front-camera',timestampMs:now,detections:[{id:'front-1',kind:'car',confidence:.91,bearingDeg:2.5,estimatedDistanceM:null,timestampMs:now}]};
 const secret='0123456789abcdef0123456789abcdef';
 const ed25519=generateKeyPairSync('ed25519');
 const publicKeyPem=ed25519.publicKey.export({format:'pem',type:'spki'}).toString();
@@ -37,6 +38,19 @@ describe('device packet authentication',()=>{
     const tampered={...packet,sequence:packet.sequence+1};
     expect(verifyDevicePacketAuth({packet:tampered,keyId:'k-active',signature:hmacSignature,registry:registry(),nowMs:now})).toEqual({ok:false,reason:'device-signature-invalid'});
     expect(verifyDevicePacketAuth({packet:tampered,keyId:'k-ed25519',signature:edSignature,registry:registry(),nowMs:now})).toEqual({ok:false,reason:'device-signature-invalid'});
+  });
+
+  it('authenticates a legacy camera ingress payload with route scope and full body binding',()=>{
+    const signature=signDeviceIngress('perception:camera','edge-1','k-active',now,cameraPayload,secret);
+    expect(verifyDeviceIngressAuth({scope:'perception:camera',deviceId:'edge-1',keyId:'k-active',signature,timestampMs:now,payload:cameraPayload,registry:registry(),nowMs:now})).toEqual({ok:true,deviceId:'edge-1',keyId:'k-active'});
+    expect(verifyDeviceIngressAuth({scope:'perception:radar',deviceId:'edge-1',keyId:'k-active',signature,timestampMs:now,payload:cameraPayload,registry:registry(),nowMs:now})).toEqual({ok:false,reason:'device-signature-invalid'});
+    expect(verifyDeviceIngressAuth({scope:'perception:camera',deviceId:'edge-1',keyId:'k-active',signature,timestampMs:now,payload:{...cameraPayload,detections:[]},registry:registry(),nowMs:now})).toEqual({ok:false,reason:'device-signature-invalid'});
+  });
+
+  it('supports Ed25519 legacy ingress signatures and requires a device identity',()=>{
+    const signature=signDeviceIngressEd25519('perception:camera','edge-1','k-ed25519',now,cameraPayload,privateKeyPem);
+    expect(verifyDeviceIngressAuth({scope:'perception:camera',deviceId:'edge-1',keyId:'k-ed25519',signature,timestampMs:now,payload:cameraPayload,registry:registry(),nowMs:now})).toEqual({ok:true,deviceId:'edge-1',keyId:'k-ed25519'});
+    expect(verifyDeviceIngressAuth({scope:'perception:camera',deviceId:'',keyId:'k-ed25519',signature,timestampMs:now,payload:cameraPayload,registry:registry(),nowMs:now})).toEqual({ok:false,reason:'device-id-required'});
   });
 
   it('rejects revoked and unknown device keys',()=>{
