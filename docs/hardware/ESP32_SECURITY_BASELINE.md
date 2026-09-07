@@ -15,9 +15,11 @@ The ESP32 publisher is allowed to collect and transmit sensing/position data onl
 5. Boot/session identity must change across reboots and packet sequence must be monotonic within a boot.
 6. Device time must be synchronized before safety telemetry is accepted.
 7. Stale radar/GNSS state must degrade or become unavailable rather than being silently reused.
-8. Shared edge tokens are migration-only. Consolidated `/v3/edge/frame` publishers should move to per-device identity and ultimately asymmetric device certificates/mTLS.
-9. Production hardware shall use secure boot, signed firmware, flash encryption where supported, anti-rollback, watchdogs and hardware-protected key storage. These controls are not considered implemented merely because they are documented here.
-10. Vehicle CAN remains read-only by architecture and hardware. No TX-capable production adapter is approved by this research baseline.
+8. Shared edge tokens are migration-only. The bundled consolidated `/v3/edge/frame` publisher can now add a per-device HMAC-SHA256 signature bound to device ID, key ID, boot ID, sequence, timestamp and canonical packet body.
+9. Canonical packet serialization in the research publisher keeps object keys in lexical order before signing. This is a v0.0.6 interoperability mechanism, not a final fleet protocol standard; production should use a formally specified canonical encoding and independently tested SDK/firmware implementation.
+10. `KINGMAST_REQUIRE_DEVICE_AUTH=1` on the gateway rejects the shared token as a substitute for a valid per-device packet signature. Device HMAC secrets remain transitional and should move out of ordinary firmware configuration into hardware-protected non-exportable key storage.
+11. Production hardware shall use secure boot, signed firmware, flash encryption where supported, anti-rollback, watchdogs and hardware-protected key storage. These controls are not considered implemented merely because they are documented here.
+12. Vehicle CAN remains read-only by architecture and hardware. No TX-capable production adapter is approved by this research baseline.
 
 ## Credential lifecycle target
 
@@ -30,6 +32,16 @@ Production-intent target:
 `hardware-protected private key -> device certificate -> mTLS -> short-lived authorization -> rotation/revocation`
 
 A compromised device credential must be revocable without rotating every other vehicle/device credential.
+
+## Firmware signing versus telemetry signing
+
+Telemetry HMAC proves possession of the configured research device credential for one packet. It does **not** prove that the firmware itself is trusted or that the board booted an approved image.
+
+The production trust chain must independently cover:
+
+`ROM/bootloader root -> secure boot -> signed firmware -> protected device key -> authenticated telemetry`
+
+Compromise of any one layer must not be treated as evidence that the other layers remain trustworthy.
 
 ## Firmware release target
 
@@ -47,4 +59,4 @@ Firmware is not installable merely because it compiled. Release evidence shall i
 
 ## CI policy
 
-`scripts/firmware-security-policy-check.mjs` enforces cheap source-level invariants such as HTTPS, CA validation and rejection of `setInsecure()`. This CI rule is defense-in-depth only; it does not replace hardware penetration testing, secure provisioning, EMC/ESD/power testing or independent safety review.
+`scripts/firmware-security-policy-check.mjs` enforces cheap source-level invariants such as HTTPS, CA validation, rejection of `setInsecure()` and preservation of the per-device packet-signing path. This CI rule is defense-in-depth only; it does not replace a real firmware build, hardware penetration testing, secure provisioning, EMC/ESD/power testing or independent safety review.
