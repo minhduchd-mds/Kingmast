@@ -11,6 +11,7 @@
     "test": "pnpm -r test",
     "skills:validate": "node scripts/validate-agent-skills.mjs",
     "safety:boundary": "node scripts/safety-boundary-check.mjs",
+    "security:secrets": "node scripts/secret-scan.mjs",
     "evidence:validate": "node scripts/engineering-evidence-check.mjs",
     "vercel:policy": "node scripts/vercel-deploy-policy-check.mjs"
   },
