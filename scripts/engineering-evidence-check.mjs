@@ -56,6 +56,7 @@ const hara=read('docs/safety/HARA_DRAFT_V006.md');
 const sotif=read('docs/safety/SOTIF_SCENARIO_CATALOG_V006.md');
 const surroundModel=read('docs/safety/SURROUND_CALIBRATION_MODEL_V006.md');
 const research=read('docs/research/OEM_BENCHMARK_CLEAN_ROOM_2026.md');
+const deviceIdentityDoc=read('docs/cybersecurity/DEVICE_IDENTITY_V006.md');
 const hardwareBaseline=read('docs/hardware/ESP32_SECURITY_BASELINE.md');
 const otaStateDoc=read('docs/updates/OTA_STATE_MACHINE_V006.md');
 const buildProvenanceDoc=read('docs/supplychain/BUILD_PROVENANCE_V006.md');
@@ -107,11 +108,13 @@ if(!dms.includes('MAX_SAMPLE_GAP_MS')||!dms.includes("'insufficient-temporal-spa
 if(!driverAssistRuntime.includes('DMS_HARD_UNAVAILABLE_REASONS')||!driverAssistRuntime.includes("'cabin-observation-discontinuous'"))failures.push('DMS runtime availability must represent hard cabin-observation loss as unavailable');
 if(!contracts.includes('geometryConfidence:number')||!contracts.includes('calibrationUncertaintyPx:number|null')||!driverAssistRuntime.includes('fullyReady')||!driverAssistRuntime.includes('readyCameraCount'))failures.push('surround runtime must expose calibration uncertainty and complete-camera readiness');
 if(!surroundModel.includes('every configured camera')||!surroundModel.includes('visualization-only'))failures.push('surround calibration model must preserve complete-camera and visualization-only safety boundary');
-if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createHmac('sha256'")||!deviceAuth.includes("'device-key-revoked'"))failures.push('per-device signed packet identity/rotation/revocation contract missing');
+if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createHmac('sha256'")||!deviceAuth.includes('signDevicePacketEd25519')||!deviceAuth.includes('createPublicKey')||!deviceAuth.includes("'device-key-revoked'"))failures.push('per-device HMAC/Ed25519 identity, rotation and revocation contract missing');
+if(!deviceIdentityDoc.includes('server stores only the device public key')||!deviceIdentityDoc.includes('must not be described as fleet-grade PKI')||!deviceIdentityDoc.includes('hardware-protected non-exportable private key'))failures.push('device identity documentation must preserve asymmetric migration and non-PKI claim boundary');
 if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
 if(!auditJournal.includes('class BoundedAuditJournal')||!auditJournal.includes('KINGMAST_AUDIT_JOURNAL_PATH')||!auditJournal.includes("kingmast-audit-event/v1")||!eventBuffer.includes('createAuditJournalFromEnv')||!eventBuffer.includes('auditStatus'))failures.push('bounded local audit-journal evidence contract missing');
 if(!auditDoc.includes('does not store raw continuous camera video')||!auditDoc.includes('warning path depend on storage availability'))failures.push('audit journal documentation must preserve metadata-only and safety-operation independence boundaries');
 if(!riskMetrics.includes('class BoundedRiskMetrics')||!riskMetrics.includes('latencyMs')||!riskMetrics.includes('gt25')||!risk.includes('riskRuntimeMetrics.observe'))failures.push('bounded deterministic risk observability contract missing');
+if(!riskServer.includes("'/v3/audit/status'")||!riskServer.includes('riskMetricsSnapshot()')||!riskServer.includes('eventBuffer.auditStatus()'))failures.push('authenticated risk/audit observability routes missing');
 if(!runtimeMetricsDoc.includes('fixed-size counters/buckets')||!runtimeMetricsDoc.includes('never vehicle-control inputs')||!runtimeMetricsDoc.includes('must not change deterministic warning decisions'))failures.push('runtime observability documentation must preserve fixed-cardinality and no-control boundaries');
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
 if(!firmwarePolicy.includes('setInsecure')||!firmwarePolicy.includes('setCACert')||!ci.includes('pnpm firmware:policy'))failures.push('ESP32 firmware security policy must remain enforced in CI');
@@ -128,7 +131,7 @@ for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/p
 
 try{
   const scenarios=JSON.parse(read('docs/validation/scenarios/V006_BASELINE.json'));
-  if(!Array.isArray(scenarios)||scenarios.length<13)failures.push('baseline validation scenario manifest must contain at least thirteen traceable scenarios');
+  if(!Array.isArray(scenarios)||scenarios.length<14)failures.push('baseline validation scenario manifest must contain at least fourteen traceable scenarios');
   else for(const scenario of scenarios){
     if(typeof scenario.scenarioId!=='string'||!scenarioTests.includes(scenario.scenarioId))failures.push(`scenario test missing ${scenario.scenarioId??'unknown-id'}`);
     for(const hazardId of scenario.hazardIds??[])if(!hara.includes(hazardId))failures.push(`scenario ${scenario.scenarioId} references unknown hazard ${hazardId}`);
