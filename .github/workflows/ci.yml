@@ -74,7 +74,7 @@ jobs:
           node -e "const r=require('/tmp/kingmast.sil-replay.json'); if(r.schema!=='kingmast-sil-replay-report/v1'||r.controlAuthority!=='none'||r.total<7||r.failed!==0||r.allPassed!==true) process.exit(1); console.log('KINGMAST SIL replay passed '+r.passed+'/'+r.total+' cases.');"
       - name: Risk-core performance regression evidence
         run: |
-          pnpm performance:risk-evidence > /tmp/kingmast.risk-performance.json
+          pnpm --filter @kingmast/risk-engine exec tsx src/performance-evidence-cli.ts > /tmp/kingmast.risk-performance.json
           node -e "const r=require('/tmp/kingmast.risk-performance.json'); if(r.schema!=='kingmast-risk-performance-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-regression-only-not-target-hardware'||r.targetHardwareQualified!==false||r.classification?.passed!==true||r.timing?.passed!==true||r.allPassed!==true||r.latencyMs?.p99>r.budget?.p99Ms) process.exit(1); console.log('KINGMAST risk performance regression p99 '+r.latencyMs.p99+' ms within '+r.budget.p99Ms+' ms CI budget.');"
       - name: HIL evidence registry honesty gate
         run: pnpm hil:evidence
