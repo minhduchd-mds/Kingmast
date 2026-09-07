@@ -91,5 +91,12 @@
     "safetyGoalIds": ["SG-002"],
     "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
     "expected": "surround visualization degrades when any configured camera is unsynchronized or outside reprojection tolerance"
+  },
+  {
+    "scenarioId": "FI-014",
+    "hazardIds": ["HZ-010"],
+    "safetyGoalIds": ["SG-008"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "Ed25519-authenticated edge packet tampering is rejected before ingestion"
   }
 ]
