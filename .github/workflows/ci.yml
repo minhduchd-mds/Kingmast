@@ -72,7 +72,7 @@ jobs:
         run: pnpm test
       - name: HMI structural human-factors evidence
         run: |
-          pnpm evidence:hmi-human-factors > /tmp/kingmast.hmi-human-factors.json
+          node apps/hmi/scripts/human-factors-evidence.mjs > /tmp/kingmast.hmi-human-factors.json
           node -e "const r=require('/tmp/kingmast.hmi-human-factors.json'); if(r.schema!=='kingmast-hmi-human-factors-evidence/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-structural-only-not-user-study'||r.humanFactorsValidated!==false||r.userStudyEvidence!==false||r.allStructuralChecksPassed!==true||r.failedStructuralChecks!==0||r.structuralCheckCount<10) process.exit(1); console.log('KINGMAST HMI structural human-factors evidence passed '+r.passedStructuralChecks+'/'+r.structuralCheckCount+' checks without claiming a user study.');"
       - name: Deterministic SIL replay evidence
         run: |
