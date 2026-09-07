@@ -11,9 +11,10 @@ const frame:TelemetryFrame={
 };
 
 describe('EdgeEventBuffer',()=>{
-  it('deduplicates the same stable alert state',()=>{
+  it('deduplicates the same stable alert state and reports newly created evidence',()=>{
     const buffer=new EdgeEventBuffer();
-    buffer.ingest(frame);buffer.ingest(frame);
+    expect(buffer.ingest(frame)).toHaveLength(1);
+    expect(buffer.ingest(frame)).toHaveLength(0);
     expect(buffer.list()).toHaveLength(1);
   });
 
@@ -22,5 +23,13 @@ describe('EdgeEventBuffer',()=>{
     buffer.ingest(frame);
     buffer.ingest({...frame,sequence:2,alerts:[{...frame.alerts[0]!,severity:'critical',timestampMs:1200}]});
     expect(buffer.list()).toHaveLength(2);
+  });
+
+  it('keeps the in-memory buffer bounded independently from optional durable audit',()=>{
+    const buffer=new EdgeEventBuffer(1,null);
+    buffer.ingest(frame);
+    buffer.ingest({...frame,sequence:2,alerts:[{...frame.alerts[0]!,id:'vehicle:2',timestampMs:1200}]});
+    expect(buffer.list()).toHaveLength(1);
+    expect(buffer.auditStatus().enabled).toBe(false);
   });
 });
