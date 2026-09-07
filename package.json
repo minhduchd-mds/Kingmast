@@ -15,6 +15,7 @@
     "security:secrets": "node scripts/secret-scan.mjs",
     "firmware:policy": "node scripts/firmware-security-policy-check.mjs",
     "supplychain:sbom": "node scripts/generate-sbom.mjs",
+    "supplychain:provenance": "node scripts/generate-build-provenance.mjs",
     "evidence:validate": "node scripts/engineering-evidence-check.mjs",
     "vercel:policy": "node scripts/vercel-deploy-policy-check.mjs"
   },
