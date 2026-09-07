@@ -31,6 +31,7 @@ import { roadContextRoutes } from './road-context-routes.js';
 import { DriverAssistRuntime } from './driver-assist-runtime.js';
 import { assertReadOnlyAssistantPlan,planAssistantRequest } from './ai-assistant.js';
 import { deviceAuthSummary,parseDeviceKeyRegistry,verifyDevicePacketAuth } from './device-auth.js';
+import { BoundedFixedWindowRateLimiter,BoundedMonotonicTimestampStore } from './bounded-state.js';
 
 const HOST=(process.env.HOST??'127.0.0.1').trim();
 const ALLOW_INSECURE_LOCAL_DEV=process.env.KINGMAST_ALLOW_INSECURE_LOCAL_DEV==='1';
@@ -40,6 +41,9 @@ const REQUIRE_DEVICE_AUTH=process.env.KINGMAST_REQUIRE_DEVICE_AUTH==='1';
 const DEVICE_KEYS=parseDeviceKeyRegistry(process.env.KINGMAST_DEVICE_KEYS_JSON??'{}');
 const LEGACY_MAX_AGE_MS=30_000;
 const LEGACY_MAX_FUTURE_SKEW_MS=5_000;
+const PUBLIC_COMPUTE_MAX_KEYS=1_024;
+const LEGACY_TIMESTAMP_MAX_KEYS=1_024;
+const LEGACY_TIMESTAMP_TTL_MS=5*60_000;
 
 function isLoopback(host:string){return host==='127.0.0.1'||host==='localhost'||host==='::1';}
 function validateSecret(name:string,value:string){if(value&&value.length<16)throw new Error(`${name} must be at least 16 characters`);}
@@ -82,7 +86,8 @@ const packetGuard=new EdgePacketGuard();
 const alertStabilizer=new AlertStabilizer();
 const eventBuffer=new EdgeEventBuffer(300);
 const driverAssistRuntime=new DriverAssistRuntime();
-const legacyTimestamps=new Map<string,number>();
+const publicComputeLimiter=new BoundedFixedWindowRateLimiter(PUBLIC_COMPUTE_MAX_KEYS);
+const legacyTimestamps=new BoundedMonotonicTimestampStore(LEGACY_TIMESTAMP_MAX_KEYS,LEGACY_TIMESTAMP_TTL_MS);
 let latestCamera:CameraDetectionFrame|undefined;
 let latestRadar:RadarTrackFrame|undefined;
 let latestVehicle:VehiclePosition|undefined;
@@ -113,7 +118,14 @@ function requireEdgePacketAuth(request:FastifyRequest,reply:FastifyReply,packet:
   return false;
 }
 function requireViewerAuth(request:FastifyRequest,reply:FastifyReply){if(viewerAuthorized(request))return true;reply.code(401).send({error:'viewer-auth-required'});return false;}
-function acceptLegacyTimestamp(stream:string,timestampMs:number,nowMs=Date.now()){if(timestampMs>nowMs+LEGACY_MAX_FUTURE_SKEW_MS||nowMs-timestampMs>LEGACY_MAX_AGE_MS)return false;const previous=legacyTimestamps.get(stream);if(previous!==undefined&&timestampMs<=previous)return false;legacyTimestamps.set(stream,timestampMs);return true;}
+function requirePublicComputeBudget(request:FastifyRequest,reply:FastifyReply,route:string,limit:number){
+  const decision=publicComputeLimiter.consume(`${request.ip}:${route}`,limit);
+  if(decision.allowed)return true;
+  reply.header('retry-after',String(decision.retryAfterS)).code(429).send({error:'public-compute-rate-limited',reason:decision.reason});
+  return false;
+}
+function acceptLegacyTimestamp(stream:string,timestampMs:number,nowMs=Date.now()){return legacyTimestamps.accept(stream,timestampMs,nowMs,LEGACY_MAX_AGE_MS,LEGACY_MAX_FUTURE_SKEW_MS);}
+function runtimeGuardStatus(){return{publicCompute:{activeKeys:publicComputeLimiter.activeKeys,rejected:publicComputeLimiter.rejected,capacityRejected:publicComputeLimiter.capacityRejected,maxKeys:PUBLIC_COMPUTE_MAX_KEYS},legacyReplay:{activeKeys:legacyTimestamps.activeKeys,rejected:legacyTimestamps.rejected,capacityRejected:legacyTimestamps.capacityRejected,maxKeys:LEGACY_TIMESTAMP_MAX_KEYS,ttlMs:LEGACY_TIMESTAMP_TTL_MS}};}
 function ages(nowMs=Date.now()){return sensorAges({vehicle:latestVehicle,radarTimestampMs:latestRadar?.timestampMs,cameraTimestampMs:latestCamera?.timestampMs,nowMs});}
 function hasFreshVehicleContext(nowMs=Date.now()){return Boolean(latestVehicle&&Math.max(0,nowMs-latestVehicle.timestampMs)<=2_500);}
 function diagnostics(nowMs=Date.now()):EdgeDiagnostics{
@@ -138,12 +150,12 @@ function publish(source:'edge'|'simulator'='edge'){const envelope=currentEnvelop
 function heartbeat(){const payload:RealtimeHeartbeatEnvelope={type:'heartbeat',receivedAtMs:Date.now(),lastSequence:latestSequence,connectedClients:clients.size};broadcast(payload);}
 const heartbeatTimer=setInterval(heartbeat,1_000);heartbeatTimer.unref();
 
-app.get('/health',async()=>({status:'ok',mode:'warning-only',version:'3.6-observability'}));
+app.get('/health',async()=>({status:'ok',mode:'warning-only',version:'3.7-bounded-abuse-guard'}));
 app.post('/v3/session',async(request,reply)=>{if(localDevAuthorized(request)&&!VIEWER_TOKEN)return{authenticated:true,mode:'loopback-dev',expiresInS:0};if(!viewerBootstrapAuthorized(request))return reply.code(401).send({error:'viewer-auth-required'});const session=issueViewerSession(VIEWER_TOKEN);const secure=process.env.NODE_ENV==='production';reply.header('set-cookie',`${VIEWER_SESSION_COOKIE}=${encodeURIComponent(session)}; Path=/; HttpOnly; ${secure?'Secure; SameSite=None':'SameSite=Lax'}; Max-Age=${VIEWER_SESSION_TTL_S}`);return{authenticated:true,mode:'scoped-viewer-session',expiresInS:VIEWER_SESSION_TTL_S};});
-app.get('/v3/health/details',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return{status:'ok',mode:'warning-only',edge:diagnostics(),assist:driverAssistRuntime.snapshot(Date.now(),hasFreshVehicleContext()),deviceIdentity:{required:REQUIRE_DEVICE_AUTH,...deviceAuthSummary(DEVICE_KEYS)},observability:{risk:riskMetricsSnapshot(),audit:eventBuffer.auditStatus()}};});
-app.post('/v1/risk',async(request,reply)=>{const parsed=Sample.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-sample'});return assessRisk(parsed.data);});
-app.post('/v2/telemetry/evaluate',async(request,reply)=>{const parsed=TelemetryEvaluationSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-telemetry-frame',details:parsed.error.flatten()});const vehicle=parsed.data.vehicle as VehiclePosition;const sensors=parsed.data.sensors as SensorHealth;const objects=parsed.data.objects as DetectedObject[];const fences=(parsed.data.geofences??[]) as Geofence[];return{vehicle,objects,alerts:buildLocationAlerts({vehicle,sensors,objects,geofences:fences}),safetyMode:'warning-only',controlAuthority:'none'};});
-app.post('/v2/geo/project',async(request,reply)=>{const parsed=ProjectPointSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-geo-input'});return projectPoint(parsed.data.origin,parsed.data.bearingDeg,parsed.data.distanceM);});
+app.get('/v3/health/details',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return{status:'ok',mode:'warning-only',edge:diagnostics(),assist:driverAssistRuntime.snapshot(Date.now(),hasFreshVehicleContext()),deviceIdentity:{required:REQUIRE_DEVICE_AUTH,...deviceAuthSummary(DEVICE_KEYS)},observability:{risk:riskMetricsSnapshot(),audit:eventBuffer.auditStatus(),runtimeGuards:runtimeGuardStatus()}};});
+app.post('/v1/risk',async(request,reply)=>{if(!requirePublicComputeBudget(request,reply,'v1-risk',120))return;const parsed=Sample.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-sample'});return assessRisk(parsed.data);});
+app.post('/v2/telemetry/evaluate',async(request,reply)=>{if(!requirePublicComputeBudget(request,reply,'v2-telemetry-evaluate',60))return;const parsed=TelemetryEvaluationSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-telemetry-frame',details:parsed.error.flatten()});const vehicle=parsed.data.vehicle as VehiclePosition;const sensors=parsed.data.sensors as SensorHealth;const objects=parsed.data.objects as DetectedObject[];const fences=(parsed.data.geofences??[]) as Geofence[];return{vehicle,objects,alerts:buildLocationAlerts({vehicle,sensors,objects,geofences:fences}),safetyMode:'warning-only',controlAuthority:'none'};});
+app.post('/v2/geo/project',async(request,reply)=>{if(!requirePublicComputeBudget(request,reply,'v2-geo-project',120))return;const parsed=ProjectPointSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-geo-input'});return projectPoint(parsed.data.origin,parsed.data.bearingDeg,parsed.data.distanceM);});
 app.post('/v3/perception/camera',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=CameraFrameSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-camera-frame',details:parsed.error.flatten()});if(!acceptLegacyTimestamp(`camera:${parsed.data.cameraId}`,parsed.data.timestampMs))return reply.code(409).send({error:'legacy-frame-rejected',reason:'replay-or-clock-skew'});latestCamera=parsed.data as CameraDetectionFrame;latestSensors={...latestSensors,camera:'ok'};lastIngressAtMs=Date.now();return publish();});
 app.post('/v3/perception/radar',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=RadarFrameSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-radar-frame',details:parsed.error.flatten()});if(!acceptLegacyTimestamp(`radar:${parsed.data.radarId}`,parsed.data.timestampMs))return reply.code(409).send({error:'legacy-frame-rejected',reason:'replay-or-clock-skew'});latestRadar=parsed.data as RadarTrackFrame;latestSensors={...latestSensors,radarFront:'ok'};lastIngressAtMs=Date.now();return publish();});
 app.post('/v3/edge/gnss',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=VehiclePositionSchema.safeParse(request.body);if(!parsed.success||parsed.data.source!=='gnss')return reply.code(400).send({error:'invalid-gnss-sample'});if(!acceptLegacyTimestamp('gnss',parsed.data.timestampMs))return reply.code(409).send({error:'legacy-frame-rejected',reason:'replay-or-clock-skew'});latestVehicle=parsed.data as VehiclePosition;latestSensors={...latestSensors,gnssImu:'ok'};latestSequence+=1;lastIngressAtMs=Date.now();return publish();});
@@ -154,7 +166,7 @@ app.post('/v3/assistant/plan',async(request,reply)=>{if(!requireViewerAuth(reque
 app.post('/v3/edge/frame',async(request,reply)=>{const parsed=EdgePacketSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-edge-packet',details:parsed.error.flatten()});const packet=parsed.data as EdgeTelemetryPacket;if(!requireEdgePacketAuth(request,reply,packet))return;const accepted=packetGuard.accept(packet);if(!accepted.ok)return reply.code(409).send({error:'edge-packet-rejected',reason:accepted.reason});latestDeviceId=packet.deviceId;latestBootId=packet.bootId;latestSequence=packet.sequence;latestVehicle=packet.gnss;latestSensors=packet.sensors;if(packet.camera)latestCamera=packet.camera;if(packet.radar)latestRadar=packet.radar;lastIngressAtMs=Date.now();return publish();});
 app.get('/v3/edge/latest',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return currentEnvelope();});
 app.get('/v3/assist/status',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return driverAssistRuntime.snapshot(Date.now(),hasFreshVehicleContext());});
-app.get('/v3/diagnostics',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return{...diagnostics(),risk:riskMetricsSnapshot(),audit:eventBuffer.auditStatus()};});
+app.get('/v3/diagnostics',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return{...diagnostics(),risk:riskMetricsSnapshot(),audit:eventBuffer.auditStatus(),runtimeGuards:runtimeGuardStatus()};});
 app.get('/v3/audit/status',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return eventBuffer.auditStatus();});
 app.get('/v3/device-identity/status',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;return{mode:REQUIRE_DEVICE_AUTH?'required':'transition',sharedEdgeTokenFallback:!REQUIRE_DEVICE_AUTH,packetBinding:['deviceId','keyId','bootId','sequence','timestampMs','canonical-packet'],...deviceAuthSummary(DEVICE_KEYS)};});
 app.get('/v3/events',async(request,reply)=>{if(!requireViewerAuth(request,reply))return;const parsed=EventsQuerySchema.safeParse(request.query);if(!parsed.success)return reply.code(400).send({error:'invalid-events-query'});return{events:eventBuffer.list(parsed.data.limit,parsed.data.severity as Severity|undefined)};});
@@ -162,5 +174,5 @@ app.get('/v3/geofences',async(request,reply)=>{if(!requireViewerAuth(request,rep
 app.post('/v3/geofences',async(request,reply)=>{if(!requireEdgeAuth(request,reply))return;const parsed=GeofenceReplaceSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-geofences',details:parsed.error.flatten()});geofences=parsed.data.geofences as Geofence[];return{updated:geofences.length,geofences};});
 app.get('/v3/stream',{websocket:true},(socket,request)=>{const client=socket as unknown as SocketLike;let expiryTimer:NodeJS.Timeout|null=null;if(localDevAuthorized(request)){clients.add(client);}else{const session=VIEWER_TOKEN?readViewerSession(cookieToken(request,VIEWER_SESSION_COOKIE),VIEWER_TOKEN):null;if(!session){client.close(1008,'viewer-auth-required');return;}clients.add(client);expiryTimer=setTimeout(()=>client.close(1008,'viewer-session-expired'),Math.max(1,session.expiresAtMs-Date.now()));expiryTimer.unref();}const initial=currentEnvelope();if(initial&&client.readyState===1)client.send(JSON.stringify(initial));client.on('close',()=>{if(expiryTimer)clearTimeout(expiryTimer);clients.delete(client);});});
 
-app.get('/v1/capabilities',async()=>({vehicleControl:false,canWrite:false,brake:false,steer:false,throttle:false,gpsPositioning:true,objectDetection:true,radarFusion:true,cameraClassification:true,realtimeWebSocket:true,heartbeat:true,edgeReplayProtection:true,legacyReplayProtection:true,edgeAuthentication:EDGE_TOKEN.length>=16,perDevicePacketAuthentication:DEVICE_KEYS.size>0,deviceAuthRequired:REQUIRE_DEVICE_AUTH,viewerAuthentication:VIEWER_TOKEN.length>=16,viewerSessionTtlS:VIEWER_SESSION_TTL_S,diagnostics:true,riskMetrics:true,auditJournalStatus:true,eventHistory:true,geofenceAlerts:true,mapAlerts:true,navigationRouting:true,speedLimitAwareness:true,speedSignVision:true,trafficCameraContext:true,driverAssistRuntime:true,laneDepartureRuntime:true,driverMonitoringRuntime:true,surroundReadinessRuntime:true,readOnlyAssistantPlanner:true,trafficCameraAccessPolicy:'public-or-authorized-only'}));
+app.get('/v1/capabilities',async()=>({vehicleControl:false,canWrite:false,brake:false,steer:false,throttle:false,gpsPositioning:true,objectDetection:true,radarFusion:true,cameraClassification:true,realtimeWebSocket:true,heartbeat:true,edgeReplayProtection:true,legacyReplayProtection:true,boundedLegacyReplayState:true,boundedPublicComputeRateLimit:true,edgeAuthentication:EDGE_TOKEN.length>=16,perDevicePacketAuthentication:DEVICE_KEYS.size>0,deviceAuthRequired:REQUIRE_DEVICE_AUTH,viewerAuthentication:VIEWER_TOKEN.length>=16,viewerSessionTtlS:VIEWER_SESSION_TTL_S,diagnostics:true,riskMetrics:true,auditJournalStatus:true,eventHistory:true,geofenceAlerts:true,mapAlerts:true,navigationRouting:true,speedLimitAwareness:true,speedSignVision:true,trafficCameraContext:true,driverAssistRuntime:true,laneDepartureRuntime:true,driverMonitoringRuntime:true,surroundReadinessRuntime:true,readOnlyAssistantPlanner:true,trafficCameraAccessPolicy:'public-or-authorized-only'}));
 await app.listen({port:Number(process.env.PORT??4000),host:HOST});
