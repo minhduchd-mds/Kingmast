@@ -22,6 +22,7 @@ const required=[
   'services/risk-engine/src/update-state.ts',
   'services/risk-engine/src/update-state.test.ts',
   'services/risk-engine/src/driver-monitoring.ts',
+  'services/risk-engine/src/driver-assist-runtime.ts',
   'services/risk-engine/src/safety-scenarios.test.ts',
   'services/risk-engine/src/bounded-state.ts',
   'services/risk-engine/src/bounded-state.test.ts',
@@ -52,6 +53,7 @@ const clientError=read('apps/hmi/app/api/kingmast/client-error/route.ts');
 const updateVerifier=read('services/risk-engine/src/update-verifier.ts');
 const updateState=read('services/risk-engine/src/update-state.ts');
 const dms=read('services/risk-engine/src/driver-monitoring.ts');
+const driverAssistRuntime=read('services/risk-engine/src/driver-assist-runtime.ts');
 const deviceAuth=read('services/risk-engine/src/device-auth.ts');
 const riskServer=read('services/risk-engine/src/server.ts');
 const secretScan=read('scripts/secret-scan.mjs');
@@ -74,6 +76,7 @@ if(!updateVerifier.includes('verifyUpdatePackage')||!updateVerifier.includes('ar
 if(!updateState.includes('class UpdateLifecycle')||!updateState.includes("'pending-boot'")||!updateState.includes("'rollback-required'"))failures.push('fail-safe OTA lifecycle/rollback state machine missing');
 if(!otaStateDoc.includes('staged')||!otaStateDoc.includes('pending-boot')||!otaStateDoc.includes('rollback-required'))failures.push('OTA lifecycle documentation must preserve verified install and rollback states');
 if(!dms.includes('MAX_SAMPLE_GAP_MS')||!dms.includes("'insufficient-temporal-span'")||!dms.includes("'cabin-observation-discontinuous'"))failures.push('DMS must fail closed on compressed or discontinuous temporal evidence');
+if(!driverAssistRuntime.includes('DMS_HARD_UNAVAILABLE_REASONS')||!driverAssistRuntime.includes("'cabin-observation-discontinuous'"))failures.push('DMS runtime availability must represent hard cabin-observation loss as unavailable');
 if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createHmac('sha256'")||!deviceAuth.includes("'device-key-revoked'"))failures.push('per-device signed packet identity/rotation/revocation contract missing');
 if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
