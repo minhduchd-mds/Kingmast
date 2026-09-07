@@ -10,9 +10,14 @@ const firmwareRelease=read('services/risk-engine/src/firmware-release.ts');
 const firmwareReleaseTest=read('services/risk-engine/src/firmware-release.test.ts');
 const evidenceAnchor=read('scripts/generate-evidence-anchor.mjs');
 const evidenceVerify=read('scripts/verify-evidence-anchor.mjs');
+const evidenceSignatureLib=read('scripts/evidence-signature-lib.mjs');
+const evidenceSignCli=read('scripts/sign-evidence-anchor.mjs');
+const evidenceSignedVerify=read('scripts/verify-signed-evidence-anchor.mjs');
+const evidenceSigningSelftest=read('scripts/evidence-signing-selftest.mjs');
 const provisioningDoc=read('docs/cybersecurity/DEVICE_PROVISIONING_V006.md');
 const releaseDoc=read('docs/updates/FIRMWARE_RELEASE_SIGNING_V006.md');
 const anchorDoc=read('docs/supplychain/EVIDENCE_ANCHOR_V006.md');
+const signingDoc=read('docs/supplychain/EVIDENCE_SIGNING_V006.md');
 const pkg=read('package.json');
 const ci=read('.github/workflows/ci.yml');
 
@@ -23,11 +28,15 @@ if(!firmwareRelease.includes('createSignedUpdateManifest')||!firmwareRelease.inc
 if(!firmwareReleaseTest.includes('accepted by the production verifier')||!firmwareReleaseTest.includes('detects artifact tampering'))failures.push('firmware release end-to-end verification tests missing');
 if(!evidenceAnchor.includes("schema:'kingmast-evidence-anchor/v1'")||!evidenceAnchor.includes("externallySigned:false")||!evidenceAnchor.includes("externalTimestampAuthority:'none'"))failures.push('evidence anchor must preserve explicit unsigned/no-trusted-timestamp boundary');
 if(!evidenceVerify.includes('evidence anchor root mismatch')||!evidenceVerify.includes('timingSafeEqual')||!evidenceVerify.includes('evidence material mismatch'))failures.push('independent evidence anchor verification contract missing');
+if(!evidenceSignatureLib.includes("schema:'kingmast-signed-evidence-anchor/v1'")||!evidenceSignatureLib.includes("algorithm:'ed25519'")||!evidenceSignatureLib.includes("externalTimestampAuthority:'none'")||!evidenceSignatureLib.includes('nonRepudiationClaim:false'))failures.push('detached Ed25519 evidence-signature trust boundary missing');
+if(!evidenceSignCli.includes('KINGMAST_EVIDENCE_SIGNING_PRIVATE_KEY_PEM')||!evidenceSignedVerify.includes('KINGMAST_EVIDENCE_SIGNING_PUBLIC_KEY_PEM'))failures.push('out-of-repository evidence signing/verifying CLI contract missing');
+if(!evidenceSigningSelftest.includes("generateKeyPairSync('ed25519')")||!evidenceSigningSelftest.includes('failed to reject tampering'))failures.push('ephemeral detached evidence signature self-test missing');
 if(!provisioningDoc.includes('Private key material must never be uploaded')||!provisioningDoc.includes('not fleet PKI'))failures.push('device provisioning documentation must preserve key-custody/non-PKI boundary');
 if(!releaseDoc.includes('does not yet build and sign a production ESP32 binary in CI')||!releaseDoc.includes('must never be presented as a production firmware release claim'))failures.push('firmware release documentation must preserve non-production claim boundary');
 if(!anchorDoc.includes('authenticity or non-repudiation')||!anchorDoc.includes('Real-time warning computation must never depend'))failures.push('evidence anchor documentation must preserve trust and safety-operation boundaries');
-if(!pkg.includes('"release:identity-policy"')||!pkg.includes('"evidence:anchor-verify"'))failures.push('release identity/evidence verification scripts missing from root package');
-if(!ci.includes('pnpm release:identity-policy')||!ci.includes('Generate engineering evidence anchor')||!ci.includes('Verify engineering evidence anchor')||!ci.includes('/tmp/kingmast.evidence-anchor.json'))failures.push('release identity/evidence anchor gates missing from CI');
+if(!signingDoc.includes('ephemeral generated key only')||!signingDoc.includes('not a trusted timestamp')||!signingDoc.includes('must never depend on a signing service'))failures.push('evidence signing documentation must preserve external trust/timestamp/safety boundaries');
+if(!pkg.includes('"release:identity-policy"')||!pkg.includes('"evidence:anchor-verify"')||!pkg.includes('"evidence:signing-selftest"'))failures.push('release identity/evidence verification scripts missing from root package');
+if(!ci.includes('pnpm release:identity-policy')||!ci.includes('Detached evidence signing self-test')||!ci.includes('Generate engineering evidence anchor')||!ci.includes('Verify engineering evidence anchor')||!ci.includes('/tmp/kingmast.evidence-anchor.json'))failures.push('release identity/evidence anchor/signing gates missing from CI');
 
 if(failures.length){console.error('KINGMAST release/identity policy failed:\n'+failures.map((item)=>`- ${item}`).join('\n'));process.exit(1);}
 console.log('KINGMAST release/identity policy passed.');
