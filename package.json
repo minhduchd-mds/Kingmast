@@ -33,6 +33,8 @@
     "evidence:signing-selftest": "node scripts/evidence-signing-selftest.mjs",
     "evidence:timestamp-verify": "node scripts/verify-external-evidence-timestamp.mjs",
     "evidence:validate": "node scripts/engineering-evidence-check.mjs",
+    "evidence:oem-traceability": "node scripts/expert-oem-traceability-check.mjs",
+    "evidence:hmi-human-factors": "pnpm --filter @kingmast/hmi exec node scripts/human-factors-evidence.mjs",
     "vercel:policy": "node scripts/vercel-deploy-policy-check.mjs"
   },
   "pnpm": {

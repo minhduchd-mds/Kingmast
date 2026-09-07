@@ -58,6 +58,8 @@ jobs:
         run: pnpm safety:boundary
       - name: Engineering evidence contracts
         run: pnpm evidence:validate
+      - name: Expert and OEM clean-room traceability
+        run: pnpm evidence:oem-traceability
       - name: Vercel deployment policy
         run: pnpm vercel:policy
       - name: Python syntax
@@ -68,6 +70,10 @@ jobs:
         run: pnpm typecheck
       - name: Unit and contract tests
         run: pnpm test
+      - name: HMI structural human-factors evidence
+        run: |
+          node apps/hmi/scripts/human-factors-evidence.mjs > /tmp/kingmast.hmi-human-factors.json
+          node -e "const r=require('/tmp/kingmast.hmi-human-factors.json'); if(r.schema!=='kingmast-hmi-human-factors-evidence/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-structural-only-not-user-study'||r.humanFactorsValidated!==false||r.userStudyEvidence!==false||r.allStructuralChecksPassed!==true||r.failedStructuralChecks!==0||r.structuralCheckCount<10) process.exit(1); console.log('KINGMAST HMI structural human-factors evidence passed '+r.passedStructuralChecks+'/'+r.structuralCheckCount+' checks without claiming a user study.');"
       - name: Deterministic SIL replay evidence
         run: |
           pnpm --filter @kingmast/risk-engine exec tsx src/sil-replay-cli.ts > /tmp/kingmast.sil-replay.json
@@ -91,14 +97,14 @@ jobs:
           node -e "const p=require('/tmp/kingmast.provenance.json'); const names=new Set(p.materials.map(x=>x.name)); if(p.schema!=='kingmast-build-provenance/v1'||p.subject.commit!==process.env.GITHUB_SHA||p.assertions.actuatorAuthority!=='none'||!names.has('cyclonedx-sbom')||!names.has('services/risk-engine/dist')||!names.has('apps/hmi/.next/BUILD_ID')) process.exit(1); console.log('KINGMAST build provenance validated for '+p.subject.commit);"
       - name: Generate engineering evidence anchor
         env:
-          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
         run: |
           node scripts/generate-evidence-anchor.mjs > /tmp/kingmast.evidence-anchor.json
-          node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<7||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
+          node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<8||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
       - name: Verify engineering evidence anchor
         env:
           KINGMAST_EVIDENCE_ANCHOR_PATH: /tmp/kingmast.evidence-anchor.json
-          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
         run: pnpm evidence:anchor-verify
       - name: Install Chromium for HMI verification
         run: pnpm --filter @kingmast/hmi exec playwright install --with-deps chromium
@@ -111,6 +117,7 @@ jobs:
           path: |
             /tmp/kingmast.cdx.json
             /tmp/kingmast.provenance.json
+            /tmp/kingmast.hmi-human-factors.json
             /tmp/kingmast.sil-replay.json
             /tmp/kingmast.risk-performance.json
             /tmp/kingmast.evidence-anchor.json
