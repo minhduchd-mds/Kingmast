@@ -24,6 +24,26 @@ describe('DriverAssistRuntime',()=>{
     expect(status.advisoryOnly).toBe(true);
   });
 
+  it('marks discontinuous cabin evidence unavailable instead of merely degraded',()=>{
+    const runtime=new DriverAssistRuntime();
+    runtime.ingestDriverMonitoring({timestampMs:base,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    runtime.ingestDriverMonitoring({timestampMs:base+1_000,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    runtime.ingestDriverMonitoring({timestampMs:base+5_000,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    const status=runtime.snapshot(base+5_100,true).dms;
+    expect(status.state).toBe('driver-unavailable');
+    expect(status.reason).toBe('cabin-observation-discontinuous');
+    expect(status.availability).toBe('unavailable');
+  });
+
+  it('keeps short but still-forming DMS windows degraded, not falsely live',()=>{
+    const runtime=new DriverAssistRuntime();
+    runtime.ingestDriverMonitoring({timestampMs:base,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    runtime.ingestDriverMonitoring({timestampMs:base+1_000,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    const status=runtime.snapshot(base+1_100,true).dms;
+    expect(status.reason).toBe('insufficient-temporal-window');
+    expect(status.availability).toBe('degraded');
+  });
+
   it('requires four synchronized calibrated cameras before 360 is live',()=>{
     const runtime=new DriverAssistRuntime();
     runtime.ingestSurround({timestampMs:base,cameras:[
