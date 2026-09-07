@@ -4,6 +4,7 @@ import type { EdgeTelemetryPacket,SensorHealth } from '@kingmast/contracts';
 import { assessRisk } from './risk.js';
 import { EdgePacketGuard } from './edge-guard.js';
 import { assessDriverMonitoring,type DriverMonitoringSample } from './driver-monitoring.js';
+import { DriverAssistRuntime } from './driver-assist-runtime.js';
 import { canonicalUpdatePayload,evaluateInstallEligibility,verifyUpdatePackage,type UpdateManifest } from './update-verifier.js';
 import { UpdateLifecycle } from './update-state.js';
 import { parseDeviceKeyRegistry,signDevicePacket,verifyDevicePacketAuth } from './device-auth.js';
@@ -106,5 +107,20 @@ describe('KINGMAST v0.0.6 traceable safety scenarios',()=>{
     const result=assessDriverMonitoring(samples);
     expect(result.state).toBe('driver-unavailable');
     expect(result.reason).toBe('cabin-observation-discontinuous');
+  });
+
+  it('FI-013 HZ-008 degrades surround truth when calibration/synchronization is incomplete',()=>{
+    const runtime=new DriverAssistRuntime();
+    runtime.ingestSurround({timestampMs:now,cameras:[
+      {cameraId:'front',synchronized:true,calibrated:true,reprojectionErrorPx:1.1},
+      {cameraId:'rear',synchronized:true,calibrated:true,reprojectionErrorPx:1.2},
+      {cameraId:'left',synchronized:false,calibrated:true,reprojectionErrorPx:1.4},
+      {cameraId:'right',synchronized:true,calibrated:true,reprojectionErrorPx:3.6},
+    ]});
+    const result=runtime.snapshot(now+100,true).surround;
+    expect(result.availability).toBe('degraded');
+    expect(result.fullyReady).toBe(false);
+    expect(result.readyCameraCount).toBe(2);
+    expect(result.geometryConfidence).toBeLessThan(1);
   });
 });
