@@ -26,13 +26,17 @@ const KEY_ID_RE=/^[A-Za-z0-9._:-]{1,96}$/;
 const SIGNATURE_RE=/^[a-f0-9]{64}$/i;
 
 function stable(value:unknown):string{
-  if(value===null||typeof value!=='object')return JSON.stringify(value);
+  if(value===null||typeof value!=='object')return JSON.stringify(value)??'null';
   if(Array.isArray(value))return `[${value.map(stable).join(',')}]`;
   const record=value as Record<string,unknown>;
   return `{${Object.keys(record).sort().map((key)=>`${JSON.stringify(key)}:${stable(record[key])}`).join(',')}}`;
 }
 function equalHex(a:string,b:string){const left=Buffer.from(a,'hex');const right=Buffer.from(b,'hex');return left.length===right.length&&timingSafeEqual(left,right);}
-function finiteOrNull(value:unknown){return typeof value==='number'&&Number.isFinite(value)&&value>0?Math.trunc(value):null;}
+function optionalTime(deviceId:string,keyId:string,field:string,value:unknown){
+  if(value===undefined||value===null)return null;
+  if(typeof value!=='number'||!Number.isFinite(value)||value<=0)throw new Error(`device ${deviceId} key ${keyId} has invalid ${field}`);
+  return Math.trunc(value);
+}
 
 export function parseDeviceKeyRegistry(raw:string):DeviceKeyRegistry{
   const registry:DeviceKeyRegistry=new Map();
@@ -50,13 +54,17 @@ export function parseDeviceKeyRegistry(raw:string):DeviceKeyRegistry{
       const record=item as Record<string,unknown>;
       const keyId=typeof record.keyId==='string'?record.keyId.trim():'';
       const secret=typeof record.secret==='string'?record.secret:'';
-      const state:DeviceKeyState=record.state==='revoked'?'revoked':'active';
       if(!KEY_ID_RE.test(keyId))throw new Error(`device ${deviceId} has an invalid keyId`);
       if(ids.has(keyId))throw new Error(`device ${deviceId} has duplicate keyId ${keyId}`);
       if(secret.length<32)throw new Error(`device ${deviceId} key ${keyId} must be at least 32 characters`);
+      let state:DeviceKeyState='active';
+      if(record.state!==undefined){
+        if(record.state!=='active'&&record.state!=='revoked')throw new Error(`device ${deviceId} key ${keyId} has invalid state`);
+        state=record.state;
+      }
       ids.add(keyId);
-      const notBeforeMs=finiteOrNull(record.notBeforeMs);
-      const notAfterMs=finiteOrNull(record.notAfterMs);
+      const notBeforeMs=optionalTime(deviceId,keyId,'notBeforeMs',record.notBeforeMs);
+      const notAfterMs=optionalTime(deviceId,keyId,'notAfterMs',record.notAfterMs);
       if(notBeforeMs!==null&&notAfterMs!==null&&notAfterMs<=notBeforeMs)throw new Error(`device ${deviceId} key ${keyId} has an invalid validity window`);
       keys.push({keyId,secret,state,notBeforeMs,notAfterMs});
     }
