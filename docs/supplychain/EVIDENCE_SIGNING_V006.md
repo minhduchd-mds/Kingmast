@@ -13,19 +13,32 @@ The signing private key must be supplied out-of-repository, ideally by an HSM/KM
 
 ## CI self-test
 
-CI uses an **ephemeral generated key only** to test that the signing/verification implementation rejects a tampered root. The ephemeral key has no production identity and no release authority.
+CI uses **ephemeral generated keys only** to test that detached signing and external timestamp-attestation verification reject a tampered root. These ephemeral keys have no production identity and no release authority.
+
+## External timestamp attestation verifier
+
+`verify-external-evidence-timestamp.mjs` can validate a detached `kingmast-external-evidence-timestamp/v1` record against a separately trusted Ed25519 authority public key. The attestation binds:
+
+- authority ID
+- full source commit
+- evidence root SHA-256
+- RFC3339 `observedAt`
+
+The verifier checks the signature, root/commit binding and excessive future-clock skew. KINGMAST does **not** generate a trusted external timestamp inside normal CI, because a timestamp created by the same build environment would not provide independent time authority.
+
+This format is a research interoperability scaffold, not a claim that an RFC 3161 TSA, Sigstore/Rekor transparency service or accredited timestamp authority is deployed.
 
 ## Timestamp boundary
 
-The signed envelope intentionally reports:
+The ordinary signed evidence envelope intentionally reports:
 
 - `externalTimestampAuthority: none`
 - `nonRepudiationClaim: false`
 
-A local wall-clock `signedAt` value is not a trusted timestamp. Production evidence requiring independently provable time should use an external timestamp/transparency system (for example an organizational TSA or audited transparency service) and retain its verification material separately.
+A local wall-clock `signedAt` value is not a trusted timestamp. Production evidence requiring independently provable time should use an external timestamp/transparency system and retain its verification material separately.
 
 This repository does not claim RFC 3161 timestamping, Sigstore transparency inclusion, HSM-backed signing or non-repudiation until those controls are deployed and independently evidenced.
 
 ## Safety boundary
 
-Evidence signing is post-processing. Real-time warning computation must never depend on a signing service, timestamp authority, transparency log or evidence storage availability.
+Evidence signing and timestamp verification are post-processing. Real-time warning computation must never depend on a signing service, timestamp authority, transparency log or evidence storage availability.
