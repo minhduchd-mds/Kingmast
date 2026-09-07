@@ -45,7 +45,7 @@ describe('device packet authentication',()=>{
     expect(verifyDevicePacketAuth({packet:{...packet,deviceId:'edge-2'},keyId:'k-active',signature:'0'.repeat(64),registry:registry(),nowMs:now})).toEqual({ok:false,reason:'device-not-configured'});
   });
 
-  it('tracks active/revoked/expired/future and algorithm counts without exposing key material',()=>{
+  it('tracks lifecycle and algorithm counts without exposing key material',()=>{
     const parsed=parseDeviceKeyRegistry(JSON.stringify({'edge-1':[
       {keyId:'active',secret,state:'active'},
       {keyId:'ed',algorithm:'ed25519',publicKeyPem,state:'active'},
@@ -54,7 +54,12 @@ describe('device packet authentication',()=>{
     ],'edge-2':[
       {keyId:'future',secret:'00112233445566778899aabbccddeeff',state:'active',notBeforeMs:now+1},
     ]}));
-    expect(deviceAuthSummary(parsed,now)).toEqual({configuredDevices:2,activeKeys:2,revokedKeys:1,expiredKeys:1,futureKeys:1,hmacKeys:4,ed25519Keys:1});
+    expect(deviceAuthSummary(parsed,now)).toEqual({configuredDevices:2,activeKeys:2,revokedKeys:1,expiredKeys:1,futureKeys:1,hmacKeys:4,ed25519Keys:1,algorithm:'HMAC-SHA256+Ed25519',preferredProductionIntent:'Ed25519'});
+  });
+
+  it('reports Ed25519 when only asymmetric device credentials are configured',()=>{
+    const parsed=parseDeviceKeyRegistry(JSON.stringify({'edge-1':[{keyId:'ed',algorithm:'ed25519',publicKeyPem,state:'active'}]}));
+    expect(deviceAuthSummary(parsed,now).algorithm).toBe('Ed25519');
   });
 
   it('fails configuration on weak secrets, duplicate ids, mixed credentials or invalid asymmetric keys',()=>{
