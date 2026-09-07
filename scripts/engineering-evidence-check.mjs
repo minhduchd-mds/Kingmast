@@ -21,6 +21,7 @@ const required=[
   'services/risk-engine/src/update-verifier.test.ts',
   'services/risk-engine/src/update-state.ts',
   'services/risk-engine/src/update-state.test.ts',
+  'services/risk-engine/src/driver-monitoring.ts',
   'services/risk-engine/src/safety-scenarios.test.ts',
   'services/risk-engine/src/bounded-state.ts',
   'services/risk-engine/src/bounded-state.test.ts',
@@ -50,6 +51,7 @@ const roadContextRoutes=read('services/risk-engine/src/road-context-routes.ts');
 const clientError=read('apps/hmi/app/api/kingmast/client-error/route.ts');
 const updateVerifier=read('services/risk-engine/src/update-verifier.ts');
 const updateState=read('services/risk-engine/src/update-state.ts');
+const dms=read('services/risk-engine/src/driver-monitoring.ts');
 const deviceAuth=read('services/risk-engine/src/device-auth.ts');
 const riskServer=read('services/risk-engine/src/server.ts');
 const secretScan=read('scripts/secret-scan.mjs');
@@ -71,6 +73,7 @@ if(!clientError.includes('MAX_RATE_KEYS=256')||!clientError.includes("error:'cli
 if(!updateVerifier.includes('verifyUpdatePackage')||!updateVerifier.includes('artifact-hash-mismatch')||!updateVerifier.includes('rollback-rejected')||!updateVerifier.includes('evaluateInstallEligibility'))failures.push('signed update verification/install eligibility contract missing');
 if(!updateState.includes('class UpdateLifecycle')||!updateState.includes("'pending-boot'")||!updateState.includes("'rollback-required'"))failures.push('fail-safe OTA lifecycle/rollback state machine missing');
 if(!otaStateDoc.includes('staged')||!otaStateDoc.includes('pending-boot')||!otaStateDoc.includes('rollback-required'))failures.push('OTA lifecycle documentation must preserve verified install and rollback states');
+if(!dms.includes('MAX_SAMPLE_GAP_MS')||!dms.includes("'insufficient-temporal-span'")||!dms.includes("'cabin-observation-discontinuous'"))failures.push('DMS must fail closed on compressed or discontinuous temporal evidence');
 if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createHmac('sha256'")||!deviceAuth.includes("'device-key-revoked'"))failures.push('per-device signed packet identity/rotation/revocation contract missing');
 if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
@@ -83,7 +86,7 @@ for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/p
 
 try{
   const scenarios=JSON.parse(read('docs/validation/scenarios/V006_BASELINE.json'));
-  if(!Array.isArray(scenarios)||scenarios.length<11)failures.push('baseline validation scenario manifest must contain at least eleven traceable scenarios');
+  if(!Array.isArray(scenarios)||scenarios.length<12)failures.push('baseline validation scenario manifest must contain at least twelve traceable scenarios');
   else for(const scenario of scenarios){
     if(typeof scenario.scenarioId!=='string'||!scenarioTests.includes(scenario.scenarioId))failures.push(`scenario test missing ${scenario.scenarioId??'unknown-id'}`);
     for(const hazardId of scenario.hazardIds??[])if(!hara.includes(hazardId))failures.push(`scenario ${scenario.scenarioId} references unknown hazard ${hazardId}`);
