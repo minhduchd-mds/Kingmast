@@ -3,25 +3,45 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterEach,describe,expect,it} from 'vitest';
 import type {EdgeEventRecord} from '@kingmast/contracts';
-import {BoundedAuditJournal,createAuditJournalFromEnv} from './audit-journal.js';
+import {BoundedAuditJournal,createAuditJournalFromEnv,verifyAuditJournalText} from './audit-journal.js';
 
 const dirs:string[]=[];
 function record(index:number):EdgeEventRecord{return{id:`event-${index}`,timestampMs:1_800_000_000_000+index,sequence:index,severity:'caution',type:'vehicle-too-close',title:'Vehicle too close',message:`bounded audit ${index}`.padEnd(96,'x'),objectId:`obj-${index}`,position:{lat:21.0285,lng:105.8542}};}
 afterEach(async()=>{await Promise.all(dirs.splice(0).map((dir)=>rm(dir,{recursive:true,force:true})));});
 
 describe('BoundedAuditJournal',()=>{
-  it('persists only bounded event metadata as JSONL',async()=>{
+  it('persists bounded metadata with a tamper-evident hash chain',async()=>{
     const dir=await mkdtemp(join(tmpdir(),'kingmast-audit-'));dirs.push(dir);
     const path=join(dir,'events.jsonl');
     const journal=new BoundedAuditJournal(path,16*1024,3);
     journal.append(record(1));
+    journal.append(record(2));
     await journal.flush();
-    const lines=(await readFile(path,'utf8')).trim().split('\n');
-    const payload=JSON.parse(lines[0]!);
-    expect(payload.schema).toBe('kingmast-audit-event/v1');
-    expect(payload.record.id).toBe('event-1');
-    expect(payload.record).not.toHaveProperty('rawVideo');
-    expect(journal.status()).toMatchObject({enabled:true,pending:0,written:1,writeErrors:0});
+    const text=await readFile(path,'utf8');
+    const lines=text.trim().split('\n');
+    const first=JSON.parse(lines[0]!);
+    const second=JSON.parse(lines[1]!);
+    expect(first.schema).toBe('kingmast-audit-event/v2');
+    expect(first.previousHash).toBeNull();
+    expect(first.entryHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(second.previousHash).toBe(first.entryHash);
+    expect(first.record.id).toBe('event-1');
+    expect(first.record).not.toHaveProperty('rawVideo');
+    expect(verifyAuditJournalText(text)).toMatchObject({ok:true,entries:2,lastHash:second.entryHash});
+    expect(journal.status()).toMatchObject({enabled:true,pending:0,written:2,writeErrors:0,integrityErrors:0,integrityHead:second.entryHash});
+  });
+
+  it('detects tampered event content and broken chain links',async()=>{
+    const dir=await mkdtemp(join(tmpdir(),'kingmast-audit-'));dirs.push(dir);
+    const path=join(dir,'events.jsonl');
+    const journal=new BoundedAuditJournal(path,16*1024,3);
+    journal.append(record(1));journal.append(record(2));await journal.flush();
+    const text=await readFile(path,'utf8');
+    expect(verifyAuditJournalText(text).ok).toBe(true);
+    expect(verifyAuditJournalText(text.replace('Vehicle too close','Vehicle very close'))).toMatchObject({ok:false,reason:'entry-hash-mismatch'});
+    const lines=text.trim().split('\n').map((line)=>JSON.parse(line));
+    lines[1].previousHash='0'.repeat(64);
+    expect(verifyAuditJournalText(lines.map((line)=>JSON.stringify(line)).join('\n'))).toMatchObject({ok:false,reason:'chain-link-mismatch'});
   });
 
   it('rotates and bounds the number of journal files',async()=>{
