@@ -84,5 +84,12 @@
     "sotifIds": ["ST-016", "ST-017", "ST-018"],
     "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
     "expected": "discontinuous DMS observations become driver-unavailable instead of being stretched into a continuous window"
+  },
+  {
+    "scenarioId": "FI-013",
+    "hazardIds": ["HZ-008"],
+    "safetyGoalIds": ["SG-002"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "surround visualization degrades when any configured camera is unsynchronized or outside reprojection tolerance"
   }
 ]
