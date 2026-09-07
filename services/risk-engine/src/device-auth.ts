@@ -3,6 +3,7 @@ import type { EdgeTelemetryPacket } from '@kingmast/contracts';
 
 export type DeviceKeyState='active'|'revoked';
 export type DeviceKeyAlgorithm='hmac-sha256'|'ed25519';
+export type DeviceIngressScope='perception:camera'|'perception:radar'|'edge:gnss'|'assist:lane'|'assist:dms'|'assist:surround';
 export interface DeviceKeyRecord{
   keyId:string;
   algorithm:DeviceKeyAlgorithm;
@@ -15,6 +16,7 @@ export interface DeviceKeyRecord{
 export type DeviceKeyRegistry=Map<string,DeviceKeyRecord[]>;
 export type DeviceAuthReason=
   | 'device-auth-not-configured'
+  | 'device-id-required'
   | 'device-key-id-required'
   | 'device-signature-required'
   | 'device-not-configured'
@@ -43,6 +45,9 @@ function optionalTime(deviceId:string,keyId:string,field:string,value:unknown){
 }
 function canonicalDevicePacketPayload(packet:EdgeTelemetryPacket,keyId:string){
   return Buffer.from(`KINGMAST-EDGE-V1\n${packet.deviceId}\n${keyId}\n${packet.bootId}\n${packet.sequence}\n${packet.timestampMs}\n${stable(packet)}`);
+}
+function canonicalDeviceIngressPayload(scope:DeviceIngressScope,deviceId:string,keyId:string,timestampMs:number,payload:unknown){
+  return Buffer.from(`KINGMAST-INGRESS-V1\n${scope}\n${deviceId}\n${keyId}\n${timestampMs}\n${stable(payload)}`);
 }
 function validateEd25519PublicKey(deviceId:string,keyId:string,pem:string){
   if(pem.length>4096)throw new Error(`device ${deviceId} key ${keyId} public key is too large`);
@@ -124,6 +129,14 @@ export function signDevicePacketEd25519(packet:EdgeTelemetryPacket,keyId:string,
   return signSignature(null,canonicalDevicePacketPayload(packet,keyId),privateKeyPem).toString('base64');
 }
 
+export function signDeviceIngress(scope:DeviceIngressScope,deviceId:string,keyId:string,timestampMs:number,payload:unknown,secret:string){
+  return createHmac('sha256',secret).update(canonicalDeviceIngressPayload(scope,deviceId,keyId,timestampMs,payload)).digest('hex');
+}
+
+export function signDeviceIngressEd25519(scope:DeviceIngressScope,deviceId:string,keyId:string,timestampMs:number,payload:unknown,privateKeyPem:string){
+  return signSignature(null,canonicalDeviceIngressPayload(scope,deviceId,keyId,timestampMs,payload),privateKeyPem).toString('base64');
+}
+
 function verifyEd25519(signature:string,payload:Buffer,publicKeyPem:string){
   if(signature.length>256||!BASE64_RE.test(signature))return false;
   let decoded:Buffer;
@@ -132,28 +145,38 @@ function verifyEd25519(signature:string,payload:Buffer,publicKeyPem:string){
   try{return verifySignature(null,payload,publicKeyPem,decoded);}catch{return false;}
 }
 
-export function verifyDevicePacketAuth(input:{packet:EdgeTelemetryPacket;keyId:string;signature:string;registry:DeviceKeyRegistry;nowMs?:number}):DeviceAuthResult{
-  const {packet,registry}=input;
+function verifyConfiguredSignature(input:{deviceId:string;keyId:string;signature:string;payload:Buffer;registry:DeviceKeyRegistry;nowMs:number}):DeviceAuthResult{
+  const deviceId=input.deviceId.trim();
   const keyId=input.keyId.trim();
   const signature=input.signature.trim();
-  const nowMs=input.nowMs??Date.now();
-  if(registry.size===0)return{ok:false,reason:'device-auth-not-configured'};
+  if(input.registry.size===0)return{ok:false,reason:'device-auth-not-configured'};
+  if(!deviceId||deviceId.length>96)return{ok:false,reason:'device-id-required'};
   if(!KEY_ID_RE.test(keyId))return{ok:false,reason:'device-key-id-required'};
   if(!signature||signature.length>512)return{ok:false,reason:'device-signature-required'};
-  const keys=registry.get(packet.deviceId);
+  const keys=input.registry.get(deviceId);
   if(!keys)return{ok:false,reason:'device-not-configured'};
   const key=keys.find((candidate)=>candidate.keyId===keyId);
   if(!key)return{ok:false,reason:'device-key-not-found'};
   if(key.state==='revoked')return{ok:false,reason:'device-key-revoked'};
-  if(key.notBeforeMs!==null&&nowMs<key.notBeforeMs)return{ok:false,reason:'device-key-not-yet-valid'};
-  if(key.notAfterMs!==null&&nowMs>key.notAfterMs)return{ok:false,reason:'device-key-expired'};
-  const payload=canonicalDevicePacketPayload(packet,key.keyId);
+  if(key.notBeforeMs!==null&&input.nowMs<key.notBeforeMs)return{ok:false,reason:'device-key-not-yet-valid'};
+  if(key.notAfterMs!==null&&input.nowMs>key.notAfterMs)return{ok:false,reason:'device-key-expired'};
   if(key.algorithm==='hmac-sha256'){
     if(!HMAC_SIGNATURE_RE.test(signature)||!key.secret)return{ok:false,reason:'device-signature-invalid'};
-    const expected=createHmac('sha256',key.secret).update(payload).digest('hex');
+    const expected=createHmac('sha256',key.secret).update(input.payload).digest('hex');
     if(!equalHex(signature.toLowerCase(),expected))return{ok:false,reason:'device-signature-invalid'};
   }else{
-    if(!key.publicKeyPem||!verifyEd25519(signature,payload,key.publicKeyPem))return{ok:false,reason:'device-signature-invalid'};
+    if(!key.publicKeyPem||!verifyEd25519(signature,input.payload,key.publicKeyPem))return{ok:false,reason:'device-signature-invalid'};
   }
-  return{ok:true,deviceId:packet.deviceId,keyId:key.keyId};
+  return{ok:true,deviceId,keyId:key.keyId};
+}
+
+export function verifyDevicePacketAuth(input:{packet:EdgeTelemetryPacket;keyId:string;signature:string;registry:DeviceKeyRegistry;nowMs?:number}):DeviceAuthResult{
+  const keyId=input.keyId.trim();
+  return verifyConfiguredSignature({deviceId:input.packet.deviceId,keyId,signature:input.signature,registry:input.registry,nowMs:input.nowMs??Date.now(),payload:canonicalDevicePacketPayload(input.packet,keyId)});
+}
+
+export function verifyDeviceIngressAuth(input:{scope:DeviceIngressScope;deviceId:string;keyId:string;signature:string;timestampMs:number;payload:unknown;registry:DeviceKeyRegistry;nowMs?:number}):DeviceAuthResult{
+  const keyId=input.keyId.trim();
+  const deviceId=input.deviceId.trim();
+  return verifyConfiguredSignature({deviceId,keyId,signature:input.signature,registry:input.registry,nowMs:input.nowMs??Date.now(),payload:canonicalDeviceIngressPayload(input.scope,deviceId,keyId,input.timestampMs,input.payload)});
 }
