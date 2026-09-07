@@ -76,5 +76,13 @@
     "safetyGoalIds": ["SG-009"],
     "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
     "expected": "bounded runtime limiter fails closed when unique-key capacity is exhausted"
+  },
+  {
+    "scenarioId": "FI-012",
+    "hazardIds": ["HZ-006"],
+    "safetyGoalIds": ["SG-006"],
+    "sotifIds": ["ST-016", "ST-017", "ST-018"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "discontinuous DMS observations become driver-unavailable instead of being stretched into a continuous window"
   }
 ]
