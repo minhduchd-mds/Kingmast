@@ -10,6 +10,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "sil:replay": "pnpm --filter @kingmast/risk-engine exec tsx src/sil-replay-cli.ts",
+    "hil:evidence": "node scripts/hil-evidence-check.mjs",
     "skills:validate": "node scripts/validate-agent-skills.mjs",
     "safety:boundary": "node scripts/safety-boundary-check.mjs",
     "architecture:boundary": "node scripts/architecture-boundary-check.mjs",
