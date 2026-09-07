@@ -1,9 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @kingmast/hmi build",
-  "outputDirectory": "apps/hmi/.next",
   "git": {
     "deploymentEnabled": {
       "main": true,
