@@ -112,7 +112,8 @@ export function deviceAuthSummary(registry:DeviceKeyRegistry,nowMs=Date.now()){
     if(key.notBeforeMs!==null&&nowMs<key.notBeforeMs){futureKeys+=1;continue;}
     activeKeys+=1;
   }
-  return{configuredDevices:registry.size,activeKeys,revokedKeys,expiredKeys,futureKeys,hmacKeys,ed25519Keys};
+  const algorithm=ed25519Keys>0?(hmacKeys>0?'HMAC-SHA256+Ed25519':'Ed25519'):'HMAC-SHA256';
+  return{configuredDevices:registry.size,activeKeys,revokedKeys,expiredKeys,futureKeys,hmacKeys,ed25519Keys,algorithm,preferredProductionIntent:'Ed25519' as const};
 }
 
 export function signDevicePacket(packet:EdgeTelemetryPacket,keyId:string,secret:string){
