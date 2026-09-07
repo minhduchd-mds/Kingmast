@@ -18,6 +18,7 @@
     "security:secrets": "node scripts/secret-scan.mjs",
     "security:config-auth": "node scripts/configuration-auth-policy-check.mjs",
     "security:provider-auth": "node scripts/provider-identity-policy-check.mjs",
+    "security:audit": "pnpm audit --audit-level=moderate",
     "audit:integrity": "node scripts/audit-integrity-policy-check.mjs",
     "ota:recovery-policy": "node scripts/update-recovery-policy-check.mjs",
     "firmware:policy": "node scripts/firmware-security-policy-check.mjs",
@@ -35,7 +36,10 @@
   "pnpm": {
     "overrides": {
       "postcss": "8.5.23"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
