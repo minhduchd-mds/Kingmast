@@ -19,7 +19,7 @@ The repository contains a `MemoryRollbackIndexStore` for unit/SIL testing only. 
 
 ## Production trust boundary
 
-The production implementation of `RollbackIndexStore` must use monotonic state that ordinary application code, filesystem rollback, image replacement or attacker-controlled configuration cannot decrease. Acceptable target technologies depend on the final compute platform and can include:
+The production implementation of `RollbackIndexStore` must use **hardware-protected monotonic state**, or an equivalently protected bootloader-owned mechanism, that ordinary application code, filesystem rollback, image replacement or attacker-controlled configuration cannot decrease. Acceptable target technologies depend on the final compute platform and can include:
 
 - secure-element monotonic counters;
 - TPM-backed NV counters;
