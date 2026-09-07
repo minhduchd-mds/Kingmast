@@ -50,7 +50,23 @@ jobs:
         run: pnpm audit --prod --audit-level=moderate
       - name: Production build
         run: pnpm build
+      - name: Generate build provenance
+        env:
+          KINGMAST_SBOM_PATH: /tmp/kingmast.cdx.json
+          KINGMAST_BUILD_PATHS: services/risk-engine/dist,apps/hmi/.next/BUILD_ID
+        run: |
+          node scripts/generate-build-provenance.mjs > /tmp/kingmast.provenance.json
+          node -e "const p=require('/tmp/kingmast.provenance.json'); const names=new Set(p.materials.map(x=>x.name)); if(p.schema!=='kingmast-build-provenance/v1'||p.subject.commit!==process.env.GITHUB_SHA||p.assertions.actuatorAuthority!=='none'||!names.has('cyclonedx-sbom')||!names.has('services/risk-engine/dist')||!names.has('apps/hmi/.next/BUILD_ID')) process.exit(1); console.log('KINGMAST build provenance validated for '+p.subject.commit);"
       - name: Install Chromium for HMI verification
         run: pnpm --filter @kingmast/hmi exec playwright install --with-deps chromium
       - name: Run automotive HMI UI tests
         run: pnpm --filter @kingmast/hmi test:ui
+      - name: Upload engineering evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kingmast-engineering-evidence-${{ github.run_id }}
+          path: |
+            /tmp/kingmast.cdx.json
+            /tmp/kingmast.provenance.json
+          if-no-files-found: error
+          retention-days: 14
