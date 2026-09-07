@@ -20,11 +20,25 @@ The journal stores only bounded `EdgeEventRecord` metadata:
 
 It does not store raw continuous camera video, cabin video, radar frames, full GNSS traces, device secrets, authentication headers or provider credentials.
 
+## Tamper-evident local chain
+
+New records use `kingmast-audit-event/v2`. Each JSONL entry contains:
+
+- `previousHash` — SHA-256 hash of the previous local entry, or `null` at a chain boundary;
+- `record` — bounded event metadata;
+- `entryHash` — SHA-256 over the schema, previous hash and record.
+
+`verifyAuditJournalText()` detects modified record content and broken links inside a retained journal file. On startup, the journal validates the active v2 file before continuing the chain. A corrupted active journal degrades evidence persistence rather than silently appending trusted-looking data.
+
+This is **tamper-evidence, not cryptographic authenticity**. A local attacker able to rewrite the complete file can recompute an unsigned chain. Production forensic evidence still requires protected keys/storage, signed or externally anchored evidence, access control and independent retention controls.
+
+Legacy `kingmast-audit-event/v1` files are accepted only as a migration boundary because v1 did not contain an integrity chain; the first v2 record starts a new chain from that boundary.
+
 ## Failure behavior
 
-Disk persistence is asynchronous. A journal write failure:
+Disk persistence is asynchronous. A journal write or integrity-initialization failure:
 
-- increments journal error state;
+- increments observable journal error state;
 - does not block deterministic risk calculation;
 - does not block driver warning delivery;
 - must not be interpreted as a healthy forensic/evidence state.
@@ -41,14 +55,14 @@ Configuration:
 - `KINGMAST_AUDIT_MAX_BYTES` — 16 KiB to 100 MiB, default 5 MiB;
 - `KINGMAST_AUDIT_MAX_FILES` — 1 to 10, default 3.
 
-When the active file would exceed the byte limit, files rotate. The configured file count is a hard upper bound. Files are created with owner-only mode where the platform honors POSIX permissions.
+When the active file would exceed the byte limit, files rotate. The configured file count is a hard upper bound. Files are created with owner-only mode where the platform honors POSIX permissions. Rotation keeps the in-process chain head where historical files are retained; a one-file configuration deliberately starts a new chain after deleting its only old file.
 
 ## Production-intent backlog
 
 This local journal is not the final persistence architecture. Production intent still requires:
 
 1. protected durable database/object storage;
-2. integrity/authenticity protection for evidence records;
+2. cryptographic authenticity or externally anchored integrity for evidence records;
 3. retention and deletion policy;
 4. bounded retry/back-pressure strategy;
 5. backup/restore verification;
