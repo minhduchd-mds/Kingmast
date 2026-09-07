@@ -17,6 +17,8 @@ const required=[
   'docs/validation/SIL_HIL_FAULT_INJECTION_PLAN_V006.md',
   'docs/validation/scenarios/V006_BASELINE.json',
   'docs/architecture/READ_ONLY_VEHICLE_PORT.md',
+  'docs/supplychain/BUILD_PROVENANCE_V006.md',
+  'docs/observability/AUDIT_JOURNAL_V006.md',
   'packages/contracts/src/vehicle-readonly.ts',
   'services/risk-engine/src/update-verifier.ts',
   'services/risk-engine/src/update-verifier.test.ts',
@@ -29,10 +31,13 @@ const required=[
   'services/risk-engine/src/bounded-state.test.ts',
   'services/risk-engine/src/device-auth.ts',
   'services/risk-engine/src/device-auth.test.ts',
+  'services/risk-engine/src/audit-journal.ts',
+  'services/risk-engine/src/audit-journal.test.ts',
   'scripts/architecture-boundary-check.mjs',
   'scripts/secret-scan.mjs',
   'scripts/firmware-security-policy-check.mjs',
   'scripts/generate-sbom.mjs',
+  'scripts/generate-build-provenance.mjs',
   '.github/workflows/codeql.yml',
   '.github/CODEOWNERS',
 ];
@@ -47,6 +52,8 @@ const surroundModel=read('docs/safety/SURROUND_CALIBRATION_MODEL_V006.md');
 const research=read('docs/research/OEM_BENCHMARK_CLEAN_ROOM_2026.md');
 const hardwareBaseline=read('docs/hardware/ESP32_SECURITY_BASELINE.md');
 const otaStateDoc=read('docs/updates/OTA_STATE_MACHINE_V006.md');
+const buildProvenanceDoc=read('docs/supplychain/BUILD_PROVENANCE_V006.md');
+const auditDoc=read('docs/observability/AUDIT_JOURNAL_V006.md');
 const vehiclePort=read('packages/contracts/src/vehicle-readonly.ts');
 const contractsPackage=read('packages/contracts/package.json');
 const contracts=read('packages/contracts/src/index.ts');
@@ -59,11 +66,14 @@ const updateState=read('services/risk-engine/src/update-state.ts');
 const dms=read('services/risk-engine/src/driver-monitoring.ts');
 const driverAssistRuntime=read('services/risk-engine/src/driver-assist-runtime.ts');
 const deviceAuth=read('services/risk-engine/src/device-auth.ts');
+const auditJournal=read('services/risk-engine/src/audit-journal.ts');
+const eventBuffer=read('services/risk-engine/src/event-buffer.ts');
 const riskServer=read('services/risk-engine/src/server.ts');
 const architectureBoundary=read('scripts/architecture-boundary-check.mjs');
 const secretScan=read('scripts/secret-scan.mjs');
 const firmwarePolicy=read('scripts/firmware-security-policy-check.mjs');
 const sbom=read('scripts/generate-sbom.mjs');
+const provenance=read('scripts/generate-build-provenance.mjs');
 const ci=read('.github/workflows/ci.yml');
 const codeql=read('.github/workflows/codeql.yml');
 const scenarioTests=read('services/risk-engine/src/safety-scenarios.test.ts');
@@ -87,10 +97,14 @@ if(!contracts.includes('geometryConfidence:number')||!contracts.includes('calibr
 if(!surroundModel.includes('every configured camera')||!surroundModel.includes('visualization-only'))failures.push('surround calibration model must preserve complete-camera and visualization-only safety boundary');
 if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createHmac('sha256'")||!deviceAuth.includes("'device-key-revoked'"))failures.push('per-device signed packet identity/rotation/revocation contract missing');
 if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
+if(!auditJournal.includes('class BoundedAuditJournal')||!auditJournal.includes('KINGMAST_AUDIT_JOURNAL_PATH')||!auditJournal.includes("kingmast-audit-event/v1")||!eventBuffer.includes('createAuditJournalFromEnv')||!eventBuffer.includes('auditStatus'))failures.push('bounded local audit-journal evidence contract missing');
+if(!auditDoc.includes('does not store raw continuous camera video')||!auditDoc.includes('warning path depend on storage availability'))failures.push('audit journal documentation must preserve metadata-only and safety-operation independence boundaries');
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
 if(!firmwarePolicy.includes('setInsecure')||!firmwarePolicy.includes('setCACert')||!ci.includes('pnpm firmware:policy'))failures.push('ESP32 firmware security policy must remain enforced in CI');
 if(!hardwareBaseline.includes('secure boot')||!hardwareBaseline.includes('hardware-protected key')||!hardwareBaseline.includes('read-only'))failures.push('ESP32 hardware security baseline must preserve secure-boot/key-storage/read-only targets');
 if(!sbom.includes("bomFormat:'CycloneDX'")||!sbom.includes("specVersion:'1.5'")||!ci.includes('node scripts/generate-sbom.mjs'))failures.push('CycloneDX production dependency SBOM generation must remain in CI');
+if(!provenance.includes("schema:'kingmast-build-provenance/v1'")||!provenance.includes("actuatorAuthority:'none'")||!provenance.includes('KINGMAST_BUILD_PATHS')||!ci.includes('Generate build provenance')||!ci.includes('/tmp/kingmast.provenance.json')||!ci.includes('actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02'))failures.push('build provenance / pinned evidence upload contract missing');
+if(!buildProvenanceDoc.includes('GITHUB_SHA')||!buildProvenanceDoc.includes('actuatorAuthority: none')||!/not a standards certification/i.test(buildProvenanceDoc))failures.push('build provenance documentation must preserve source identity, no-actuation and non-certification boundaries');
 if(!ci.includes('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1')||!ci.includes('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020')||!ci.includes('pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413'))failures.push('core CI actions must remain pinned to reviewed immutable commits');
 if(!codeql.includes('github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938')||!codeql.includes('github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938'))failures.push('CodeQL workflow must remain pinned to the reviewed v4 commit');
 for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/packages/contracts/','/.github/workflows/'])if(!codeowners.includes(requiredOwnerPath))failures.push(`CODEOWNERS missing ${requiredOwnerPath}`);
