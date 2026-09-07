@@ -1,4 +1,4 @@
-import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,readdir,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterEach,describe,expect,it} from 'vitest';
@@ -27,7 +27,7 @@ describe('BoundedAuditJournal',()=>{
     expect(second.previousHash).toBe(first.entryHash);
     expect(first.record.id).toBe('event-1');
     expect(first.record).not.toHaveProperty('rawVideo');
-    expect(verifyAuditJournalText(text)).toMatchObject({ok:true,entries:2,lastHash:second.entryHash});
+    expect(verifyAuditJournalText(text)).toMatchObject({ok:true,entries:2,legacyEntries:0,lastHash:second.entryHash});
     expect(journal.status()).toMatchObject({enabled:true,pending:0,written:2,writeErrors:0,integrityErrors:0,integrityHead:second.entryHash});
   });
 
@@ -42,6 +42,20 @@ describe('BoundedAuditJournal',()=>{
     const lines=text.trim().split('\n').map((line)=>JSON.parse(line));
     lines[1].previousHash='0'.repeat(64);
     expect(verifyAuditJournalText(lines.map((line)=>JSON.stringify(line)).join('\n'))).toMatchObject({ok:false,reason:'chain-link-mismatch'});
+  });
+
+  it('migrates a legacy v1 prefix by starting an explicit v2 chain boundary',async()=>{
+    const dir=await mkdtemp(join(tmpdir(),'kingmast-audit-'));dirs.push(dir);
+    const path=join(dir,'events.jsonl');
+    await writeFile(path,`${JSON.stringify({schema:'kingmast-audit-event/v1',record:record(0)})}\n`,'utf8');
+    const journal=new BoundedAuditJournal(path,16*1024,3);
+    journal.append(record(1));
+    await journal.flush();
+    const text=await readFile(path,'utf8');
+    const lines=text.trim().split('\n').map((line)=>JSON.parse(line));
+    expect(lines[1].schema).toBe('kingmast-audit-event/v2');
+    expect(lines[1].previousHash).toBeNull();
+    expect(verifyAuditJournalText(text)).toMatchObject({ok:true,entries:1,legacyEntries:1,lastHash:lines[1].entryHash});
   });
 
   it('rotates and bounds the number of journal files',async()=>{
