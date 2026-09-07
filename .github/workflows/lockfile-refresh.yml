@@ -10,16 +10,16 @@ on:
       - .github/workflows/lockfile-refresh.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   generate:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
+      - name: Checkout upgrade branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: false
+          ref: upgrade/next16-ts7-2026
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
         with:
@@ -29,14 +29,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Regenerate lockfile
-        run: pnpm install --lockfile-only --no-frozen-lockfile
-      - name: Verify regenerated lockfile
-        run: pnpm install --frozen-lockfile
-      - name: Upload lockfile
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: kingmast-next16-ts7-lockfile
-          path: pnpm-lock.yaml
-          if-no-files-found: error
-          retention-days: 1
+      - name: Regenerate and verify lockfile
+        run: |
+          pnpm install --lockfile-only --no-frozen-lockfile
+          pnpm install --frozen-lockfile
+      - name: Commit lockfile only
+        run: |
+          git config user.name "kingmast-upgrade-bot"
+          git config user.email "29146304+minhduchd-mds@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already current."
+            exit 0
+          fi
+          git commit -m "deps(platform): regenerate lockfile for Next 16 and TypeScript 7"
+          git push origin HEAD:upgrade/next16-ts7-2026
