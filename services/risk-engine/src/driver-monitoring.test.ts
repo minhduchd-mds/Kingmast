@@ -23,6 +23,21 @@ describe('assessDriverMonitoring',()=>{
     expect(result.reason).toBe('insufficient-temporal-window');
     expect(result.confidence).toBe(0);
   });
+  it('rejects several frames compressed into an unrealistically short temporal span',()=>{
+    const base=1_800_000_000_000;
+    const result=assessDriverMonitoring([0,300,600].map((offset)=>({timestampMs:base+offset,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95})));
+    expect(result.state).toBe('driver-unavailable');
+    expect(result.reason).toBe('insufficient-temporal-span');
+  });
+  it('rejects discontinuous cabin evidence instead of stretching it into a continuous window',()=>{
+    const samples=windowSamples(6,()=>({}));
+    samples[4]={...samples[4]!,timestampMs:samples[3]!.timestampMs+5_000};
+    samples[5]={...samples[5]!,timestampMs:samples[4]!.timestampMs+1_000};
+    samples[6]={...samples[6]!,timestampMs:samples[5]!.timestampMs+1_000};
+    const result=assessDriverMonitoring(samples);
+    expect(result.state).toBe('driver-unavailable');
+    expect(result.reason).toBe('cabin-observation-discontinuous');
+  });
   it('fails unavailable when most cabin observations are below the reliability floor',()=>{
     const result=assessDriverMonitoring(windowSamples(6,(index)=>({confidence:index<5?.2:.95})));
     expect(result.state).toBe('driver-unavailable');
