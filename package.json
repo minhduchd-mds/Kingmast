@@ -20,8 +20,10 @@
     "ota:recovery-policy": "node scripts/update-recovery-policy-check.mjs",
     "firmware:policy": "node scripts/firmware-security-policy-check.mjs",
     "firmware:evidence": "node scripts/firmware-trust-evidence-check.mjs",
+    "release:identity-policy": "node scripts/release-identity-policy-check.mjs",
     "supplychain:sbom": "node scripts/generate-sbom.mjs",
     "supplychain:provenance": "node scripts/generate-build-provenance.mjs",
+    "evidence:anchor": "node scripts/generate-evidence-anchor.mjs",
     "evidence:validate": "node scripts/engineering-evidence-check.mjs",
     "vercel:policy": "node scripts/vercel-deploy-policy-check.mjs"
   },
