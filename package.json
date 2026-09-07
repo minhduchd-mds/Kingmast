@@ -11,6 +11,7 @@
     "test": "pnpm -r test",
     "skills:validate": "node scripts/validate-agent-skills.mjs",
     "safety:boundary": "node scripts/safety-boundary-check.mjs",
+    "architecture:boundary": "node scripts/architecture-boundary-check.mjs",
     "security:secrets": "node scripts/secret-scan.mjs",
     "firmware:policy": "node scripts/firmware-security-policy-check.mjs",
     "supplychain:sbom": "node scripts/generate-sbom.mjs",
