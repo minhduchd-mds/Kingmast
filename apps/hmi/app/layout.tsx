@@ -21,6 +21,7 @@ import './hmi-control-system.css';
 import './hmi-apple-density.css';
 import './hmi-surround-v2.css';
 import './hmi-surround-v2-compat.css';
+import './hmi-surround-effects-v3.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 import DriverCapabilityRail from '../components/DriverCapabilityRail';
 import SurroundSpatialOverlay from '../components/SurroundSpatialOverlay';
