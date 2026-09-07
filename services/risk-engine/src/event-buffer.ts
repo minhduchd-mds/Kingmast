@@ -1,7 +1,7 @@
 import type { EdgeEventRecord, Severity, TelemetryFrame } from '@kingmast/contracts';
 import { createAuditJournalFromEnv, type AuditJournalStatus, type BoundedAuditJournal } from './audit-journal.js';
 
-const DISABLED_AUDIT_STATUS:AuditJournalStatus={enabled:false,path:null,pending:0,written:0,writeErrors:0,rotations:0,lastErrorAtMs:null};
+const DISABLED_AUDIT_STATUS:AuditJournalStatus={enabled:false,path:null,pending:0,written:0,writeErrors:0,integrityErrors:0,rotations:0,lastErrorAtMs:null,integrityHead:null};
 
 export class EdgeEventBuffer {
   private readonly records:EdgeEventRecord[]=[];
