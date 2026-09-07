@@ -5,6 +5,9 @@ import { assessRisk } from './risk.js';
 import { EdgePacketGuard } from './edge-guard.js';
 import { assessDriverMonitoring,type DriverMonitoringSample } from './driver-monitoring.js';
 import { canonicalUpdatePayload,evaluateInstallEligibility,verifyUpdatePackage,type UpdateManifest } from './update-verifier.js';
+import { UpdateLifecycle } from './update-state.js';
+import { parseDeviceKeyRegistry,signDevicePacket,verifyDevicePacketAuth } from './device-auth.js';
+import { BoundedFixedWindowRateLimiter } from './bounded-state.js';
 
 const now=1_800_000_000_000;
 const sensors:SensorHealth={radarFront:'ok',radarRear:'unavailable',camera:'ok',can:'ok',gnssImu:'ok',ecu:'ok'};
@@ -51,5 +54,45 @@ describe('KINGMAST v0.0.6 traceable safety scenarios',()=>{
     const result=evaluateInstallEligibility({packageVerified:true,parked:true,speedKmh:7,powerStable:true,energyReserveOk:true,thermalOk:true,storageOk:true,criticalOperationActive:false});
     expect(result.eligible).toBe(false);
     expect(result.reasons).toContain('vehicle-moving');
+  });
+
+  it('FI-007 HZ-010 rejects packet tampering after per-device signing',()=>{
+    const secret='0123456789abcdef0123456789abcdef';
+    const packet=edgePacket(7);
+    const registry=parseDeviceKeyRegistry(JSON.stringify({'edge-fi':[{keyId:'active',secret,state:'active'}]}));
+    const signature=signDevicePacket(packet,'active',secret);
+    const tampered={...packet,gnss:{...packet.gnss,speedKmh:95}};
+    expect(verifyDevicePacketAuth({packet:tampered,keyId:'active',signature,registry,nowMs:now})).toEqual({ok:false,reason:'device-signature-invalid'});
+  });
+
+  it('FI-008 HZ-010 rejects a revoked device credential',()=>{
+    const secret='0123456789abcdef0123456789abcdef';
+    const packet=edgePacket(8);
+    const registry=parseDeviceKeyRegistry(JSON.stringify({'edge-fi':[{keyId:'revoked',secret,state:'revoked'}]}));
+    const signature=signDevicePacket(packet,'revoked',secret);
+    expect(verifyDevicePacketAuth({packet,keyId:'revoked',signature,registry,nowMs:now})).toEqual({ok:false,reason:'device-key-revoked'});
+  });
+
+  it('FI-009 HZ-009 requires rollback after post-install boot-health failure',()=>{
+    const lifecycle=new UpdateLifecycle();
+    lifecycle.stage({updateId:'123e4567-e89b-42d3-a456-426614174009',softwareVersion:'0.0.7',rollbackIndex:7});
+    lifecycle.markVerified();
+    lifecycle.markReady({eligible:true,reasons:[]});
+    lifecycle.beginInstall();
+    lifecycle.markInstalled();
+    expect(lifecycle.reportBootFailure('watchdog-reset').state).toBe('rollback-required');
+  });
+
+  it('FI-010 HZ-009 prevents install when package verification was skipped',()=>{
+    const lifecycle=new UpdateLifecycle();
+    lifecycle.stage({updateId:'123e4567-e89b-42d3-a456-426614174010',softwareVersion:'0.0.7',rollbackIndex:7});
+    expect(()=>lifecycle.beginInstall()).toThrow(/requires ready/);
+  });
+
+  it('FI-011 HZ-012 fails closed when bounded runtime capacity is exhausted',()=>{
+    const limiter=new BoundedFixedWindowRateLimiter(1);
+    expect(limiter.consume('client-a',10,now).allowed).toBe(true);
+    expect(limiter.consume('client-b',10,now)).toEqual({allowed:false,retryAfterS:1,reason:'capacity'});
+    expect(limiter.capacityRejected).toBe(1);
   });
 });
