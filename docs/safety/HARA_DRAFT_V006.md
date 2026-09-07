@@ -33,6 +33,7 @@ KINGMAST observes trusted sensor/vehicle/context inputs, computes deterministic 
 - SG-006: DMS SHALL expose uncertainty/availability and SHALL NOT require identity recognition or continuous raw-video retention.
 - SG-007: software/firmware versions used for evidence SHALL be identifiable and update provenance verifiable.
 - SG-008: security-sensitive ingress SHALL authenticate and reject replayed/untrusted data.
+- SG-009: safety-relevant runtime state SHALL remain bounded and SHALL fail closed or degrade explicitly when configured capacity is exhausted.
 
 ## Traceability convention
 
