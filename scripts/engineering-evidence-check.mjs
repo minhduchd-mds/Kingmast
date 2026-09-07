@@ -17,6 +17,8 @@ const required=[
   'services/risk-engine/src/update-verifier.ts',
   'services/risk-engine/src/update-verifier.test.ts',
   'services/risk-engine/src/safety-scenarios.test.ts',
+  'services/risk-engine/src/bounded-state.ts',
+  'services/risk-engine/src/bounded-state.test.ts',
   '.github/CODEOWNERS',
 ];
 const failures=[];
@@ -30,6 +32,8 @@ const research=read('docs/research/OEM_BENCHMARK_CLEAN_ROOM_2026.md');
 const vehiclePort=read('packages/contracts/src/vehicle-readonly.ts');
 const contractsPackage=read('packages/contracts/package.json');
 const edgeGuard=read('services/risk-engine/src/edge-guard.ts');
+const boundedState=read('services/risk-engine/src/bounded-state.ts');
+const roadContextRoutes=read('services/risk-engine/src/road-context-routes.ts');
 const clientError=read('apps/hmi/app/api/kingmast/client-error/route.ts');
 const updateVerifier=read('services/risk-engine/src/update-verifier.ts');
 const scenarioTests=read('services/risk-engine/src/safety-scenarios.test.ts');
@@ -40,6 +44,8 @@ if(!/public evidence -> abstract requirement -> independent KINGMAST design -> i
 if(!vehiclePort.includes("VEHICLE_PORT_AUTHORITY='read-only'")||!vehiclePort.includes('interface ReadOnlyVehiclePort'))failures.push('read-only vehicle integration contract missing or weakened');
 if(!contractsPackage.includes('"./vehicle-readonly":"./src/vehicle-readonly.ts"'))failures.push('read-only vehicle contract package export missing');
 if(!edgeGuard.includes('DEFAULT_MAX_SESSIONS')||!edgeGuard.includes("'session-capacity'"))failures.push('edge replay-session storage must remain bounded and fail closed at capacity');
+if(!boundedState.includes('class BoundedFixedWindowRateLimiter')||!boundedState.includes('class BoundedMonotonicTimestampStore'))failures.push('bounded runtime state primitives missing');
+if(!roadContextRoutes.includes('BoundedFixedWindowRateLimiter')||!roadContextRoutes.includes('BoundedMonotonicTimestampStore')||!roadContextRoutes.includes("'/v4/runtime/diagnostics'"))failures.push('road-context runtime must use bounded abuse/replay state and authenticated diagnostics');
 if(!clientError.includes('MAX_RATE_KEYS=256')||!clientError.includes("error:'client-report-rate-limited'")||!clientError.includes('function redact('))failures.push('client-error ingestion hardening contract missing');
 if(!updateVerifier.includes('verifyUpdatePackage')||!updateVerifier.includes('artifact-hash-mismatch')||!updateVerifier.includes('rollback-rejected')||!updateVerifier.includes('evaluateInstallEligibility'))failures.push('signed update verification/install eligibility contract missing');
 for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/packages/contracts/','/.github/workflows/'])if(!codeowners.includes(requiredOwnerPath))failures.push(`CODEOWNERS missing ${requiredOwnerPath}`);
