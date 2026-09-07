@@ -9,8 +9,6 @@ updates:
       timezone: Etc/UTC
     open-pull-requests-limit: 5
     rebase-strategy: auto
-    labels:
-      - dependencies
     commit-message:
       prefix: "deps"
     groups:
@@ -34,7 +32,5 @@ updates:
       timezone: Etc/UTC
     open-pull-requests-limit: 3
     rebase-strategy: auto
-    labels:
-      - dependencies
     commit-message:
       prefix: "deps(actions)"
