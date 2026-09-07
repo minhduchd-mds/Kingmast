@@ -6,11 +6,16 @@ Status: research/prototype security architecture. This is a transitional design 
 
 Replace one shared edge-ingest credential with identity that is bound to an individual edge device and can be rotated or revoked independently.
 
-The v0.0.6 implementation adds per-device HMAC-SHA256 authentication to the consolidated `/v3/edge/frame` packet route. Existing legacy sensor routes continue to use the shared research edge token until their publishers migrate.
+The v0.0.6 implementation supports two per-device packet-authentication modes on the consolidated `/v3/edge/frame` route:
+
+- `hmac-sha256` — transitional symmetric identity for bench migration;
+- `ed25519` — asymmetric packet signing where the server stores only the device public key.
+
+Existing legacy sensor routes continue to use the shared research edge token until their publishers migrate.
 
 ## Packet binding
 
-A device signature covers:
+Both algorithms sign the same canonical payload:
 
 ```text
 KINGMAST-EDGE-V1
@@ -22,23 +27,41 @@ KINGMAST-EDGE-V1
 <canonical packet JSON>
 ```
 
-The server verifies the signature using the key registry entry associated with `packet.deviceId` and the supplied `x-kingmast-device-key-id` header. Replay/freshness checks are still performed independently by the edge packet guard.
+The server resolves the key registry entry associated with `packet.deviceId` and `x-kingmast-device-key-id`, then verifies according to that key's declared algorithm. Replay/freshness checks remain independent in the edge packet guard.
 
 Headers:
 
 - `x-kingmast-device-key-id`
-- `x-kingmast-device-signature` — lowercase/uppercase hexadecimal HMAC-SHA256 is accepted
+- `x-kingmast-device-signature`
+  - HMAC-SHA256: 64-character hexadecimal digest;
+  - Ed25519: canonical base64 encoding of the 64-byte signature.
 
 ## Registry and rotation
 
-`KINGMAST_DEVICE_KEYS_JSON` is server-only. The conceptual shape is:
+`KINGMAST_DEVICE_KEYS_JSON` is server-only. HMAC migration example:
 
 ```json
 {
   "edge-1": [
     {
-      "keyId": "2026-09-a",
+      "keyId": "2026-09-hmac-a",
+      "algorithm": "hmac-sha256",
       "secret": "replace-with-a-random-secret-of-at-least-32-characters",
+      "state": "active"
+    }
+  ]
+}
+```
+
+Asymmetric example:
+
+```json
+{
+  "edge-1": [
+    {
+      "keyId": "2026-09-ed25519-a",
+      "algorithm": "ed25519",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
       "state": "active",
       "notBeforeMs": 1788700000000,
       "notAfterMs": 1791300000000
@@ -51,13 +74,14 @@ Rules:
 
 - maximum four keys per device to bound configuration/state;
 - key IDs are unique per device;
-- secrets are at least 32 characters;
+- HMAC secrets are at least 32 characters;
+- Ed25519 records contain a valid Ed25519 public key and no shared secret;
 - keys can be `active` or `revoked`;
 - optional validity windows allow overlap during rotation;
 - expired, future, unknown and revoked keys fail closed;
-- diagnostics expose only counts/status, never key material.
+- diagnostics expose only counts/status, never secret/private key material.
 
-A normal rotation can temporarily provision old and new active keys, update the device, verify traffic on the new key, then mark the old key revoked and remove it after the incident/evidence retention period.
+A normal rotation can temporarily provision old and new active keys, update the device, verify traffic on the new key, then revoke/remove the old credential according to the evidence-retention policy.
 
 ## Enforcement modes
 
@@ -65,27 +89,30 @@ A normal rotation can temporarily provision old and new active keys, update the 
 
 `KINGMAST_REQUIRE_DEVICE_AUTH=1` requires a currently active device key at server startup and removes shared-token fallback for `/v3/edge/frame` outside explicit loopback development.
 
-This flag does not magically secure legacy `/v3/perception/*`, `/v3/edge/gnss` or `/v3/assist/*` publishers. Those routes remain migration backlog and must not be represented as per-device authenticated until converted.
+This flag does not secure legacy `/v3/perception/*`, `/v3/edge/gnss` or `/v3/assist/*` publishers. Those routes remain migration backlog and must not be represented as per-device authenticated until converted.
 
-## Why HMAC is transitional
+## Why Ed25519 is an intermediate step, not fleet PKI
 
-Per-device HMAC materially reduces the blast radius of one shared token and provides rotation/revocation semantics, but symmetric secrets are not the production target for a fleet. Production-intent hardware should progress to:
+Ed25519 removes the need for the server to store a device shared secret and gives KINGMAST an asymmetric identity primitive. The current registry is still a static research configuration: it does not provide certificate-chain validation, hardware attestation, automated provisioning, revocation distribution or mTLS transport identity.
+
+Production-intent hardware should progress toward:
 
 ```text
-hardware-protected private key
+hardware-protected non-exportable private key
   -> per-device certificate / mTLS or equivalent asymmetric identity
   -> provisioning authority
   -> rotation + revocation service
-  -> authenticated ingest scope
+  -> authenticated least-privilege ingest scope
   -> secure boot / measured software identity
 ```
 
-Private keys should be non-exportable where supported by secure element/TPM/HSM-backed hardware.
+The current Ed25519 packet-signature mode is useful for bench/closed research and migration testing, but must not be described as fleet-grade PKI.
 
 ## Operational requirements before vehicle/fleet use
 
 - secure provisioning ceremony and asset inventory;
 - device certificate/key issuance and revocation workflow;
+- hardware-backed private key on the target platform;
 - key compromise incident runbook;
 - authenticated time/freshness strategy appropriate to target hardware;
 - secure boot and signed firmware chain;
@@ -97,6 +124,6 @@ Private keys should be non-exportable where supported by secure element/TPM/HSM-
 
 ## Security boundary
 
-Device authentication only proves that a packet was produced by a holder of the configured device credential. It does not make sensor data physically correct, calibrated, non-spoofed or safe. Freshness, sequence, sensor-health, confidence, fusion and safety logic remain separate required controls.
+Device authentication only proves that a packet was produced by a holder of the configured credential. It does not make sensor data physically correct, calibrated, non-spoofed or safe. Freshness, sequence, sensor-health, confidence, fusion and safety logic remain separate required controls.
 
 KINGMAST remains Level 0 warning-only. Device identity cannot create steering, brake, throttle, torque, gear or generic CAN-write authority.
