@@ -24,6 +24,7 @@
     "supplychain:sbom": "node scripts/generate-sbom.mjs",
     "supplychain:provenance": "node scripts/generate-build-provenance.mjs",
     "evidence:anchor": "node scripts/generate-evidence-anchor.mjs",
+    "evidence:anchor-verify": "node scripts/verify-evidence-anchor.mjs",
     "evidence:validate": "node scripts/engineering-evidence-check.mjs",
     "vercel:policy": "node scripts/vercel-deploy-policy-check.mjs"
   },
