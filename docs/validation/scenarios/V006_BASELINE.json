@@ -41,5 +41,40 @@
     "safetyGoalIds": ["SG-001", "SG-007"],
     "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
     "expected": "software update eligibility is denied while vehicle speed is nonzero"
+  },
+  {
+    "scenarioId": "FI-007",
+    "hazardIds": ["HZ-010"],
+    "safetyGoalIds": ["SG-008"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "packet tampering after per-device signing is rejected"
+  },
+  {
+    "scenarioId": "FI-008",
+    "hazardIds": ["HZ-010"],
+    "safetyGoalIds": ["SG-008"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "revoked device credentials are rejected even with a valid signature"
+  },
+  {
+    "scenarioId": "FI-009",
+    "hazardIds": ["HZ-009"],
+    "safetyGoalIds": ["SG-007"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "post-install boot-health failure requires rollback"
+  },
+  {
+    "scenarioId": "FI-010",
+    "hazardIds": ["HZ-009"],
+    "safetyGoalIds": ["SG-007"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "update lifecycle cannot skip package verification before install"
+  },
+  {
+    "scenarioId": "FI-011",
+    "hazardIds": ["HZ-012"],
+    "safetyGoalIds": ["SG-009"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "bounded runtime limiter fails closed when unique-key capacity is exhausted"
   }
 ]
