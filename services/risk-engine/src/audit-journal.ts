@@ -30,20 +30,31 @@ export function verifyAuditJournalText(text:string){
   const lines=text.split('\n').map((line)=>line.trim()).filter(Boolean);
   let lastHash:string|null=null;
   let entries=0;
+  let legacyEntries=0;
+  let seenV2=false;
   for(const line of lines){
     let parsed:unknown;
-    try{parsed=JSON.parse(line);}catch{return{ok:false as const,reason:'invalid-json',entries,lastHash};}
-    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return{ok:false as const,reason:'invalid-envelope',entries,lastHash};
+    try{parsed=JSON.parse(line);}catch{return{ok:false as const,reason:'invalid-json',entries,legacyEntries,lastHash};}
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return{ok:false as const,reason:'invalid-envelope',entries,legacyEntries,lastHash};
+    const schema=(parsed as {schema?:unknown}).schema;
+    if(schema==='kingmast-audit-event/v1'){
+      if(seenV2)return{ok:false as const,reason:'legacy-entry-after-v2',entries,legacyEntries,lastHash};
+      legacyEntries+=1;
+      lastHash=null;
+      continue;
+    }
     const envelope=parsed as Partial<AuditEnvelopeV2>;
-    if(envelope.schema!=='kingmast-audit-event/v2'||!envelope.record||!validHash(envelope.entryHash))return{ok:false as const,reason:'invalid-envelope',entries,lastHash};
-    if(envelope.previousHash!==null&&!validHash(envelope.previousHash))return{ok:false as const,reason:'invalid-previous-hash',entries,lastHash};
-    if(entries>0&&envelope.previousHash!==lastHash)return{ok:false as const,reason:'chain-link-mismatch',entries,lastHash};
+    if(envelope.schema!=='kingmast-audit-event/v2'||!envelope.record||!validHash(envelope.entryHash))return{ok:false as const,reason:'invalid-envelope',entries,legacyEntries,lastHash};
+    seenV2=true;
+    if(envelope.previousHash!==null&&!validHash(envelope.previousHash))return{ok:false as const,reason:'invalid-previous-hash',entries,legacyEntries,lastHash};
+    if(entries===0&&legacyEntries>0&&envelope.previousHash!==null)return{ok:false as const,reason:'legacy-boundary-must-reset-chain',entries,legacyEntries,lastHash};
+    if(entries>0&&envelope.previousHash!==lastHash)return{ok:false as const,reason:'chain-link-mismatch',entries,legacyEntries,lastHash};
     const expected=hashEnvelope(envelope.previousHash,envelope.record);
-    if(expected!==envelope.entryHash)return{ok:false as const,reason:'entry-hash-mismatch',entries,lastHash};
+    if(expected!==envelope.entryHash)return{ok:false as const,reason:'entry-hash-mismatch',entries,legacyEntries,lastHash};
     lastHash=envelope.entryHash;
     entries+=1;
   }
-  return{ok:true as const,entries,lastHash};
+  return{ok:true as const,entries,legacyEntries,lastHash};
 }
 
 export class BoundedAuditJournal {
@@ -93,18 +104,10 @@ export class BoundedAuditJournal {
     await mkdir(dirname(this.path),{recursive:true});
     if(await exists(this.path)){
       const text=await readFile(this.path,'utf8');
-      const lines=text.split('\n').map((line)=>line.trim()).filter(Boolean);
-      if(lines.length){
-        let last:unknown;
-        try{last=JSON.parse(lines.at(-1)!);}catch{this.integrityErrors+=1;throw new Error('audit journal integrity initialization failed');}
-        if(last&&typeof last==='object'&&!Array.isArray(last)&&(last as {schema?:unknown}).schema==='kingmast-audit-event/v1'){
-          // Backward-compatible research migration: v1 had no integrity chain, so v2 starts a new chain boundary.
-          this.integrityHead=null;
-        }else{
-          const verified=verifyAuditJournalText(text);
-          if(!verified.ok){this.integrityErrors+=1;throw new Error(`audit journal integrity check failed: ${verified.reason}`);}
-          this.integrityHead=verified.lastHash;
-        }
+      if(text.trim()){
+        const verified=verifyAuditJournalText(text);
+        if(!verified.ok){this.integrityErrors+=1;throw new Error(`audit journal integrity check failed: ${verified.reason}`);}
+        this.integrityHead=verified.lastHash;
       }
     }
     this.initialized=true;
