@@ -8,6 +8,7 @@ const required=[
   'docs/safety/ODD_V006.md',
   'docs/safety/HARA_DRAFT_V006.md',
   'docs/safety/SOTIF_SCENARIO_CATALOG_V006.md',
+  'docs/safety/SURROUND_CALIBRATION_MODEL_V006.md',
   'docs/cybersecurity/TARA_V006.md',
   'docs/cybersecurity/DEVICE_IDENTITY_V006.md',
   'docs/hardware/ESP32_SECURITY_BASELINE.md',
@@ -41,11 +42,13 @@ const plan=read('docs/program/KINGMAST_FULL_UPGRADE_PLAN_2026.md');
 const odd=read('docs/safety/ODD_V006.md');
 const hara=read('docs/safety/HARA_DRAFT_V006.md');
 const sotif=read('docs/safety/SOTIF_SCENARIO_CATALOG_V006.md');
+const surroundModel=read('docs/safety/SURROUND_CALIBRATION_MODEL_V006.md');
 const research=read('docs/research/OEM_BENCHMARK_CLEAN_ROOM_2026.md');
 const hardwareBaseline=read('docs/hardware/ESP32_SECURITY_BASELINE.md');
 const otaStateDoc=read('docs/updates/OTA_STATE_MACHINE_V006.md');
 const vehiclePort=read('packages/contracts/src/vehicle-readonly.ts');
 const contractsPackage=read('packages/contracts/package.json');
+const contracts=read('packages/contracts/src/index.ts');
 const edgeGuard=read('services/risk-engine/src/edge-guard.ts');
 const boundedState=read('services/risk-engine/src/bounded-state.ts');
 const roadContextRoutes=read('services/risk-engine/src/road-context-routes.ts');
@@ -77,6 +80,8 @@ if(!updateState.includes('class UpdateLifecycle')||!updateState.includes("'pendi
 if(!otaStateDoc.includes('staged')||!otaStateDoc.includes('pending-boot')||!otaStateDoc.includes('rollback-required'))failures.push('OTA lifecycle documentation must preserve verified install and rollback states');
 if(!dms.includes('MAX_SAMPLE_GAP_MS')||!dms.includes("'insufficient-temporal-span'")||!dms.includes("'cabin-observation-discontinuous'"))failures.push('DMS must fail closed on compressed or discontinuous temporal evidence');
 if(!driverAssistRuntime.includes('DMS_HARD_UNAVAILABLE_REASONS')||!driverAssistRuntime.includes("'cabin-observation-discontinuous'"))failures.push('DMS runtime availability must represent hard cabin-observation loss as unavailable');
+if(!contracts.includes('geometryConfidence:number')||!contracts.includes('calibrationUncertaintyPx:number|null')||!driverAssistRuntime.includes('fullyReady')||!driverAssistRuntime.includes('readyCameraCount'))failures.push('surround runtime must expose calibration uncertainty and complete-camera readiness');
+if(!surroundModel.includes('every configured camera')||!surroundModel.includes('visualization-only'))failures.push('surround calibration model must preserve complete-camera and visualization-only safety boundary');
 if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createHmac('sha256'")||!deviceAuth.includes("'device-key-revoked'"))failures.push('per-device signed packet identity/rotation/revocation contract missing');
 if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
@@ -89,7 +94,7 @@ for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/p
 
 try{
   const scenarios=JSON.parse(read('docs/validation/scenarios/V006_BASELINE.json'));
-  if(!Array.isArray(scenarios)||scenarios.length<12)failures.push('baseline validation scenario manifest must contain at least twelve traceable scenarios');
+  if(!Array.isArray(scenarios)||scenarios.length<13)failures.push('baseline validation scenario manifest must contain at least thirteen traceable scenarios');
   else for(const scenario of scenarios){
     if(typeof scenario.scenarioId!=='string'||!scenarioTests.includes(scenario.scenarioId))failures.push(`scenario test missing ${scenario.scenarioId??'unknown-id'}`);
     for(const hazardId of scenario.hazardIds??[])if(!hara.includes(hazardId))failures.push(`scenario ${scenario.scenarioId} references unknown hazard ${hazardId}`);
