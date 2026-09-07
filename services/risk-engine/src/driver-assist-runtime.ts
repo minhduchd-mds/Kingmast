@@ -21,6 +21,7 @@ const SURROUND_LIVE_MS=2_000;
 const SURROUND_STALE_MS=4_000;
 const DMS_WINDOW_MS=12_000;
 const MAX_REPROJECTION_ERROR_PX=3;
+const MIN_SURROUND_CAMERAS=4;
 const DMS_HARD_UNAVAILABLE_REASONS=new Set(['no-reliable-cabin-observation','driver-face-unavailable','cabin-observation-discontinuous']);
 const DMS_DEGRADED_REASONS=new Set(['insufficient-temporal-window','insufficient-temporal-span','cabin-observation-quality-low']);
 
@@ -32,6 +33,7 @@ function freshness(observedAtMs:number|undefined,nowMs:number,liveMs:number,stal
   if(age<=staleMs)return'degraded';
   return'unavailable';
 }
+function round2(value:number){return Number(Math.max(0,Math.min(1,value)).toFixed(2));}
 
 export class DriverAssistRuntime{
   private latestLane?:{observation:LaneObservation;assessment:LaneDepartureAssessment};
@@ -62,20 +64,26 @@ export class DriverAssistRuntime{
 
   private buildSurroundStatus(nowMs:number):SurroundRuntimeStatus{
     const sample=this.latestSurround;
-    if(!sample)return{availability:'unavailable',observedAtMs:null,ageMs:null,cameraCount:0,calibratedCameraCount:0,synchronizedCameraCount:0,maxReprojectionErrorPx:null,reason:'no-native-surround-observation',visualizationOnly:true};
+    if(!sample)return{availability:'unavailable',observedAtMs:null,ageMs:null,cameraCount:0,calibratedCameraCount:0,synchronizedCameraCount:0,readyCameraCount:0,maxReprojectionErrorPx:null,calibrationUncertaintyPx:null,geometryConfidence:0,fullyReady:false,reason:'no-native-surround-observation',visualizationOnly:true};
     const ageMs=ageOf(sample.timestampMs,nowMs);
     const cameraCount=sample.cameras.length;
     const calibratedCameraCount=sample.cameras.filter((camera)=>camera.calibrated).length;
     const synchronizedCameraCount=sample.cameras.filter((camera)=>camera.synchronized).length;
     const maxReprojectionErrorPx=cameraCount?Math.max(...sample.cameras.map((camera)=>camera.reprojectionErrorPx)):null;
-    const readyCameras=sample.cameras.filter((camera)=>camera.calibrated&&camera.synchronized&&camera.reprojectionErrorPx<=MAX_REPROJECTION_ERROR_PX).length;
+    const readyCameraCount=sample.cameras.filter((camera)=>camera.calibrated&&camera.synchronized&&camera.reprojectionErrorPx<=MAX_REPROJECTION_ERROR_PX).length;
+    const fullyReady=cameraCount>=MIN_SURROUND_CAMERAS&&readyCameraCount===cameraCount;
+    const calibrationCoverage=cameraCount?calibratedCameraCount/cameraCount:0;
+    const synchronizationCoverage=cameraCount?synchronizedCameraCount/cameraCount:0;
+    const reprojectionQuality=maxReprojectionErrorPx===null?0:Math.max(0,1-maxReprojectionErrorPx/(MAX_REPROJECTION_ERROR_PX*2));
+    const geometryConfidence=round2(Math.min(calibrationCoverage,synchronizationCoverage,reprojectionQuality));
+    const calibrationUncertaintyPx=maxReprojectionErrorPx===null?null:Number(maxReprojectionErrorPx.toFixed(2));
     const fresh=freshness(sample.timestampMs,nowMs,SURROUND_LIVE_MS,SURROUND_STALE_MS);
     let availability:DriverAssistAvailability=fresh;
     let reason='surround-calibration-ready';
-    if(fresh==='live'&&readyCameras<4){availability='degraded';reason='surround-calibration-incomplete';}
+    if(fresh==='live'&&!fullyReady){availability='degraded';reason=cameraCount<MIN_SURROUND_CAMERAS?'surround-camera-coverage-incomplete':'surround-calibration-incomplete';}
     else if(fresh==='degraded')reason='surround-observation-stale';
     else if(fresh==='unavailable')reason='surround-observation-unavailable';
-    return{availability,observedAtMs:sample.timestampMs,ageMs,cameraCount,calibratedCameraCount,synchronizedCameraCount,maxReprojectionErrorPx,reason,visualizationOnly:true};
+    return{availability,observedAtMs:sample.timestampMs,ageMs,cameraCount,calibratedCameraCount,synchronizedCameraCount,readyCameraCount,maxReprojectionErrorPx,calibrationUncertaintyPx,geometryConfidence,fullyReady,reason,visualizationOnly:true};
   }
 
   snapshot(nowMs=Date.now(),assistantContextAvailable=false):DriverAssistRuntimeSnapshot{
