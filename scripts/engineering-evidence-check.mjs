@@ -14,8 +14,10 @@ const required=[
   'docs/hardware/ESP32_SECURITY_BASELINE.md',
   'docs/updates/SUMS_OTA_ARCHITECTURE_V006.md',
   'docs/updates/OTA_STATE_MACHINE_V006.md',
+  'docs/updates/ANTI_ROLLBACK_TRUST_MODEL_V006.md',
   'docs/validation/SIL_HIL_FAULT_INJECTION_PLAN_V006.md',
   'docs/validation/scenarios/V006_BASELINE.json',
+  'docs/validation/replays/V006_RISK_REPLAY.json',
   'docs/architecture/READ_ONLY_VEHICLE_PORT.md',
   'docs/supplychain/BUILD_PROVENANCE_V006.md',
   'docs/observability/AUDIT_JOURNAL_V006.md',
@@ -26,6 +28,11 @@ const required=[
   'services/risk-engine/src/update-verifier.test.ts',
   'services/risk-engine/src/update-state.ts',
   'services/risk-engine/src/update-state.test.ts',
+  'services/risk-engine/src/anti-rollback.ts',
+  'services/risk-engine/src/anti-rollback.test.ts',
+  'services/risk-engine/src/sil-replay.ts',
+  'services/risk-engine/src/sil-replay.test.ts',
+  'services/risk-engine/src/sil-replay-cli.ts',
   'services/risk-engine/src/driver-monitoring.ts',
   'services/risk-engine/src/driver-assist-runtime.ts',
   'services/risk-engine/src/risk-observability.ts',
@@ -59,6 +66,8 @@ const research=read('docs/research/OEM_BENCHMARK_CLEAN_ROOM_2026.md');
 const deviceIdentityDoc=read('docs/cybersecurity/DEVICE_IDENTITY_V006.md');
 const hardwareBaseline=read('docs/hardware/ESP32_SECURITY_BASELINE.md');
 const otaStateDoc=read('docs/updates/OTA_STATE_MACHINE_V006.md');
+const antiRollbackDoc=read('docs/updates/ANTI_ROLLBACK_TRUST_MODEL_V006.md');
+const silHilPlan=read('docs/validation/SIL_HIL_FAULT_INJECTION_PLAN_V006.md');
 const buildProvenanceDoc=read('docs/supplychain/BUILD_PROVENANCE_V006.md');
 const auditDoc=read('docs/observability/AUDIT_JOURNAL_V006.md');
 const runtimeMetricsDoc=read('docs/observability/RUNTIME_METRICS_V006.md');
@@ -66,12 +75,16 @@ const governanceDoc=read('docs/governance/MAIN_BRANCH_PROTECTION.md');
 const vehiclePort=read('packages/contracts/src/vehicle-readonly.ts');
 const contractsPackage=read('packages/contracts/package.json');
 const contracts=read('packages/contracts/src/index.ts');
+const rootPackage=read('package.json');
 const edgeGuard=read('services/risk-engine/src/edge-guard.ts');
 const boundedState=read('services/risk-engine/src/bounded-state.ts');
 const roadContextRoutes=read('services/risk-engine/src/road-context-routes.ts');
 const clientError=read('apps/hmi/app/api/kingmast/client-error/route.ts');
 const updateVerifier=read('services/risk-engine/src/update-verifier.ts');
 const updateState=read('services/risk-engine/src/update-state.ts');
+const antiRollback=read('services/risk-engine/src/anti-rollback.ts');
+const silReplay=read('services/risk-engine/src/sil-replay.ts');
+const silReplayCli=read('services/risk-engine/src/sil-replay-cli.ts');
 const dms=read('services/risk-engine/src/driver-monitoring.ts');
 const driverAssistRuntime=read('services/risk-engine/src/driver-assist-runtime.ts');
 const risk=read('services/risk-engine/src/risk.ts');
@@ -103,6 +116,8 @@ if(!roadContextRoutes.includes('BoundedFixedWindowRateLimiter')||!roadContextRou
 if(!clientError.includes('MAX_RATE_KEYS=256')||!clientError.includes("error:'client-report-rate-limited'")||!clientError.includes('function redact('))failures.push('client-error ingestion hardening contract missing');
 if(!updateVerifier.includes('verifyUpdatePackage')||!updateVerifier.includes('artifact-hash-mismatch')||!updateVerifier.includes('rollback-rejected')||!updateVerifier.includes('evaluateInstallEligibility'))failures.push('signed update verification/install eligibility contract missing');
 if(!updateState.includes('class UpdateLifecycle')||!updateState.includes("'pending-boot'")||!updateState.includes("'rollback-required'"))failures.push('fail-safe OTA lifecycle/rollback state machine missing');
+if(!antiRollback.includes('class AntiRollbackGuard')||!antiRollback.includes('MemoryRollbackIndexStore')||!antiRollback.includes("protection='memory-test-only'")||!antiRollback.includes('update-not-boot-accepted'))failures.push('monotonic anti-rollback trust-boundary contract missing');
+if(!antiRollbackDoc.includes('must not advance')||!antiRollbackDoc.includes('memory-test-only')||!antiRollbackDoc.includes('hardware-protected')||!antiRollbackDoc.includes('not sufficient as the final anti-rollback root of trust'))failures.push('anti-rollback documentation must preserve post-boot commit and hardware-root boundaries');
 if(!otaStateDoc.includes('staged')||!otaStateDoc.includes('pending-boot')||!otaStateDoc.includes('rollback-required'))failures.push('OTA lifecycle documentation must preserve verified install and rollback states');
 if(!dms.includes('MAX_SAMPLE_GAP_MS')||!dms.includes("'insufficient-temporal-span'")||!dms.includes("'cabin-observation-discontinuous'"))failures.push('DMS must fail closed on compressed or discontinuous temporal evidence');
 if(!driverAssistRuntime.includes('DMS_HARD_UNAVAILABLE_REASONS')||!driverAssistRuntime.includes("'cabin-observation-discontinuous'"))failures.push('DMS runtime availability must represent hard cabin-observation loss as unavailable');
@@ -113,9 +128,11 @@ if(!deviceIdentityDoc.includes('server stores only the device public key')||!dev
 if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
 if(!auditJournal.includes('class BoundedAuditJournal')||!auditJournal.includes('KINGMAST_AUDIT_JOURNAL_PATH')||!auditJournal.includes("kingmast-audit-event/v1")||!eventBuffer.includes('createAuditJournalFromEnv')||!eventBuffer.includes('auditStatus'))failures.push('bounded local audit-journal evidence contract missing');
 if(!auditDoc.includes('does not store raw continuous camera video')||!auditDoc.includes('warning path depend on storage availability'))failures.push('audit journal documentation must preserve metadata-only and safety-operation independence boundaries');
-if(!riskMetrics.includes('class BoundedRiskMetrics')||!riskMetrics.includes('latencyMs')||!riskMetrics.includes('gt25')||!risk.includes('riskRuntimeMetrics.observe'))failures.push('bounded deterministic risk observability contract missing');
+if(!riskMetrics.includes('class BoundedRiskMetrics')||!riskMetrics.includes('latencyMs')||!riskMetrics.includes('gt25')||!riskMetrics.includes('future')||!risk.includes('riskRuntimeMetrics.observe')||!risk.includes('MAX_FUTURE_SKEW_MS')||!risk.includes('future-data-rejected'))failures.push('bounded deterministic risk observability/future-clock rejection contract missing');
 if(!riskServer.includes("'/v3/audit/status'")||!riskServer.includes('riskMetricsSnapshot()')||!riskServer.includes('eventBuffer.auditStatus()'))failures.push('authenticated risk/audit observability routes missing');
 if(!runtimeMetricsDoc.includes('fixed-size counters/buckets')||!runtimeMetricsDoc.includes('never vehicle-control inputs')||!runtimeMetricsDoc.includes('must not change deterministic warning decisions'))failures.push('runtime observability documentation must preserve fixed-cardinality and no-control boundaries');
+if(!silReplay.includes('runSilRiskReplaySuite')||!silReplay.includes("controlAuthority:'none'")||!silReplayCli.includes('kingmast')||!rootPackage.includes('"sil:replay"')||!ci.includes('Deterministic SIL replay evidence')||!ci.includes('/tmp/kingmast.sil-replay.json'))failures.push('executable deterministic SIL replay evidence gate missing');
+if(!silHilPlan.includes('pnpm sil:replay')||!silHilPlan.includes('does not satisfy a HIL-required scenario')||!silHilPlan.includes('No HIL result is claimed'))failures.push('SIL/HIL plan must distinguish executable SIL evidence from physical HIL evidence');
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
 if(!firmwarePolicy.includes('setInsecure')||!firmwarePolicy.includes('setCACert')||!ci.includes('pnpm firmware:policy'))failures.push('ESP32 firmware security policy must remain enforced in CI');
 if(!hardwareBaseline.includes('secure boot')||!hardwareBaseline.includes('hardware-protected key')||!hardwareBaseline.includes('read-only'))failures.push('ESP32 hardware security baseline must preserve secure-boot/key-storage/read-only targets');
@@ -131,7 +148,7 @@ for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/p
 
 try{
   const scenarios=JSON.parse(read('docs/validation/scenarios/V006_BASELINE.json'));
-  if(!Array.isArray(scenarios)||scenarios.length<14)failures.push('baseline validation scenario manifest must contain at least fourteen traceable scenarios');
+  if(!Array.isArray(scenarios)||scenarios.length<16)failures.push('baseline validation scenario manifest must contain at least sixteen traceable scenarios');
   else for(const scenario of scenarios){
     if(typeof scenario.scenarioId!=='string'||!scenarioTests.includes(scenario.scenarioId))failures.push(`scenario test missing ${scenario.scenarioId??'unknown-id'}`);
     for(const hazardId of scenario.hazardIds??[])if(!hara.includes(hazardId))failures.push(`scenario ${scenario.scenarioId} references unknown hazard ${hazardId}`);
@@ -139,6 +156,20 @@ try{
     for(const sotifId of scenario.sotifIds??[])if(!sotif.includes(sotifId))failures.push(`scenario ${scenario.scenarioId} references unknown SOTIF scenario ${sotifId}`);
   }
 }catch{failures.push('baseline validation scenario manifest must be valid JSON');}
+
+try{
+  const replays=JSON.parse(read('docs/validation/replays/V006_RISK_REPLAY.json'));
+  if(!Array.isArray(replays)||replays.length<7)failures.push('SIL risk replay corpus must contain at least seven deterministic cases');
+  else{
+    const ids=new Set();
+    for(const replay of replays){
+      if(typeof replay.scenarioId!=='string'||ids.has(replay.scenarioId))failures.push(`invalid or duplicate SIL replay id ${replay.scenarioId??'unknown-id'}`);
+      ids.add(replay.scenarioId);
+    }
+    const future=replays.find((item)=>item.scenarioId==='SIL-RISK-007');
+    if(!future?.expected?.reasonsInclude?.includes('future-data-rejected'))failures.push('SIL replay corpus must include future-data rejection evidence');
+  }
+}catch{failures.push('SIL risk replay corpus must be valid JSON');}
 
 if(failures.length){console.error('KINGMAST engineering evidence check failed:\n'+failures.map((item)=>`- ${item}`).join('\n'));process.exit(1);}
 console.log('KINGMAST engineering evidence check passed.');
