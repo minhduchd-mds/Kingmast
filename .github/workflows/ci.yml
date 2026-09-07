@@ -24,6 +24,8 @@ jobs:
         run: pnpm skills:validate
       - name: Safety boundary
         run: pnpm safety:boundary
+      - name: Engineering evidence contracts
+        run: pnpm evidence:validate
       - name: Vercel deployment policy
         run: pnpm vercel:policy
       - name: Python syntax
