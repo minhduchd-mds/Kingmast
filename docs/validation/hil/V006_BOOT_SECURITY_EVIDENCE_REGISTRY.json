@@ -1,0 +1,15 @@
+{
+  "schema": "kingmast-boot-security-evidence/v1",
+  "productVersion": "0.0.6",
+  "claim": "no-physical-boot-security-results-claimed",
+  "controlAuthority": "none",
+  "scenarios": [
+    {"id":"BOOT-001","title":"Unsigned candidate image is rejected by secure boot","status":"pending","evidence":null},
+    {"id":"BOOT-002","title":"Image signed by an unauthorized or revoked signer is rejected","status":"pending","evidence":null},
+    {"id":"BOOT-003","title":"Rollback below the hardware monotonic floor is rejected","status":"pending","evidence":null},
+    {"id":"BOOT-004","title":"Power loss during inactive-slot write preserves the known-good slot","status":"pending","evidence":null},
+    {"id":"BOOT-005","title":"Candidate boot-health failure returns to the known-good slot","status":"pending","evidence":null},
+    {"id":"BOOT-006","title":"Device signing private key remains non-exportable under bench extraction attempts","status":"pending","evidence":null},
+    {"id":"BOOT-007","title":"Physical CAN interface cannot transmit actuator-control frames","status":"pending","evidence":null}
+  ]
+}

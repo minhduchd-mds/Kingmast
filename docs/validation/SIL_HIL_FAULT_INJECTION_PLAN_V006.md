@@ -12,6 +12,10 @@ Risk, lane, DMS, fusion, replay, provider trust, session and alert-stabilization
 
 Synthetic/replayed normalized inputs drive the actual risk/assist runtime without real sensors.
 
+The repository contains an executable deterministic risk replay corpus at `docs/validation/replays/V006_RISK_REPLAY.json`. `pnpm sil:replay` executes the corpus through the real `assessRisk()` implementation and emits `kingmast-sil-replay-report/v1`. CI retains that JSON report as engineering evidence together with SBOM and build provenance.
+
+The SIL corpus currently covers safe following, short-headway caution, critical closing gap, stale input, radar loss, CAN degradation and future-dated input rejection. It is a software-in-the-loop gate, not HIL or vehicle proof.
+
 ### L2 — service integration
 
 Risk engine + HMI + WebSocket + provider adapters with controlled faults.
@@ -19,6 +23,16 @@ Risk engine + HMI + WebSocket + provider adapters with controlled faults.
 ### L3 — HIL bench
 
 Real edge controller/sensor interfaces connected to deterministic signal/fault generators.
+
+No HIL result is claimed merely because SIL/CI is green. HIL evidence must identify the physical controller, sensor/generator equipment, harness revision, software/build hashes, calibration/configuration hashes, timestamps, operator/reviewer and raw measurement references.
+
+Physical HIL claim bookkeeping is controlled by:
+
+- `docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json`
+- `docs/validation/HIL_EVIDENCE_REGISTRY_V006.md`
+- `pnpm hil:evidence`
+
+The registry currently starts fail-closed with `claim: no-hil-results-claimed`; all baseline physical scenarios remain pending until genuine bench evidence is attached. The CI gate checks evidence completeness and claim consistency only. It cannot execute HIL hardware and must never be treated as a physical test result.
 
 ### L4 — closed track
 
@@ -33,7 +47,7 @@ Instrumented target vehicle/prototype only after ODD/scenario and hardware revie
 | GNSS jump | inject implausible low-quality position | position context is degraded/rejected; no false precision |
 | duplicate sequence | resend edge sequence | packet rejected |
 | reordered sequence | send lower sequence | packet rejected |
-| future skew | timestamp beyond accepted skew | packet rejected |
+| future skew | timestamp beyond accepted skew | packet/risk evidence rejected rather than treated as current truth |
 | clock regression | move timestamp backward | packet rejected/degraded |
 | CAN loss | mark unavailable/degraded | confidence reduces; no unjustified critical escalation from uncertain speed alone |
 | radar-camera disagreement | conflicting geometry/class | fusion exposes uncertainty; no fabricated class/range |
@@ -45,7 +59,9 @@ Instrumented target vehicle/prototype only after ODD/scenario and hardware revie
 | live frame freeze | stop WebSocket updates | explicit stale state; no simulator substitution |
 | process restart | restart risk engine | recovery is observable; no hidden continuity assumptions |
 | update hash failure | tamper artifact | installation rejected |
-| update boot failure | health check fails | rollback/recovery path invoked in future OTA implementation |
+| update boot failure | health check fails | rollback-required state; committed rollback floor is not advanced |
+| rollback downgrade | provide image below committed rollback index | update rejected before installation |
+| power loss before boot acceptance | interrupt update/boot candidate | previous known-good image remains recoverable; rollback floor remains unchanged |
 | resource pressure | bounded CPU/memory/network load | latency metrics/health show degradation without unbounded memory growth |
 
 ## Vietnam-relevant SIL/HIL scenarios
@@ -74,7 +90,15 @@ Record at minimum:
 - rejected packet reason/count;
 - provider trust state;
 - process memory/CPU during soak tests;
-- software/config/calibration version.
+- software/config/calibration version;
+- update lifecycle state and rollback index for OTA tests;
+- exact source/build provenance for the software under test.
+
+## HIL evidence promotion rule
+
+A HIL registry item may become `passed` or `failed` only after a physical run exists. At minimum the result must bind controller and bench identity, full source commit SHA, timestamps, operator, independent reviewer, evidence references and a result summary. Applicable scenarios also bind harness/configuration/calibration evidence.
+
+A pending or blocked HIL item keeps `evidence: null`. CI must fail if a result is claimed without the required physical-evidence metadata.
 
 ## Acceptance rule
 
@@ -87,6 +111,8 @@ A safety-relevant fault passes only when:
 5. simulator/demo state is not substituted for lost live truth;
 6. the evidence is reproducible.
 
+A green CI/SIL report does not satisfy a HIL-required scenario. HIL status remains unverified until physical bench evidence exists.
+
 ## Closed-track entry checklist
 
 - approved scenario and speed/geometry bounds;
@@ -97,4 +123,5 @@ A safety-relevant fault passes only when:
 - synchronized logging;
 - known software/config/calibration hashes;
 - rollback/recovery plan;
+- HIL-required scenarios have physical evidence attached and pass `pnpm hil:evidence` bookkeeping validation;
 - no public-road exposure.

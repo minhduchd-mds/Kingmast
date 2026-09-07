@@ -41,5 +41,76 @@
     "safetyGoalIds": ["SG-001", "SG-007"],
     "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
     "expected": "software update eligibility is denied while vehicle speed is nonzero"
+  },
+  {
+    "scenarioId": "FI-007",
+    "hazardIds": ["HZ-010"],
+    "safetyGoalIds": ["SG-008"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "packet tampering after per-device signing is rejected"
+  },
+  {
+    "scenarioId": "FI-008",
+    "hazardIds": ["HZ-010"],
+    "safetyGoalIds": ["SG-008"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "revoked device credentials are rejected even with a valid signature"
+  },
+  {
+    "scenarioId": "FI-009",
+    "hazardIds": ["HZ-009"],
+    "safetyGoalIds": ["SG-007"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "post-install boot-health failure requires rollback"
+  },
+  {
+    "scenarioId": "FI-010",
+    "hazardIds": ["HZ-009"],
+    "safetyGoalIds": ["SG-007"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "update lifecycle cannot skip package verification before install"
+  },
+  {
+    "scenarioId": "FI-011",
+    "hazardIds": ["HZ-012"],
+    "safetyGoalIds": ["SG-009"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "bounded runtime limiter fails closed when unique-key capacity is exhausted"
+  },
+  {
+    "scenarioId": "FI-012",
+    "hazardIds": ["HZ-006"],
+    "safetyGoalIds": ["SG-006"],
+    "sotifIds": ["ST-016", "ST-017", "ST-018"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "discontinuous DMS observations become driver-unavailable instead of being stretched into a continuous window"
+  },
+  {
+    "scenarioId": "FI-013",
+    "hazardIds": ["HZ-008"],
+    "safetyGoalIds": ["SG-002"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "surround visualization degrades when any configured camera is unsynchronized or outside reprojection tolerance"
+  },
+  {
+    "scenarioId": "FI-014",
+    "hazardIds": ["HZ-010"],
+    "safetyGoalIds": ["SG-008"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "Ed25519-authenticated edge packet tampering is rejected before ingestion"
+  },
+  {
+    "scenarioId": "FI-015",
+    "hazardIds": ["HZ-003"],
+    "safetyGoalIds": ["SG-002"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "future-dated risk evidence beyond allowed clock skew is rejected safe with zero confidence"
+  },
+  {
+    "scenarioId": "FI-016",
+    "hazardIds": ["HZ-009"],
+    "safetyGoalIds": ["SG-007"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "anti-rollback floor does not advance until the newly installed image passes boot acceptance"
   }
 ]

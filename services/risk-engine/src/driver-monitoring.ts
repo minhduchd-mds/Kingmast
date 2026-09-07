@@ -22,6 +22,8 @@ export interface DriverMonitoringAssessment{
 const MIN_RELIABLE_CONFIDENCE=.55;
 const MIN_RELIABLE_COVERAGE=.5;
 const MIN_VISIBLE_SAMPLES=3;
+const MIN_TEMPORAL_SPAN_MS=1_500;
+const MAX_SAMPLE_GAP_MS=2_200;
 function clamp01(value:number){return Math.max(0,Math.min(1,value));}
 function unavailable(reason:string,confidence=0,faceAvailability=0):DriverMonitoringAssessment{return{state:'driver-unavailable',confidence:Number(clamp01(confidence).toFixed(2)),perclos:0,gazeAwayRatio:0,faceAvailability:Number(clamp01(faceAvailability).toFixed(2)),reason,storesRawVideo:false,advisoryOnly:true};}
 
@@ -29,7 +31,12 @@ export function assessDriverMonitoring(samples:DriverMonitoringSample[]):DriverM
   if(samples.length<3)return unavailable('insufficient-temporal-window');
   const ordered=[...samples].sort((a,b)=>a.timestampMs-b.timestampMs);
   const first=ordered[0]!;const last=ordered[ordered.length-1]!;
-  const durationMs=Math.max(1,last.timestampMs-first.timestampMs);
+  const durationMs=Math.max(0,last.timestampMs-first.timestampMs);
+  if(durationMs<MIN_TEMPORAL_SPAN_MS)return unavailable('insufficient-temporal-span');
+  for(let index=1;index<ordered.length;index++){
+    const gap=ordered[index]!.timestampMs-ordered[index-1]!.timestampMs;
+    if(gap<=0||gap>MAX_SAMPLE_GAP_MS)return unavailable('cabin-observation-discontinuous');
+  }
   const valid=ordered.filter((item)=>item.confidence>=MIN_RELIABLE_CONFIDENCE);
   const reliableCoverage=valid.length/ordered.length;
   if(valid.length===0)return unavailable('no-reliable-cabin-observation');

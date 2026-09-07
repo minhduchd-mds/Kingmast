@@ -24,7 +24,27 @@ describe('DriverAssistRuntime',()=>{
     expect(status.advisoryOnly).toBe(true);
   });
 
-  it('requires four synchronized calibrated cameras before 360 is live',()=>{
+  it('marks discontinuous cabin evidence unavailable instead of merely degraded',()=>{
+    const runtime=new DriverAssistRuntime();
+    runtime.ingestDriverMonitoring({timestampMs:base,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    runtime.ingestDriverMonitoring({timestampMs:base+1_000,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    runtime.ingestDriverMonitoring({timestampMs:base+5_000,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    const status=runtime.snapshot(base+5_100,true).dms;
+    expect(status.state).toBe('driver-unavailable');
+    expect(status.reason).toBe('cabin-observation-discontinuous');
+    expect(status.availability).toBe('unavailable');
+  });
+
+  it('keeps short but still-forming DMS windows degraded, not falsely live',()=>{
+    const runtime=new DriverAssistRuntime();
+    runtime.ingestDriverMonitoring({timestampMs:base,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    runtime.ingestDriverMonitoring({timestampMs:base+1_000,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95});
+    const status=runtime.snapshot(base+1_100,true).dms;
+    expect(status.reason).toBe('insufficient-temporal-window');
+    expect(status.availability).toBe('degraded');
+  });
+
+  it('requires every configured surround camera to be synchronized and calibrated before 360 is live',()=>{
     const runtime=new DriverAssistRuntime();
     runtime.ingestSurround({timestampMs:base,cameras:[
       {cameraId:'front',synchronized:true,calibrated:true,reprojectionErrorPx:1.2},
@@ -35,8 +55,40 @@ describe('DriverAssistRuntime',()=>{
     const live=runtime.snapshot(base+100,true).surround;
     expect(live.availability).toBe('live');
     expect(live.cameraCount).toBe(4);
-    expect(live.maxReprojectionErrorPx).toBe(1.7);
+    expect(live.readyCameraCount).toBe(4);
+    expect(live.fullyReady).toBe(true);
+    expect(live.geometryConfidence).toBeGreaterThan(.7);
+    expect(live.calibrationUncertaintyPx).toBe(1.7);
     expect(runtime.snapshot(base+5_000,true).surround.availability).toBe('unavailable');
+  });
+
+  it('degrades surround truth if any configured camera loses synchronization or calibration quality',()=>{
+    const runtime=new DriverAssistRuntime();
+    runtime.ingestSurround({timestampMs:base,cameras:[
+      {cameraId:'front',synchronized:true,calibrated:true,reprojectionErrorPx:1.1},
+      {cameraId:'rear',synchronized:true,calibrated:true,reprojectionErrorPx:1.3},
+      {cameraId:'left',synchronized:false,calibrated:true,reprojectionErrorPx:1.4},
+      {cameraId:'right',synchronized:true,calibrated:true,reprojectionErrorPx:3.8},
+    ]});
+    const status=runtime.snapshot(base+100,true).surround;
+    expect(status.availability).toBe('degraded');
+    expect(status.fullyReady).toBe(false);
+    expect(status.readyCameraCount).toBe(2);
+    expect(status.reason).toBe('surround-calibration-incomplete');
+    expect(status.maxReprojectionErrorPx).toBe(3.8);
+  });
+
+  it('degrades incomplete surround camera coverage even when the available cameras are healthy',()=>{
+    const runtime=new DriverAssistRuntime();
+    runtime.ingestSurround({timestampMs:base,cameras:[
+      {cameraId:'front',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+      {cameraId:'rear',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+      {cameraId:'left',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+    ]});
+    const status=runtime.snapshot(base+100,true).surround;
+    expect(status.availability).toBe('degraded');
+    expect(status.reason).toBe('surround-camera-coverage-incomplete');
+    expect(status.fullyReady).toBe(false);
   });
 
   it('only marks the read-only assistant context live when fresh vehicle context exists',()=>{
