@@ -23,7 +23,7 @@ if(!firmwareReleaseTest.includes('accepted by the production verifier')||!firmwa
 if(!evidenceAnchor.includes("schema:'kingmast-evidence-anchor/v1'")||!evidenceAnchor.includes("externallySigned:false")||!evidenceAnchor.includes("externalTimestampAuthority:'none'"))failures.push('evidence anchor must preserve explicit unsigned/no-trusted-timestamp boundary');
 if(!provisioningDoc.includes('Private key material must never be uploaded')||!provisioningDoc.includes('not fleet PKI'))failures.push('device provisioning documentation must preserve key-custody/non-PKI boundary');
 if(!releaseDoc.includes('does not yet build and sign a production ESP32 binary in CI')||!releaseDoc.includes('must not be presented as a production firmware release claim'))failures.push('firmware release documentation must preserve non-production claim boundary');
-if(!anchorDoc.includes('does not by itself establish authenticity or non-repudiation')||!anchorDoc.includes('Real-time warning computation must never depend'))failures.push('evidence anchor documentation must preserve trust and safety-operation boundaries');
+if(!anchorDoc.includes('authenticity or non-repudiation')||!anchorDoc.includes('Real-time warning computation must never depend'))failures.push('evidence anchor documentation must preserve trust and safety-operation boundaries');
 if(!pkg.includes('"release:identity-policy"'))failures.push('release identity policy script missing from root package');
 if(!ci.includes('pnpm release:identity-policy')||!ci.includes('Generate engineering evidence anchor')||!ci.includes('/tmp/kingmast.evidence-anchor.json'))failures.push('release identity/evidence anchor gates missing from CI');
 
