@@ -1,5 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './globals.css';
+import './hmi-design-system.css';
 import './hmi-v3.css';
 import './hmi-v4.css';
 import './hmi-v5.css';

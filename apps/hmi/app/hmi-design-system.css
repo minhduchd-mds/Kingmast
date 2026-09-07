@@ -1,0 +1,42 @@
+:root {
+  --km-color-background: var(--bg);
+  --km-color-surface: var(--surface);
+  --km-color-surface-strong: var(--surface-strong);
+  --km-color-surface-soft: var(--surface-soft);
+  --km-color-line: var(--line);
+  --km-color-line-strong: var(--line-strong);
+  --km-color-text: var(--text);
+  --km-color-text-secondary: var(--secondary);
+  --km-color-text-tertiary: var(--tertiary);
+  --km-color-accent: var(--blue);
+  --km-color-safe: var(--safe);
+  --km-color-caution: var(--caution);
+  --km-color-critical: var(--critical);
+  --km-space-1: 4px;
+  --km-space-2: 8px;
+  --km-space-3: 12px;
+  --km-space-4: 16px;
+  --km-space-5: 20px;
+  --km-space-6: 24px;
+  --km-space-8: 32px;
+  --km-touch-min: 44px;
+  --km-touch-primary: 48px;
+  --km-radius-sm: var(--radius-sm);
+  --km-radius-md: var(--radius-md);
+  --km-radius-lg: var(--radius-lg);
+  --km-radius-xl: var(--radius-xl);
+  --km-motion-instant: var(--motion-instant);
+  --km-motion-quick: var(--motion-quick);
+  --km-motion-standard: var(--motion-standard);
+  --km-motion-emphasized: var(--motion-emphasized);
+  --km-ease-standard: var(--ease-standard);
+  --km-ease-emphasized: var(--ease-emphasized);
+  --km-focus-ring: 0 0 0 3px color-mix(in srgb, var(--blue) 55%, transparent);
+}
+
+/*
+ * Semantic KINGMAST tokens are the canonical interface for newly touched HMI
+ * styles. Existing versioned CSS remains a compatibility layer while selectors
+ * migrate incrementally; this file intentionally does not override theme source
+ * variables such as --bg, --surface or --text.
+ */
