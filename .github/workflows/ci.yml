@@ -22,6 +22,8 @@ jobs:
           cache: pnpm
       - name: Repository secret scan
         run: pnpm security:secrets
+      - name: Workflow supply-chain policy
+        run: pnpm security:workflow-policy
       - name: Configuration auth policy
         run: pnpm security:config-auth
       - name: Provider identity policy
