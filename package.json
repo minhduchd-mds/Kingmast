@@ -15,6 +15,7 @@
     "safety:boundary": "node scripts/safety-boundary-check.mjs",
     "architecture:boundary": "node scripts/architecture-boundary-check.mjs",
     "security:secrets": "node scripts/secret-scan.mjs",
+    "security:config-auth": "node scripts/configuration-auth-policy-check.mjs",
     "firmware:policy": "node scripts/firmware-security-policy-check.mjs",
     "firmware:evidence": "node scripts/firmware-trust-evidence-check.mjs",
     "supplychain:sbom": "node scripts/generate-sbom.mjs",
