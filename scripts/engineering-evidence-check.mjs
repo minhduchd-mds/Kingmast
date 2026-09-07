@@ -28,6 +28,7 @@ const required=[
   'services/risk-engine/src/device-auth.test.ts',
   'scripts/secret-scan.mjs',
   'scripts/firmware-security-policy-check.mjs',
+  'scripts/generate-sbom.mjs',
   '.github/workflows/codeql.yml',
   '.github/CODEOWNERS',
 ];
@@ -53,6 +54,7 @@ const deviceAuth=read('services/risk-engine/src/device-auth.ts');
 const riskServer=read('services/risk-engine/src/server.ts');
 const secretScan=read('scripts/secret-scan.mjs');
 const firmwarePolicy=read('scripts/firmware-security-policy-check.mjs');
+const sbom=read('scripts/generate-sbom.mjs');
 const ci=read('.github/workflows/ci.yml');
 const codeql=read('.github/workflows/codeql.yml');
 const scenarioTests=read('services/risk-engine/src/safety-scenarios.test.ts');
@@ -74,6 +76,7 @@ if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('r
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
 if(!firmwarePolicy.includes('setInsecure')||!firmwarePolicy.includes('setCACert')||!ci.includes('pnpm firmware:policy'))failures.push('ESP32 firmware security policy must remain enforced in CI');
 if(!hardwareBaseline.includes('secure boot')||!hardwareBaseline.includes('hardware-protected key')||!hardwareBaseline.includes('read-only'))failures.push('ESP32 hardware security baseline must preserve secure-boot/key-storage/read-only targets');
+if(!sbom.includes("bomFormat:'CycloneDX'")||!sbom.includes("specVersion:'1.5'")||!ci.includes('pnpm supplychain:sbom'))failures.push('CycloneDX production dependency SBOM generation must remain in CI');
 if(!ci.includes('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1')||!ci.includes('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020')||!ci.includes('pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413'))failures.push('core CI actions must remain pinned to reviewed immutable commits');
 if(!codeql.includes('github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938')||!codeql.includes('github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938'))failures.push('CodeQL workflow must remain pinned to the reviewed v4 commit');
 for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/packages/contracts/','/.github/workflows/'])if(!codeowners.includes(requiredOwnerPath))failures.push(`CODEOWNERS missing ${requiredOwnerPath}`);
