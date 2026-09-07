@@ -1,0 +1,45 @@
+[
+  {
+    "scenarioId": "FI-001",
+    "hazardIds": ["HZ-003", "HZ-010"],
+    "safetyGoalIds": ["SG-002", "SG-008"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "duplicate edge sequence is rejected as sequence-replay"
+  },
+  {
+    "scenarioId": "FI-002",
+    "hazardIds": ["HZ-001", "HZ-003"],
+    "safetyGoalIds": ["SG-002"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "stale risk input cannot produce a live warning assessment"
+  },
+  {
+    "scenarioId": "FI-003",
+    "hazardIds": ["HZ-001", "HZ-008"],
+    "safetyGoalIds": ["SG-002"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "radar loss removes range authority instead of reusing old range"
+  },
+  {
+    "scenarioId": "FI-004",
+    "hazardIds": ["HZ-006"],
+    "safetyGoalIds": ["SG-006"],
+    "sotifIds": ["ST-016", "ST-017", "ST-018"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "low-quality DMS evidence becomes driver-unavailable"
+  },
+  {
+    "scenarioId": "FI-005",
+    "hazardIds": ["HZ-009"],
+    "safetyGoalIds": ["SG-007"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "tampered update artifact fails hash verification"
+  },
+  {
+    "scenarioId": "FI-006",
+    "hazardIds": ["HZ-009", "HZ-011"],
+    "safetyGoalIds": ["SG-001", "SG-007"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "software update eligibility is denied while vehicle speed is nonzero"
+  }
+]

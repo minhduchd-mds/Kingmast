@@ -1,0 +1,55 @@
+import { createHash,generateKeyPairSync,sign } from 'node:crypto';
+import { describe,expect,it } from 'vitest';
+import type { EdgeTelemetryPacket,SensorHealth } from '@kingmast/contracts';
+import { assessRisk } from './risk.js';
+import { EdgePacketGuard } from './edge-guard.js';
+import { assessDriverMonitoring,type DriverMonitoringSample } from './driver-monitoring.js';
+import { canonicalUpdatePayload,evaluateInstallEligibility,verifyUpdatePackage,type UpdateManifest } from './update-verifier.js';
+
+const now=1_800_000_000_000;
+const sensors:SensorHealth={radarFront:'ok',radarRear:'unavailable',camera:'ok',can:'ok',gnssImu:'ok',ecu:'ok'};
+function edgePacket(sequence:number):EdgeTelemetryPacket{return{protocolVersion:1,deviceId:'edge-fi',bootId:'boot-fi',sequence,timestampMs:now,gnss:{lat:21.0285,lng:105.8542,speedKmh:50,headingDeg:0,accuracyM:3,timestampMs:now,source:'gnss'},sensors};}
+function dmsSamples():DriverMonitoringSample[]{return Array.from({length:7},(_,index)=>({timestampMs:now+index*1_000,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:index<5?.2:.95}));}
+
+describe('KINGMAST v0.0.6 traceable safety scenarios',()=>{
+  it('FI-001 HZ-003/HZ-010 rejects replayed edge sequence',()=>{
+    const guard=new EdgePacketGuard();
+    expect(guard.accept(edgePacket(1),now).ok).toBe(true);
+    expect(guard.accept(edgePacket(1),now)).toEqual({ok:false,reason:'sequence-replay'});
+  });
+
+  it('FI-002 HZ-001/HZ-003 rejects stale risk input',()=>{
+    const result=assessRisk({timestampMs:now-1_000,egoSpeedMps:20,targetSpeedMps:5,rangeM:8,confidence:.98,canHealthy:true,radarHealthy:true,cameraHealthy:true},now);
+    expect(result.severity).toBe('safe');
+    expect(result.reasons).toContain('stale-data-rejected');
+  });
+
+  it('FI-003 HZ-001/HZ-008 removes range authority when radar is unavailable',()=>{
+    const result=assessRisk({timestampMs:now,egoSpeedMps:20,targetSpeedMps:5,rangeM:8,confidence:.98,canHealthy:true,radarHealthy:false,cameraHealthy:true},now);
+    expect(result.severity).toBe('safe');
+    expect(result.ttcS).toBeNull();
+    expect(result.reasons).toContain('radar-unavailable');
+  });
+
+  it('FI-004 HZ-006 ST-016/ST-017/ST-018 degrades low-quality DMS evidence',()=>{
+    const result=assessDriverMonitoring(dmsSamples());
+    expect(result.state).toBe('driver-unavailable');
+    expect(result.reason).toBe('cabin-observation-quality-low');
+    expect(result.storesRawVideo).toBe(false);
+  });
+
+  it('FI-005 HZ-009 rejects a tampered signed-update artifact',()=>{
+    const artifact=Buffer.from('expected-artifact');
+    const{privateKey,publicKey}=generateKeyPairSync('ed25519');
+    const unsigned:Omit<UpdateManifest,'signature'>={updateId:'123e4567-e89b-42d3-a456-426614174001',product:'KINGMAST',softwareVersion:'0.0.7',artifactSha256:createHash('sha256').update(artifact).digest('hex'),targetPlatform:'kingmast-edge-linux',compatibleHardware:['bench-v1'],configurationSchemaVersion:'1',calibrationCompatibility:'v1',createdAt:new Date(now).toISOString(),signerKeyId:'scenario-key',rollbackIndex:7};
+    const manifest:UpdateManifest={...unsigned,signature:sign(null,Buffer.from(canonicalUpdatePayload(unsigned)),privateKey).toString('base64')};
+    const result=verifyUpdatePackage({manifest,artifact:Buffer.from('tampered-artifact'),publicKeyPem:publicKey.export({format:'pem',type:'spki'}).toString(),expectedPlatform:'kingmast-edge-linux',hardwareId:'bench-v1',minimumRollbackIndex:7,nowMs:now});
+    expect(result).toEqual({verified:false,reason:'artifact-hash-mismatch'});
+  });
+
+  it('FI-006 HZ-009/HZ-011 blocks update eligibility while moving',()=>{
+    const result=evaluateInstallEligibility({packageVerified:true,parked:true,speedKmh:7,powerStable:true,energyReserveOk:true,thermalOk:true,storageOk:true,criticalOperationActive:false});
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain('vehicle-moving');
+  });
+});

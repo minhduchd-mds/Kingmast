@@ -4,9 +4,9 @@ import { applySensorFreshness, EdgePacketGuard } from './edge-guard.js';
 
 const now=1_800_000_000_000;
 const sensors:SensorHealth={radarFront:'ok',radarRear:'unavailable',camera:'ok',can:'unavailable',gnssImu:'ok',ecu:'ok'};
-const packet=(sequence:number,bootId='boot-a'):EdgeTelemetryPacket=>({
-  protocolVersion:1,deviceId:'edge-1',bootId,sequence,timestampMs:now,
-  gnss:{lat:21.0285,lng:105.8542,speedKmh:40,headingDeg:12,accuracyM:3,timestampMs:now,source:'gnss'},
+const packet=(sequence:number,bootId='boot-a',deviceId='edge-1',timestampMs=now):EdgeTelemetryPacket=>({
+  protocolVersion:1,deviceId,bootId,sequence,timestampMs,
+  gnss:{lat:21.0285,lng:105.8542,speedKmh:40,headingDeg:12,accuracyM:3,timestampMs,source:'gnss'},
   sensors,
 });
 
@@ -20,7 +20,24 @@ describe('EdgePacketGuard',()=>{
 
   it('rejects packets with an invalid wall clock',()=>{
     const guard=new EdgePacketGuard();
-    expect(guard.accept({...packet(1),timestampMs:now-60_000},now)).toEqual({ok:false,reason:'clock-skew'});
+    expect(guard.accept(packet(1,'boot-a','edge-1',now-60_000),now)).toEqual({ok:false,reason:'clock-skew'});
+  });
+
+  it('bounds device-session memory and fails closed for new devices at capacity',()=>{
+    const guard=new EdgePacketGuard({maxSessions:2,sessionTtlMs:60_000});
+    expect(guard.accept(packet(1,'boot-a','edge-1'),now).ok).toBe(true);
+    expect(guard.accept(packet(1,'boot-b','edge-2'),now).ok).toBe(true);
+    expect(guard.activeSessions).toBe(2);
+    expect(guard.accept(packet(1,'boot-c','edge-3'),now)).toEqual({ok:false,reason:'session-capacity'});
+    expect(guard.activeSessions).toBe(2);
+  });
+
+  it('prunes idle device sessions after the configured TTL',()=>{
+    const guard=new EdgePacketGuard({maxSessions:1,sessionTtlMs:1_000});
+    expect(guard.accept(packet(1,'boot-a','edge-1'),now).ok).toBe(true);
+    const later=now+1_500;
+    expect(guard.accept(packet(1,'boot-b','edge-2',later),later).ok).toBe(true);
+    expect(guard.activeSessions).toBe(1);
   });
 });
 

@@ -7,13 +7,17 @@ const GNSS_UNAVAILABLE_ACCURACY_M = 50;
 const GNSS_STALE_MS = 3_000;
 const RADAR_STALE_MS = 350;
 const CAMERA_STALE_MS = 500;
+const DEFAULT_MAX_SESSIONS = 2_048;
+const DEFAULT_SESSION_TTL_MS = 24*60*60*1_000;
+const MAX_PRUNE_INTERVAL_MS = 60_000;
 
 export type EdgePacketGuardReason =
   | 'unsupported-protocol'
   | 'clock-skew'
   | 'gnss-clock-mismatch'
   | 'sequence-replay'
-  | 'clock-regression';
+  | 'clock-regression'
+  | 'session-capacity';
 
 export type EdgePacketGuardResult =
   | { ok:true }
@@ -23,11 +27,34 @@ interface DeviceSession {
   bootId:string;
   lastSequence:number;
   lastTimestampMs:number;
+  lastSeenAtMs:number;
+}
+
+export interface EdgePacketGuardOptions {
+  maxSessions?:number;
+  sessionTtlMs?:number;
 }
 
 export class EdgePacketGuard {
   private readonly sessions = new Map<string,DeviceSession>();
+  private readonly maxSessions:number;
+  private readonly sessionTtlMs:number;
+  private lastPruneAtMs=0;
   rejectedPackets = 0;
+
+  constructor(options:EdgePacketGuardOptions={}) {
+    this.maxSessions=Math.max(1,Math.min(100_000,Math.floor(options.maxSessions??DEFAULT_MAX_SESSIONS)));
+    this.sessionTtlMs=Math.max(1_000,Math.min(7*24*60*60*1_000,Math.floor(options.sessionTtlMs??DEFAULT_SESSION_TTL_MS)));
+  }
+
+  get activeSessions(){return this.sessions.size;}
+
+  private pruneExpired(nowMs:number) {
+    const interval=Math.min(MAX_PRUNE_INTERVAL_MS,this.sessionTtlMs);
+    if(this.sessions.size<this.maxSessions&&nowMs-this.lastPruneAtMs<interval)return;
+    this.lastPruneAtMs=nowMs;
+    for(const[deviceId,session]of this.sessions)if(nowMs-session.lastSeenAtMs>this.sessionTtlMs)this.sessions.delete(deviceId);
+  }
 
   accept(packet:EdgeTelemetryPacket, nowMs=Date.now()):EdgePacketGuardResult {
     const reject = (reason:EdgePacketGuardReason):EdgePacketGuardResult => {
@@ -35,12 +62,14 @@ export class EdgePacketGuard {
       return { ok:false, reason };
     };
 
+    this.pruneExpired(nowMs);
     if (packet.protocolVersion !== 1) return reject('unsupported-protocol');
     const skew = packet.timestampMs - nowMs;
     if (skew > MAX_FUTURE_SKEW_MS || skew < -MAX_PAST_SKEW_MS) return reject('clock-skew');
     if (Math.abs(packet.gnss.timestampMs-packet.timestampMs) > 5_000) return reject('gnss-clock-mismatch');
 
     const previous = this.sessions.get(packet.deviceId);
+    if (!previous && this.sessions.size >= this.maxSessions) return reject('session-capacity');
     if (previous && previous.bootId === packet.bootId) {
       if (packet.sequence <= previous.lastSequence) return reject('sequence-replay');
       if (packet.timestampMs < previous.lastTimestampMs-2_000) return reject('clock-regression');
@@ -50,6 +79,7 @@ export class EdgePacketGuard {
       bootId:packet.bootId,
       lastSequence:packet.sequence,
       lastTimestampMs:packet.timestampMs,
+      lastSeenAtMs:nowMs,
     });
     return { ok:true };
   }

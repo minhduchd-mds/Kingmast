@@ -1,0 +1,10 @@
+# Safety/release-critical KINGMAST surfaces require explicit owner review.
+/safety/ @minhduchd-mds
+/services/risk-engine/ @minhduchd-mds
+/edge/ @minhduchd-mds
+/packages/contracts/ @minhduchd-mds
+/.github/workflows/ @minhduchd-mds
+/docs/safety/ @minhduchd-mds
+/docs/cybersecurity/ @minhduchd-mds
+/docs/updates/ @minhduchd-mds
+/docs/validation/ @minhduchd-mds

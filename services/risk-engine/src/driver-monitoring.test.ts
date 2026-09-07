@@ -17,4 +17,20 @@ describe('assessDriverMonitoring',()=>{
     const result=assessDriverMonitoring(windowSamples(5,()=>({faceDetected:false})));
     expect(result.state).toBe('driver-unavailable');
   });
+  it('never reports attentive from an insufficient temporal window',()=>{
+    const result=assessDriverMonitoring(windowSamples(1,()=>({})));
+    expect(result.state).toBe('driver-unavailable');
+    expect(result.reason).toBe('insufficient-temporal-window');
+    expect(result.confidence).toBe(0);
+  });
+  it('fails unavailable when most cabin observations are below the reliability floor',()=>{
+    const result=assessDriverMonitoring(windowSamples(6,(index)=>({confidence:index<5?.2:.95})));
+    expect(result.state).toBe('driver-unavailable');
+    expect(result.reason).toBe('cabin-observation-quality-low');
+  });
+  it('weights PERCLOS by observation confidence instead of treating all visible frames equally',()=>{
+    const result=assessDriverMonitoring(windowSamples(10,(index)=>({eyesClosed:index>=6,confidence:index>=6?.95:.6})));
+    expect(result.perclos).toBeGreaterThan(.45);
+    expect(result.state).toBe('drowsiness-suspected');
+  });
 });
