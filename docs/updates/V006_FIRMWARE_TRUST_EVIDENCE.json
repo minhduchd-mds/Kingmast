@@ -1,0 +1,18 @@
+{
+  "schema": "kingmast-firmware-trust-evidence/v1",
+  "product": "KINGMAST",
+  "version": "0.0.6",
+  "releaseStatus": "no-production-firmware-release-claimed",
+  "controlAuthority": "none",
+  "target": "esp32-research-edge",
+  "controls": [
+    {"controlId":"FW-001","name":"secure-boot-root","required":true,"status":"pending","evidence":null},
+    {"controlId":"FW-002","name":"signed-firmware-image","required":true,"status":"pending","evidence":null},
+    {"controlId":"FW-003","name":"flash-encryption","required":true,"status":"pending","evidence":null},
+    {"controlId":"FW-004","name":"hardware-protected-device-key","required":true,"status":"pending","evidence":null},
+    {"controlId":"FW-005","name":"hardware-anti-rollback-floor","required":true,"status":"pending","evidence":null},
+    {"controlId":"FW-006","name":"a-b-known-good-recovery","required":true,"status":"pending","evidence":null},
+    {"controlId":"FW-007","name":"power-loss-recovery","required":true,"status":"pending","evidence":null},
+    {"controlId":"FW-008","name":"physical-read-only-can-boundary","required":true,"status":"pending","evidence":null}
+  ]
+}
