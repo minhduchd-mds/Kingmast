@@ -28,6 +28,8 @@ jobs:
         run: pnpm firmware:policy
       - name: Firmware trust evidence honesty gate
         run: pnpm firmware:evidence
+      - name: A/B recovery policy
+        run: pnpm ota:recovery-policy
       - name: Architecture boundaries
         run: pnpm architecture:boundary
       - name: Install reproducibly
