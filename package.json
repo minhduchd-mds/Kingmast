@@ -17,6 +17,7 @@
     "security:secrets": "node scripts/secret-scan.mjs",
     "security:config-auth": "node scripts/configuration-auth-policy-check.mjs",
     "audit:integrity": "node scripts/audit-integrity-policy-check.mjs",
+    "ota:recovery-policy": "node scripts/update-recovery-policy-check.mjs",
     "firmware:policy": "node scripts/firmware-security-policy-check.mjs",
     "firmware:evidence": "node scripts/firmware-trust-evidence-check.mjs",
     "supplychain:sbom": "node scripts/generate-sbom.mjs",
