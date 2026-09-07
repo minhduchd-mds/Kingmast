@@ -22,6 +22,8 @@ jobs:
         run: pnpm security:secrets
       - name: Firmware security policy
         run: pnpm firmware:policy
+      - name: Architecture boundaries
+        run: pnpm architecture:boundary
       - name: Install reproducibly
         run: pnpm install --frozen-lockfile
       - name: Generate production SBOM
