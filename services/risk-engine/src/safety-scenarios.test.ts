@@ -95,4 +95,16 @@ describe('KINGMAST v0.0.6 traceable safety scenarios',()=>{
     expect(limiter.consume('client-b',10,now)).toEqual({allowed:false,retryAfterS:1,reason:'capacity'});
     expect(limiter.capacityRejected).toBe(1);
   });
+
+  it('FI-012 HZ-006 treats discontinuous DMS evidence as unavailable',()=>{
+    const samples:DriverMonitoringSample[]=[
+      {timestampMs:now,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95},
+      {timestampMs:now+1_000,faceDetected:true,eyesClosed:false,gazeAway:false,headYawDeg:0,headPitchDeg:0,confidence:.95},
+      {timestampMs:now+5_000,faceDetected:true,eyesClosed:false,gazeAway:true,headYawDeg:40,headPitchDeg:0,confidence:.95},
+      {timestampMs:now+6_000,faceDetected:true,eyesClosed:false,gazeAway:true,headYawDeg:40,headPitchDeg:0,confidence:.95},
+    ];
+    const result=assessDriverMonitoring(samples);
+    expect(result.state).toBe('driver-unavailable');
+    expect(result.reason).toBe('cabin-observation-discontinuous');
+  });
 });
