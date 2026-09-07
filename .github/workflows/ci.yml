@@ -22,6 +22,8 @@ jobs:
         run: pnpm security:secrets
       - name: Firmware security policy
         run: pnpm firmware:policy
+      - name: Firmware trust evidence honesty gate
+        run: pnpm firmware:evidence
       - name: Architecture boundaries
         run: pnpm architecture:boundary
       - name: Install reproducibly
@@ -76,5 +78,6 @@ jobs:
             /tmp/kingmast.provenance.json
             /tmp/kingmast.sil-replay.json
             docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json
+            docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
           if-no-files-found: error
           retention-days: 14
