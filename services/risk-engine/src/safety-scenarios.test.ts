@@ -7,7 +7,7 @@ import { assessDriverMonitoring,type DriverMonitoringSample } from './driver-mon
 import { DriverAssistRuntime } from './driver-assist-runtime.js';
 import { canonicalUpdatePayload,evaluateInstallEligibility,verifyUpdatePackage,type UpdateManifest } from './update-verifier.js';
 import { UpdateLifecycle } from './update-state.js';
-import { parseDeviceKeyRegistry,signDevicePacket,verifyDevicePacketAuth } from './device-auth.js';
+import { parseDeviceKeyRegistry,signDevicePacket,signDevicePacketEd25519,verifyDevicePacketAuth } from './device-auth.js';
 import { BoundedFixedWindowRateLimiter } from './bounded-state.js';
 
 const now=1_800_000_000_000;
@@ -122,5 +122,17 @@ describe('KINGMAST v0.0.6 traceable safety scenarios',()=>{
     expect(result.fullyReady).toBe(false);
     expect(result.readyCameraCount).toBe(2);
     expect(result.geometryConfidence).toBeLessThan(1);
+  });
+
+  it('FI-014 HZ-010 rejects tampering of Ed25519-authenticated edge packets',()=>{
+    const{privateKey,publicKey}=generateKeyPairSync('ed25519');
+    const privateKeyPem=privateKey.export({format:'pem',type:'pkcs8'}).toString();
+    const publicKeyPem=publicKey.export({format:'pem',type:'spki'}).toString();
+    const packet=edgePacket(14);
+    const registry=parseDeviceKeyRegistry(JSON.stringify({'edge-fi':[{keyId:'ed-fi',algorithm:'ed25519',publicKeyPem,state:'active'}]}));
+    const signature=signDevicePacketEd25519(packet,'ed-fi',privateKeyPem);
+    expect(verifyDevicePacketAuth({packet,keyId:'ed-fi',signature,registry,nowMs:now}).ok).toBe(true);
+    const tampered={...packet,sequence:15};
+    expect(verifyDevicePacketAuth({packet:tampered,keyId:'ed-fi',signature,registry,nowMs:now})).toEqual({ok:false,reason:'device-signature-invalid'});
   });
 });
