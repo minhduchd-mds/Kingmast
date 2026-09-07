@@ -30,6 +30,8 @@ jobs:
         run: pnpm firmware:evidence
       - name: A/B recovery policy
         run: pnpm ota:recovery-policy
+      - name: Release identity and evidence policy
+        run: pnpm release:identity-policy
       - name: Architecture boundaries
         run: pnpm architecture:boundary
       - name: Install reproducibly
@@ -71,6 +73,12 @@ jobs:
         run: |
           node scripts/generate-build-provenance.mjs > /tmp/kingmast.provenance.json
           node -e "const p=require('/tmp/kingmast.provenance.json'); const names=new Set(p.materials.map(x=>x.name)); if(p.schema!=='kingmast-build-provenance/v1'||p.subject.commit!==process.env.GITHUB_SHA||p.assertions.actuatorAuthority!=='none'||!names.has('cyclonedx-sbom')||!names.has('services/risk-engine/dist')||!names.has('apps/hmi/.next/BUILD_ID')) process.exit(1); console.log('KINGMAST build provenance validated for '+p.subject.commit);"
+      - name: Generate engineering evidence anchor
+        env:
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.sil-replay.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+        run: |
+          node scripts/generate-evidence-anchor.mjs > /tmp/kingmast.evidence-anchor.json
+          node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<5||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
       - name: Install Chromium for HMI verification
         run: pnpm --filter @kingmast/hmi exec playwright install --with-deps chromium
       - name: Run automotive HMI UI tests
@@ -83,6 +91,7 @@ jobs:
             /tmp/kingmast.cdx.json
             /tmp/kingmast.provenance.json
             /tmp/kingmast.sil-replay.json
+            /tmp/kingmast.evidence-anchor.json
             docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json
             docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
           if-no-files-found: error
