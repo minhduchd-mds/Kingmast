@@ -21,6 +21,8 @@ const SURROUND_LIVE_MS=2_000;
 const SURROUND_STALE_MS=4_000;
 const DMS_WINDOW_MS=12_000;
 const MAX_REPROJECTION_ERROR_PX=3;
+const DMS_HARD_UNAVAILABLE_REASONS=new Set(['no-reliable-cabin-observation','driver-face-unavailable','cabin-observation-discontinuous']);
+const DMS_DEGRADED_REASONS=new Set(['insufficient-temporal-window','insufficient-temporal-span','cabin-observation-quality-low']);
 
 function ageOf(observedAtMs:number|undefined,nowMs:number){return observedAtMs===undefined?null:Math.max(0,nowMs-observedAtMs);}
 function freshness(observedAtMs:number|undefined,nowMs:number,liveMs:number,staleMs:number):DriverAssistAvailability{
@@ -95,7 +97,10 @@ export class DriverAssistRuntime{
 
     const dmsAge=ageOf(this.latestDmsAtMs,nowMs);
     let dmsAvailability=freshness(this.latestDmsAtMs,nowMs,DMS_LIVE_MS,DMS_STALE_MS);
-    if(dmsAvailability==='live'&&(this.latestDms?.reason==='insufficient-temporal-window'||this.latestDms?.state==='driver-unavailable'))dmsAvailability='degraded';
+    if(dmsAvailability==='live'&&this.latestDms){
+      if(DMS_HARD_UNAVAILABLE_REASONS.has(this.latestDms.reason))dmsAvailability='unavailable';
+      else if(DMS_DEGRADED_REASONS.has(this.latestDms.reason)||this.latestDms.state==='driver-unavailable')dmsAvailability='degraded';
+    }
     const dms={
       availability:dmsAvailability,
       observedAtMs:this.latestDmsAtMs??null,
