@@ -7,7 +7,16 @@
 // HTTPS is mandatory for edge telemetry outside loopback/bench development.
 #define KINGMAST_API_URL "https://kingmast-gateway.example.com/v3/edge/frame"
 #define KINGMAST_DEVICE_ID "kingmast-esp32-01"
+
+// Migration credential. It may remain during rollout but strict device-auth mode does not accept it
+// as a substitute for a valid per-device signature on /v3/edge/frame.
 #define KINGMAST_EDGE_TOKEN "REPLACE_WITH_RANDOM_TOKEN_AT_LEAST_16_CHARS"
+
+// Transitional per-device HMAC identity for the bundled ESP32 research publisher.
+// Provision these values outside source control and register the same device/key on the server.
+// Production intent should migrate the private credential into hardware-protected non-exportable storage.
+#define KINGMAST_DEVICE_KEY_ID "REPLACE_WITH_DEVICE_KEY_ID"
+#define KINGMAST_DEVICE_HMAC_SECRET "REPLACE_WITH_RANDOM_DEVICE_SECRET_AT_LEAST_32_CHARS"
 
 // Replace with the PEM CA certificate that validates your KINGMAST gateway.
 // Production firmware must keep TLS certificate validation enabled.
