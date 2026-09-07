@@ -22,6 +22,8 @@ jobs:
         run: pnpm security:secrets
       - name: Configuration auth policy
         run: pnpm security:config-auth
+      - name: Audit integrity policy
+        run: pnpm audit:integrity
       - name: Firmware security policy
         run: pnpm firmware:policy
       - name: Firmware trust evidence honesty gate
