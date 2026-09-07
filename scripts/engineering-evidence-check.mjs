@@ -29,6 +29,7 @@ const required=[
   'services/risk-engine/src/bounded-state.test.ts',
   'services/risk-engine/src/device-auth.ts',
   'services/risk-engine/src/device-auth.test.ts',
+  'scripts/architecture-boundary-check.mjs',
   'scripts/secret-scan.mjs',
   'scripts/firmware-security-policy-check.mjs',
   'scripts/generate-sbom.mjs',
@@ -59,6 +60,7 @@ const dms=read('services/risk-engine/src/driver-monitoring.ts');
 const driverAssistRuntime=read('services/risk-engine/src/driver-assist-runtime.ts');
 const deviceAuth=read('services/risk-engine/src/device-auth.ts');
 const riskServer=read('services/risk-engine/src/server.ts');
+const architectureBoundary=read('scripts/architecture-boundary-check.mjs');
 const secretScan=read('scripts/secret-scan.mjs');
 const firmwarePolicy=read('scripts/firmware-security-policy-check.mjs');
 const sbom=read('scripts/generate-sbom.mjs');
@@ -71,6 +73,7 @@ if(!/Public-road deployment is outside this ODD/i.test(odd))failures.push('ODD m
 if(!/public evidence -> abstract requirement -> independent KINGMAST design -> independent implementation -> independent validation/i.test(research))failures.push('clean-room research transformation rule missing');
 if(!vehiclePort.includes("VEHICLE_PORT_AUTHORITY='read-only'")||!vehiclePort.includes('interface ReadOnlyVehiclePort'))failures.push('read-only vehicle integration contract missing or weakened');
 if(!contractsPackage.includes('"./vehicle-readonly":"./src/vehicle-readonly.ts"'))failures.push('read-only vehicle contract package export missing');
+if(!architectureBoundary.includes('autonomy-lab')||!architectureBoundary.includes('ReadOnlyVehiclePort')||!ci.includes('pnpm architecture:boundary'))failures.push('production/simulation/read-only dependency architecture gate must remain in CI');
 if(!edgeGuard.includes('DEFAULT_MAX_SESSIONS')||!edgeGuard.includes("'session-capacity'"))failures.push('edge replay-session storage must remain bounded and fail closed at capacity');
 if(!boundedState.includes('class BoundedFixedWindowRateLimiter')||!boundedState.includes('class BoundedMonotonicTimestampStore'))failures.push('bounded runtime state primitives missing');
 if(!roadContextRoutes.includes('BoundedFixedWindowRateLimiter')||!roadContextRoutes.includes('BoundedMonotonicTimestampStore')||!roadContextRoutes.includes("'/v4/runtime/diagnostics'"))failures.push('road-context runtime must use bounded abuse/replay state and authenticated diagnostics');
