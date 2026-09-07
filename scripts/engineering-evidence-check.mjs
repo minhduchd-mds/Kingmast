@@ -10,19 +10,24 @@ const required=[
   'docs/safety/SOTIF_SCENARIO_CATALOG_V006.md',
   'docs/cybersecurity/TARA_V006.md',
   'docs/cybersecurity/DEVICE_IDENTITY_V006.md',
+  'docs/hardware/ESP32_SECURITY_BASELINE.md',
   'docs/updates/SUMS_OTA_ARCHITECTURE_V006.md',
+  'docs/updates/OTA_STATE_MACHINE_V006.md',
   'docs/validation/SIL_HIL_FAULT_INJECTION_PLAN_V006.md',
   'docs/validation/scenarios/V006_BASELINE.json',
   'docs/architecture/READ_ONLY_VEHICLE_PORT.md',
   'packages/contracts/src/vehicle-readonly.ts',
   'services/risk-engine/src/update-verifier.ts',
   'services/risk-engine/src/update-verifier.test.ts',
+  'services/risk-engine/src/update-state.ts',
+  'services/risk-engine/src/update-state.test.ts',
   'services/risk-engine/src/safety-scenarios.test.ts',
   'services/risk-engine/src/bounded-state.ts',
   'services/risk-engine/src/bounded-state.test.ts',
   'services/risk-engine/src/device-auth.ts',
   'services/risk-engine/src/device-auth.test.ts',
   'scripts/secret-scan.mjs',
+  'scripts/firmware-security-policy-check.mjs',
   '.github/workflows/codeql.yml',
   '.github/CODEOWNERS',
 ];
@@ -34,6 +39,8 @@ const odd=read('docs/safety/ODD_V006.md');
 const hara=read('docs/safety/HARA_DRAFT_V006.md');
 const sotif=read('docs/safety/SOTIF_SCENARIO_CATALOG_V006.md');
 const research=read('docs/research/OEM_BENCHMARK_CLEAN_ROOM_2026.md');
+const hardwareBaseline=read('docs/hardware/ESP32_SECURITY_BASELINE.md');
+const otaStateDoc=read('docs/updates/OTA_STATE_MACHINE_V006.md');
 const vehiclePort=read('packages/contracts/src/vehicle-readonly.ts');
 const contractsPackage=read('packages/contracts/package.json');
 const edgeGuard=read('services/risk-engine/src/edge-guard.ts');
@@ -41,9 +48,11 @@ const boundedState=read('services/risk-engine/src/bounded-state.ts');
 const roadContextRoutes=read('services/risk-engine/src/road-context-routes.ts');
 const clientError=read('apps/hmi/app/api/kingmast/client-error/route.ts');
 const updateVerifier=read('services/risk-engine/src/update-verifier.ts');
+const updateState=read('services/risk-engine/src/update-state.ts');
 const deviceAuth=read('services/risk-engine/src/device-auth.ts');
 const riskServer=read('services/risk-engine/src/server.ts');
 const secretScan=read('scripts/secret-scan.mjs');
+const firmwarePolicy=read('scripts/firmware-security-policy-check.mjs');
 const ci=read('.github/workflows/ci.yml');
 const codeql=read('.github/workflows/codeql.yml');
 const scenarioTests=read('services/risk-engine/src/safety-scenarios.test.ts');
@@ -58,9 +67,13 @@ if(!boundedState.includes('class BoundedFixedWindowRateLimiter')||!boundedState.
 if(!roadContextRoutes.includes('BoundedFixedWindowRateLimiter')||!roadContextRoutes.includes('BoundedMonotonicTimestampStore')||!roadContextRoutes.includes("'/v4/runtime/diagnostics'"))failures.push('road-context runtime must use bounded abuse/replay state and authenticated diagnostics');
 if(!clientError.includes('MAX_RATE_KEYS=256')||!clientError.includes("error:'client-report-rate-limited'")||!clientError.includes('function redact('))failures.push('client-error ingestion hardening contract missing');
 if(!updateVerifier.includes('verifyUpdatePackage')||!updateVerifier.includes('artifact-hash-mismatch')||!updateVerifier.includes('rollback-rejected')||!updateVerifier.includes('evaluateInstallEligibility'))failures.push('signed update verification/install eligibility contract missing');
+if(!updateState.includes('class UpdateLifecycle')||!updateState.includes("'pending-boot'")||!updateState.includes("'rollback-required'"))failures.push('fail-safe OTA lifecycle/rollback state machine missing');
+if(!otaStateDoc.includes('staged')||!otaStateDoc.includes('pending-boot')||!otaStateDoc.includes('rollback-required'))failures.push('OTA lifecycle documentation must preserve verified install and rollback states');
 if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createHmac('sha256'")||!deviceAuth.includes("'device-key-revoked'"))failures.push('per-device signed packet identity/rotation/revocation contract missing');
 if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
+if(!firmwarePolicy.includes('setInsecure')||!firmwarePolicy.includes('setCACert')||!ci.includes('pnpm firmware:policy'))failures.push('ESP32 firmware security policy must remain enforced in CI');
+if(!hardwareBaseline.includes('secure boot')||!hardwareBaseline.includes('hardware-protected key')||!hardwareBaseline.includes('read-only'))failures.push('ESP32 hardware security baseline must preserve secure-boot/key-storage/read-only targets');
 if(!ci.includes('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1')||!ci.includes('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020')||!ci.includes('pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413'))failures.push('core CI actions must remain pinned to reviewed immutable commits');
 if(!codeql.includes('github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938')||!codeql.includes('github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938'))failures.push('CodeQL workflow must remain pinned to the reviewed v4 commit');
 for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/packages/contracts/','/.github/workflows/'])if(!codeowners.includes(requiredOwnerPath))failures.push(`CODEOWNERS missing ${requiredOwnerPath}`);
