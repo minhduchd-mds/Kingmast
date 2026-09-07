@@ -3,7 +3,7 @@ import type {RiskAssessment} from '@kingmast/contracts';
 export interface RiskMetricsSnapshot {
   assessments:number;
   severity:{safe:number;caution:number;critical:number};
-  rejected:{stale:number;radarUnavailable:number};
+  rejected:{stale:number;future:number;radarUnavailable:number};
   latencyMs:{last:number;max:number;buckets:{le1:number;le5:number;le10:number;le25:number;gt25:number}};
 }
 
@@ -13,6 +13,7 @@ export class BoundedRiskMetrics {
   private caution=0;
   private critical=0;
   private stale=0;
+  private future=0;
   private radarUnavailable=0;
   private lastLatencyMs=0;
   private maxLatencyMs=0;
@@ -29,6 +30,7 @@ export class BoundedRiskMetrics {
     else if(result.severity==='caution')this.caution+=1;
     else this.safe+=1;
     if(result.reasons.includes('stale-data-rejected'))this.stale+=1;
+    if(result.reasons.includes('future-data-rejected'))this.future+=1;
     if(result.reasons.includes('radar-unavailable'))this.radarUnavailable+=1;
     this.lastLatencyMs=boundedLatency;
     this.maxLatencyMs=Math.max(this.maxLatencyMs,boundedLatency);
@@ -43,7 +45,7 @@ export class BoundedRiskMetrics {
     return{
       assessments:this.assessments,
       severity:{safe:this.safe,caution:this.caution,critical:this.critical},
-      rejected:{stale:this.stale,radarUnavailable:this.radarUnavailable},
+      rejected:{stale:this.stale,future:this.future,radarUnavailable:this.radarUnavailable},
       latencyMs:{last:Number(this.lastLatencyMs.toFixed(3)),max:Number(this.maxLatencyMs.toFixed(3)),buckets:{le1:this.le1,le5:this.le5,le10:this.le10,le25:this.le25,gt25:this.gt25}},
     };
   }
