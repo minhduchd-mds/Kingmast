@@ -28,6 +28,7 @@
     "evidence:anchor": "node scripts/generate-evidence-anchor.mjs",
     "evidence:anchor-verify": "node scripts/verify-evidence-anchor.mjs",
     "evidence:signing-selftest": "node scripts/evidence-signing-selftest.mjs",
+    "evidence:timestamp-verify": "node scripts/verify-external-evidence-timestamp.mjs",
     "evidence:validate": "node scripts/engineering-evidence-check.mjs",
     "vercel:policy": "node scripts/vercel-deploy-policy-check.mjs"
   },
