@@ -98,5 +98,19 @@
     "safetyGoalIds": ["SG-008"],
     "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
     "expected": "Ed25519-authenticated edge packet tampering is rejected before ingestion"
+  },
+  {
+    "scenarioId": "FI-015",
+    "hazardIds": ["HZ-003"],
+    "safetyGoalIds": ["SG-002"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "future-dated risk evidence beyond allowed clock skew is rejected safe with zero confidence"
+  },
+  {
+    "scenarioId": "FI-016",
+    "hazardIds": ["HZ-009"],
+    "safetyGoalIds": ["SG-007"],
+    "testFile": "services/risk-engine/src/safety-scenarios.test.ts",
+    "expected": "anti-rollback floor does not advance until the newly installed image passes boot acceptance"
   }
 ]
