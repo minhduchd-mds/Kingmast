@@ -29,7 +29,9 @@ Disk persistence is asynchronous. A journal write failure:
 - does not block driver warning delivery;
 - must not be interpreted as a healthy forensic/evidence state.
 
-This separates `safety operation` from `evidence durability` while making loss of persistence observable to code through `auditStatus()`.
+This separates `safety operation` from `evidence durability` while making loss of persistence observable through `auditStatus()`.
+
+Viewer-authenticated status is available at `GET /v3/audit/status` and is also included in `GET /v3/diagnostics` and `GET /v3/health/details`. The public `/health` endpoint does not expose journal path or state.
 
 ## Bounds
 
