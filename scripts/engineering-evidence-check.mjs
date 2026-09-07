@@ -19,6 +19,7 @@ const required=[
   'docs/architecture/READ_ONLY_VEHICLE_PORT.md',
   'docs/supplychain/BUILD_PROVENANCE_V006.md',
   'docs/observability/AUDIT_JOURNAL_V006.md',
+  'docs/observability/RUNTIME_METRICS_V006.md',
   'packages/contracts/src/vehicle-readonly.ts',
   'services/risk-engine/src/update-verifier.ts',
   'services/risk-engine/src/update-verifier.test.ts',
@@ -26,6 +27,8 @@ const required=[
   'services/risk-engine/src/update-state.test.ts',
   'services/risk-engine/src/driver-monitoring.ts',
   'services/risk-engine/src/driver-assist-runtime.ts',
+  'services/risk-engine/src/risk-observability.ts',
+  'services/risk-engine/src/risk-observability.test.ts',
   'services/risk-engine/src/safety-scenarios.test.ts',
   'services/risk-engine/src/bounded-state.ts',
   'services/risk-engine/src/bounded-state.test.ts',
@@ -54,6 +57,7 @@ const hardwareBaseline=read('docs/hardware/ESP32_SECURITY_BASELINE.md');
 const otaStateDoc=read('docs/updates/OTA_STATE_MACHINE_V006.md');
 const buildProvenanceDoc=read('docs/supplychain/BUILD_PROVENANCE_V006.md');
 const auditDoc=read('docs/observability/AUDIT_JOURNAL_V006.md');
+const runtimeMetricsDoc=read('docs/observability/RUNTIME_METRICS_V006.md');
 const vehiclePort=read('packages/contracts/src/vehicle-readonly.ts');
 const contractsPackage=read('packages/contracts/package.json');
 const contracts=read('packages/contracts/src/index.ts');
@@ -65,6 +69,8 @@ const updateVerifier=read('services/risk-engine/src/update-verifier.ts');
 const updateState=read('services/risk-engine/src/update-state.ts');
 const dms=read('services/risk-engine/src/driver-monitoring.ts');
 const driverAssistRuntime=read('services/risk-engine/src/driver-assist-runtime.ts');
+const risk=read('services/risk-engine/src/risk.ts');
+const riskMetrics=read('services/risk-engine/src/risk-observability.ts');
 const deviceAuth=read('services/risk-engine/src/device-auth.ts');
 const auditJournal=read('services/risk-engine/src/audit-journal.ts');
 const eventBuffer=read('services/risk-engine/src/event-buffer.ts');
@@ -99,6 +105,8 @@ if(!deviceAuth.includes('verifyDevicePacketAuth')||!deviceAuth.includes("createH
 if(!riskServer.includes('KINGMAST_REQUIRE_DEVICE_AUTH')||!riskServer.includes('requireEdgePacketAuth')||!riskServer.includes("'/v3/device-identity/status'"))failures.push('risk engine must expose and enforce the per-device edge-frame identity transition');
 if(!auditJournal.includes('class BoundedAuditJournal')||!auditJournal.includes('KINGMAST_AUDIT_JOURNAL_PATH')||!auditJournal.includes("kingmast-audit-event/v1")||!eventBuffer.includes('createAuditJournalFromEnv')||!eventBuffer.includes('auditStatus'))failures.push('bounded local audit-journal evidence contract missing');
 if(!auditDoc.includes('does not store raw continuous camera video')||!auditDoc.includes('warning path depend on storage availability'))failures.push('audit journal documentation must preserve metadata-only and safety-operation independence boundaries');
+if(!riskMetrics.includes('class BoundedRiskMetrics')||!riskMetrics.includes('latencyMs')||!riskMetrics.includes('gt25')||!risk.includes('riskRuntimeMetrics.observe'))failures.push('bounded deterministic risk observability contract missing');
+if(!runtimeMetricsDoc.includes('fixed-size counters/buckets')||!runtimeMetricsDoc.includes('never vehicle-control inputs')||!runtimeMetricsDoc.includes('must not change deterministic warning decisions'))failures.push('runtime observability documentation must preserve fixed-cardinality and no-control boundaries');
 if(!secretScan.includes('KINGMAST repository secret scan failed')||!ci.includes('pnpm security:secrets'))failures.push('repository high-confidence secret scan must remain in CI');
 if(!firmwarePolicy.includes('setInsecure')||!firmwarePolicy.includes('setCACert')||!ci.includes('pnpm firmware:policy'))failures.push('ESP32 firmware security policy must remain enforced in CI');
 if(!hardwareBaseline.includes('secure boot')||!hardwareBaseline.includes('hardware-protected key')||!hardwareBaseline.includes('read-only'))failures.push('ESP32 hardware security baseline must preserve secure-boot/key-storage/read-only targets');
