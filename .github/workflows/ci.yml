@@ -96,11 +96,11 @@ jobs:
           node -e "const r=require('/tmp/kingmast.host-soak.json'); if(r.schema!=='kingmast-host-soak-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-host-soak-regression-only-not-target-hardware'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.classification?.passed!==true||r.memory?.passed!==true||r.eventLoop?.passed!==true||r.allPassed!==true||r.workload?.operations<1) process.exit(1); console.log('KINGMAST host soak regression passed '+r.workload.operations+' risk operations in '+r.workload.durationSeconds+' s; RSS growth '+r.memory.rssGrowthMiB+' MiB.');"
       - name: Realtime reconnect and HMI transport evidence
         run: |
-          pnpm realtime:recovery-evidence > /tmp/kingmast.realtime-recovery.json
+          pnpm --filter @kingmast/risk-engine exec tsx src/realtime-recovery-evidence-cli.ts > /tmp/kingmast.realtime-recovery.json
           node -e "const r=require('/tmp/kingmast.realtime-recovery.json'); if(r.schema!=='kingmast-realtime-recovery-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='deterministic-software-recovery-only-not-physical-hil'||r.physicalControllerTest!==false||r.targetHardwareQualified!==false||r.browserNetworkMeasured!==false||r.allPassed!==true) process.exit(1); console.log('KINGMAST realtime recovery evidence passed with '+r.snapshot.reconnects+' reconnect and '+r.snapshot.sequenceRegressions+' rejected sequence regression.');"
       - name: Realtime edge-to-stream loopback integration evidence
         run: |
-          pnpm realtime:integration-evidence > /tmp/kingmast.realtime-loopback.json
+          pnpm --filter @kingmast/risk-engine exec tsx src/realtime-integration-evidence-cli.ts > /tmp/kingmast.realtime-loopback.json
           node -e "const r=require('/tmp/kingmast.realtime-loopback.json'); if(r.schema!=='kingmast-realtime-loopback-integration-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-loopback-process-integration-only-not-target-hardware'||r.physicalControllerTest!==false||r.targetHardwareQualified!==false||r.browserRenderMeasured!==false||r.allPassed!==true||r.snapshot?.reconnects!==1||r.snapshot?.sessionChanges!==1) process.exit(1); console.log('KINGMAST realtime loopback integration passed; restart ready '+r.restartReadyMs+' ms, post-restart transport '+r.postRestartServerToClientMs+' ms.');"
       - name: Realtime resilience policy
         run: pnpm realtime:policy
