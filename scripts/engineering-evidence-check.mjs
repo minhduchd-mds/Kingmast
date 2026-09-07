@@ -80,7 +80,7 @@ for(const requiredOwnerPath of ['/safety/','/services/risk-engine/','/edge/','/p
 
 try{
   const scenarios=JSON.parse(read('docs/validation/scenarios/V006_BASELINE.json'));
-  if(!Array.isArray(scenarios)||scenarios.length<6)failures.push('baseline validation scenario manifest must contain at least six traceable scenarios');
+  if(!Array.isArray(scenarios)||scenarios.length<11)failures.push('baseline validation scenario manifest must contain at least eleven traceable scenarios');
   else for(const scenario of scenarios){
     if(typeof scenario.scenarioId!=='string'||!scenarioTests.includes(scenario.scenarioId))failures.push(`scenario test missing ${scenario.scenarioId??'unknown-id'}`);
     for(const hazardId of scenario.hazardIds??[])if(!hara.includes(hazardId))failures.push(`scenario ${scenario.scenarioId} references unknown hazard ${hazardId}`);
