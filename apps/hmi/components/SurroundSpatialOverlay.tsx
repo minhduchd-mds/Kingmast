@@ -85,6 +85,11 @@ export default function SurroundSpatialOverlay(){
 
   return createPortal(
     <div className="surroundSpatialLayer" data-testid="surround-spatial-layer" data-source={liveFrame?(liveFresh?'live':'stale'):'simulator'} aria-hidden="true">
+      <div className="surroundPrecisionGrid" data-testid="surround-precision-grid"/>
+      <div className="surroundSensorField" data-testid="surround-sensor-field">
+        <i data-sector="front"/><i data-sector="right"/><i data-sector="rear"/><i data-sector="left"/>
+        <span className="surroundScanSweep"/>
+      </div>
       <div className="surroundRangeRings">
         <i data-range="clear"/><i data-range="watch"/><i data-range="near"/>
       </div>
@@ -92,7 +97,8 @@ export default function SurroundSpatialOverlay(){
       {objects.map((object)=>{
         const band=distanceBand(object);
         return <div className={`surroundMarker range-${band}`} data-zone={object.zone} data-range={band} data-kind={object.kind} key={object.id}>
-          <span className="surroundMarkerGlyph"><ObjectGlyph kind={object.kind}/></span>
+          <span className="surroundMarkerRay"/>
+          <span className="surroundMarkerTarget"><span className="surroundMarkerGlyph"><ObjectGlyph kind={object.kind}/></span></span>
           <span className="surroundMarkerCopy"><strong>{formatDistance(object.distanceM,profile.units)}</strong><small>{objectLabel(object)}</small></span>
         </div>;
       })}

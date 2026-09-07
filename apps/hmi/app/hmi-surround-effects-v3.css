@@ -1,0 +1,254 @@
+/* KINGMAST surround sensor effects v3.
+   Visual-only spatial awareness. These effects never imply brake, steering, throttle,
+   parking, torque or CAN-write authority. */
+
+body{
+  --surround-sensor:#55d7ff;
+  --surround-sensor-soft:rgba(85,215,255,.16);
+}
+
+/* Precision field replaces visually heavy rings with thin geometry and directional sensor fans. */
+.surroundPrecisionGrid{
+  position:absolute;
+  left:50%;top:50%;
+  width:min(70%,620px);aspect-ratio:1;
+  transform:translate(-50%,-50%);
+  z-index:0;
+  pointer-events:none;
+  border-radius:50%;
+  background:
+    repeating-radial-gradient(circle at center,transparent 0 66px,rgba(117,204,239,.055) 67px 67.7px,transparent 68.5px 92px),
+    linear-gradient(90deg,transparent 49.85%,rgba(130,203,233,.055) 50%,transparent 50.15%),
+    linear-gradient(0deg,transparent 49.85%,rgba(130,203,233,.05) 50%,transparent 50.15%);
+  mask-image:radial-gradient(circle,#000 0 62%,transparent 82%);
+  -webkit-mask-image:radial-gradient(circle,#000 0 62%,transparent 82%);
+  opacity:.72;
+}
+
+.surroundSensorField{
+  position:absolute;
+  left:50%;top:50%;
+  width:min(66%,570px);aspect-ratio:1;
+  transform:translate(-50%,-50%);
+  z-index:1;
+  pointer-events:none;
+  border-radius:50%;
+  filter:drop-shadow(0 0 22px rgba(37,170,220,.08));
+}
+.surroundSensorField>i{
+  position:absolute;
+  left:50%;top:50%;
+  width:46%;height:34%;
+  transform-origin:0 50%;
+  clip-path:polygon(0 45%,100% 0,100% 100%,0 55%);
+  background:
+    linear-gradient(90deg,rgba(85,215,255,.25) 0%,rgba(85,215,255,.12) 42%,rgba(85,215,255,.025) 76%,transparent 100%),
+    repeating-linear-gradient(0deg,transparent 0 17px,rgba(160,228,255,.065) 18px 18.7px,transparent 19px 30px);
+  opacity:.54;
+  filter:blur(.15px);
+}
+.surroundSensorField>i::after{
+  content:"";
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,transparent 0 48%,rgba(180,237,255,.16) 49.5% 50.5%,transparent 52%);
+  opacity:.45;
+}
+.surroundSensorField>i[data-sector="front"]{transform:translateY(-50%) rotate(-90deg);opacity:.72}
+.surroundSensorField>i[data-sector="right"]{transform:translateY(-50%) rotate(0deg)}
+.surroundSensorField>i[data-sector="rear"]{transform:translateY(-50%) rotate(90deg);opacity:.42}
+.surroundSensorField>i[data-sector="left"]{transform:translateY(-50%) rotate(180deg)}
+
+.surroundScanSweep{
+  position:absolute;
+  left:50%;top:50%;
+  width:96%;aspect-ratio:1;
+  transform:translate(-50%,-50%) rotate(0deg);
+  border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0 82%,rgba(75,210,255,.01) 86%,rgba(75,210,255,.11) 94%,rgba(158,236,255,.24) 98%,transparent 100%);
+  mask-image:radial-gradient(circle,transparent 0 23%,#000 24% 67%,transparent 68%);
+  -webkit-mask-image:radial-gradient(circle,transparent 0 23%,#000 24% 67%,transparent 68%);
+  opacity:.46;
+  animation:surroundScanRotate 6.4s linear infinite;
+}
+
+/* Keep distance semantics, but make the range circles secondary and very fine. */
+.surroundRangeRings i[data-range="clear"],
+.surroundRangeRings i[data-range="watch"],
+.surroundRangeRings i[data-range="near"]{
+  border-width:.7px;
+  box-shadow:none;
+  background:transparent;
+}
+.surroundRangeRings i[data-range="clear"]{border-color:rgba(72,209,126,.24);opacity:.72}
+.surroundRangeRings i[data-range="watch"]{border-color:rgba(255,205,64,.20);opacity:.62}
+.surroundRangeRings i[data-range="near"]{border-color:rgba(255,91,82,.16);opacity:.54}
+.surroundAxis::before,.surroundAxis::after{opacity:.36}
+
+/* Detected objects read like spatial targets, not notification cards. */
+.surroundMarker{
+  position:absolute;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-height:0;
+  max-width:none;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  isolation:isolate;
+}
+.surroundMarker::before{
+  content:"";
+  position:absolute;
+  left:24px;top:50%;
+  width:78px;height:78px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  z-index:0;
+  background:radial-gradient(circle,color-mix(in srgb,var(--marker-color) 22%,transparent) 0%,color-mix(in srgb,var(--marker-color) 8%,transparent) 42%,transparent 72%);
+  filter:blur(7px);
+  opacity:.72;
+}
+.surroundMarker.range-near{animation:none}
+
+.surroundMarkerTarget{
+  position:relative;
+  z-index:3;
+  width:48px;height:48px;
+  flex:0 0 48px;
+  display:grid;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--marker-color) 68%,transparent);
+  border-radius:14px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--marker-color) 11%,rgba(9,15,21,.94)),rgba(8,13,18,.88));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 0 0 4px color-mix(in srgb,var(--marker-color) 4%,transparent),
+    0 8px 18px rgba(0,0,0,.28),
+    0 0 18px color-mix(in srgb,var(--marker-color) 12%,transparent);
+}
+.surroundMarkerTarget::before,
+.surroundMarkerTarget::after{
+  content:"";
+  position:absolute;
+  inset:-5px;
+  border-radius:18px;
+  pointer-events:none;
+}
+.surroundMarkerTarget::before{
+  border-top:1px solid color-mix(in srgb,var(--marker-color) 52%,transparent);
+  border-bottom:1px solid color-mix(in srgb,var(--marker-color) 52%,transparent);
+  opacity:.52;
+}
+.surroundMarkerTarget::after{
+  border-left:1px solid color-mix(in srgb,var(--marker-color) 38%,transparent);
+  border-right:1px solid color-mix(in srgb,var(--marker-color) 38%,transparent);
+  opacity:.38;
+}
+.surroundMarkerGlyph{
+  width:34px;height:34px;
+  flex:0 0 34px;
+  border-radius:10px;
+  background:color-mix(in srgb,var(--marker-color) 10%,rgba(255,255,255,.018));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--marker-color) 14%,transparent);
+}
+.surroundMarkerGlyph svg{width:21px;height:21px;stroke-width:1.7}
+
+.surroundMarkerCopy{
+  position:relative;
+  z-index:4;
+  min-width:68px;
+  display:grid;
+  gap:1px;
+  padding:7px 9px 7px 10px;
+  border:1px solid color-mix(in srgb,var(--marker-color) 28%,rgba(255,255,255,.04));
+  border-radius:12px;
+  background:linear-gradient(145deg,rgba(13,20,28,.90),rgba(7,11,16,.92));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 8px 20px rgba(0,0,0,.24);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.surroundMarkerCopy strong{font-size:14px;line-height:1.05;letter-spacing:-.015em}
+.surroundMarkerCopy small{font-size:12px;line-height:1.1;color:rgba(232,239,246,.62)}
+
+/* A soft directional beam links the detected object back into the spatial field. */
+.surroundMarkerRay{
+  position:absolute;
+  left:24px;top:50%;
+  width:clamp(92px,13vw,190px);
+  height:66px;
+  transform-origin:0 50%;
+  z-index:1;
+  clip-path:polygon(0 46%,100% 4%,100% 96%,0 54%);
+  background:linear-gradient(90deg,color-mix(in srgb,var(--marker-color) 18%,transparent),color-mix(in srgb,var(--marker-color) 5%,transparent) 55%,transparent 100%);
+  opacity:.42;
+  filter:blur(.3px);
+}
+.surroundMarker[data-zone="front"] .surroundMarkerRay{transform:rotate(90deg)}
+.surroundMarker[data-zone="front-left"] .surroundMarkerRay{transform:rotate(42deg)}
+.surroundMarker[data-zone="front-right"] .surroundMarkerRay{transform:rotate(138deg)}
+.surroundMarker[data-zone="left"] .surroundMarkerRay{transform:rotate(0deg)}
+.surroundMarker[data-zone="right"] .surroundMarkerRay{transform:rotate(180deg)}
+.surroundMarker[data-zone="rear"] .surroundMarkerRay{transform:rotate(-90deg)}
+
+.surroundMarker.range-near .surroundMarkerTarget{
+  animation:surroundTargetPulse 2.5s cubic-bezier(.4,0,.2,1) infinite;
+}
+.surroundMarker.range-near .surroundMarkerRay{opacity:.62}
+.surroundMarker.range-watch .surroundMarkerRay{opacity:.46}
+.surroundMarker.range-clear .surroundMarkerRay{opacity:.24}
+
+/* Local danger stays local to the spatial canvas; no duplicate text alert is introduced. */
+.surroundSpatialLayer:has(.surroundMarker[data-zone="right"].range-near)::after,
+.surroundSpatialLayer:has(.surroundMarker[data-zone="left"].range-near)::after{
+  width:25%;height:44%;
+  background:radial-gradient(ellipse at center,rgba(255,74,62,.18),rgba(255,145,62,.06) 40%,transparent 72%);
+  filter:blur(14px);
+  opacity:.76;
+}
+
+@keyframes surroundScanRotate{
+  to{transform:translate(-50%,-50%) rotate(360deg)}
+}
+@keyframes surroundTargetPulse{
+  0%,100%{transform:scale(1);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 0 4px color-mix(in srgb,var(--marker-color) 4%,transparent),0 8px 18px rgba(0,0,0,.28),0 0 16px color-mix(in srgb,var(--marker-color) 11%,transparent)}
+  50%{transform:scale(1.035);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 0 7px color-mix(in srgb,var(--marker-color) 5%,transparent),0 8px 18px rgba(0,0,0,.28),0 0 24px color-mix(in srgb,var(--marker-color) 17%,transparent)}
+}
+
+@media(max-height:560px){
+  .surroundPrecisionGrid{width:min(54%,380px);opacity:.52}
+  .surroundSensorField{width:min(52%,360px)}
+  .surroundRangeRings i[data-range="near"]{opacity:.30}
+  .surroundMarkerTarget{width:40px;height:40px;flex-basis:40px;border-radius:12px}
+  .surroundMarker::before{left:20px;width:62px;height:62px}
+  .surroundMarkerRay{left:20px;width:clamp(74px,10vw,126px);height:50px}
+  .surroundMarkerGlyph{width:30px;height:30px;flex-basis:30px}
+  .surroundMarkerGlyph svg{width:18px;height:18px}
+  .surroundMarkerCopy{min-width:56px;padding:5px 7px}
+  .surroundMarkerCopy strong{font-size:13px}
+  .surroundMarkerCopy small{display:none}
+}
+
+@media(max-width:1366px){
+  .surroundSensorField{width:min(64%,500px)}
+  .surroundPrecisionGrid{width:min(68%,540px)}
+  .surroundMarkerCopy{min-width:62px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .surroundScanSweep,
+  .surroundMarker.range-near .surroundMarkerTarget{animation:none!important}
+  .surroundScanSweep{opacity:.24;transform:translate(-50%,-50%) rotate(24deg)}
+}
+
+@media(prefers-contrast:more){
+  .surroundSensorField>i{opacity:.68}
+  .surroundRangeRings i[data-range="clear"],
+  .surroundRangeRings i[data-range="watch"],
+  .surroundRangeRings i[data-range="near"]{opacity:.86;border-width:1px}
+  .surroundMarkerTarget,.surroundMarkerCopy{border-width:1.5px}
+}
