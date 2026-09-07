@@ -1,0 +1,116 @@
+{
+  "schema": "kingmast-hil-evidence-registry/v1",
+  "version": "0.0.6",
+  "claim": "no-hil-results-claimed",
+  "updatedAt": "2026-09-07T00:00:00Z",
+  "scenarios": [
+    {
+      "id": "HIL-001",
+      "title": "Frozen front radar and stale-range rejection",
+      "traceability": ["FI-003", "HZ-001", "HZ-008", "SG-002"],
+      "status": "pending",
+      "requiredEvidence": ["controller identity", "radar/generator identity", "harness revision", "software commit", "configuration hash", "calibration hash", "time-synchronized raw measurement reference"],
+      "blockedReason": "physical HIL bench evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-002",
+      "title": "Replay, sequence regression and future-clock rejection",
+      "traceability": ["FI-001", "FI-015", "HZ-003", "HZ-010", "SG-002", "SG-008"],
+      "status": "pending",
+      "requiredEvidence": ["controller identity", "packet/fault generator identity", "software commit", "captured rejected inputs", "gateway logs"],
+      "blockedReason": "physical HIL bench evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-003",
+      "title": "DMS temporal dropout and discontinuity",
+      "traceability": ["FI-004", "FI-012", "HZ-006", "SG-006", "ST-016", "ST-017", "ST-018"],
+      "status": "pending",
+      "requiredEvidence": ["cabin sensor identity", "sample generator or recorded source identity", "software commit", "timing trace", "runtime availability output"],
+      "blockedReason": "physical HIL bench evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-004",
+      "title": "Surround synchronization and calibration degradation",
+      "traceability": ["FI-013", "HZ-008", "SG-002"],
+      "status": "pending",
+      "requiredEvidence": ["camera identities", "calibration dataset hash", "harness revision", "synchronization trace", "reprojection measurements", "HMI degradation capture"],
+      "blockedReason": "physical HIL bench evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-005",
+      "title": "Per-device authentication tamper and revocation path",
+      "traceability": ["FI-007", "FI-008", "FI-014", "HZ-010", "SG-008"],
+      "status": "pending",
+      "requiredEvidence": ["device identity", "provisioning record reference", "software commit", "tampered packet capture", "revocation test log"],
+      "blockedReason": "physical HIL bench evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-006",
+      "title": "Signed update verification and unhealthy boot rollback",
+      "traceability": ["FI-005", "FI-009", "FI-010", "FI-016", "HZ-009", "SG-007"],
+      "status": "pending",
+      "requiredEvidence": ["controller identity", "bootloader version", "firmware artifact hash", "manifest/signature reference", "rollback floor before/after", "boot-health trace"],
+      "blockedReason": "bootloader and physical update target evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-007",
+      "title": "Power-loss recovery during update lifecycle",
+      "traceability": ["FI-016", "HZ-009", "SG-007"],
+      "status": "pending",
+      "requiredEvidence": ["programmable power source identity", "power interruption timestamps", "boot partition state", "known-good recovery log", "rollback floor before/after"],
+      "blockedReason": "programmable power-loss HIL evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-008",
+      "title": "CAN receive-path loss and confidence degradation",
+      "traceability": ["HZ-001", "SG-002"],
+      "status": "pending",
+      "requiredEvidence": ["read-only CAN adapter identity", "bus simulator identity", "harness revision", "CAN-loss timing", "risk output trace"],
+      "blockedReason": "physical CAN bench evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-009",
+      "title": "GNSS jump, loss and recovery",
+      "traceability": ["HZ-003", "SG-002"],
+      "status": "pending",
+      "requiredEvidence": ["GNSS receiver identity", "GNSS simulator/source identity", "position/quality trace", "software commit", "degraded/recovery output trace"],
+      "blockedReason": "physical GNSS bench evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-010",
+      "title": "Radar-camera disagreement and fusion uncertainty",
+      "traceability": ["HZ-001", "HZ-008", "SG-002"],
+      "status": "pending",
+      "requiredEvidence": ["radar identity", "camera identity", "synchronized contradictory stimulus", "calibration hashes", "fusion output trace"],
+      "blockedReason": "multi-sensor HIL stimulus evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-011",
+      "title": "Process restart, reconnect and bounded soak behavior",
+      "traceability": ["FI-011", "HZ-012", "SG-009"],
+      "status": "pending",
+      "requiredEvidence": ["controller identity", "software commit", "restart timeline", "memory/CPU trace", "reconnect trace", "bounded-state diagnostics"],
+      "blockedReason": "target-controller soak evidence not yet attached",
+      "evidence": null
+    },
+    {
+      "id": "HIL-012",
+      "title": "Physical read-only CAN authority boundary",
+      "traceability": ["SG-001", "SG-002"],
+      "status": "pending",
+      "requiredEvidence": ["adapter part number", "wiring/harness revision", "TX-disable mechanism", "bus analyzer capture", "independent reviewer"],
+      "blockedReason": "physical read-only CAN boundary evidence not yet attached",
+      "evidence": null
+    }
+  ]
+}
