@@ -39,6 +39,10 @@ export class BoundedFixedWindowRateLimiter {
     this.windows.set(key,{startedAtMs:nowMs,count:1});
     return{allowed:true,retryAfterS:0,reason:'ok'};
   }
+
+  accept(key:string,limit=30,nowMs=Date.now(),windowMs=60_000){
+    return this.consume(key,limit,nowMs,windowMs).allowed;
+  }
 }
 
 interface TimestampEntry { timestampMs:number; lastSeenAtMs:number; }

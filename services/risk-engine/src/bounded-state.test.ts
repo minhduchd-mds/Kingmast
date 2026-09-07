@@ -14,6 +14,14 @@ describe('BoundedFixedWindowRateLimiter',()=>{
     expect(denied.retryAfterS).toBeGreaterThan(0);
   });
 
+  it('provides a bounded boolean gate for low-overhead route checks',()=>{
+    const limiter=new BoundedFixedWindowRateLimiter(4);
+    expect(limiter.accept('camera-provider',2,now)).toBe(true);
+    expect(limiter.accept('camera-provider',2,now+100)).toBe(true);
+    expect(limiter.accept('camera-provider',2,now+200)).toBe(false);
+    expect(limiter.rejected).toBe(1);
+  });
+
   it('bounds unique-key memory and fails closed at capacity',()=>{
     const limiter=new BoundedFixedWindowRateLimiter(2);
     expect(limiter.consume('a',10,now).allowed).toBe(true);
