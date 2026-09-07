@@ -48,7 +48,7 @@ jobs:
         run: pnpm test
       - name: Deterministic SIL replay evidence
         run: |
-          pnpm sil:replay > /tmp/kingmast.sil-replay.json
+          pnpm --filter @kingmast/risk-engine exec tsx src/sil-replay-cli.ts > /tmp/kingmast.sil-replay.json
           node -e "const r=require('/tmp/kingmast.sil-replay.json'); if(r.schema!=='kingmast-sil-replay-report/v1'||r.controlAuthority!=='none'||r.total<7||r.failed!==0||r.allPassed!==true) process.exit(1); console.log('KINGMAST SIL replay passed '+r.passed+'/'+r.total+' cases.');"
       - name: Production dependency audit
         run: pnpm audit --prod --audit-level=moderate
