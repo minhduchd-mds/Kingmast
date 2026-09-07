@@ -79,6 +79,11 @@ jobs:
         run: |
           node scripts/generate-evidence-anchor.mjs > /tmp/kingmast.evidence-anchor.json
           node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<5||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
+      - name: Verify engineering evidence anchor
+        env:
+          KINGMAST_EVIDENCE_ANCHOR_PATH: /tmp/kingmast.evidence-anchor.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.sil-replay.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+        run: pnpm evidence:anchor-verify
       - name: Install Chromium for HMI verification
         run: pnpm --filter @kingmast/hmi exec playwright install --with-deps chromium
       - name: Run automotive HMI UI tests
