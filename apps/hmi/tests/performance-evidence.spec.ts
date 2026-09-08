@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { expect,test } from '@playwright/test';
 
 const enabled=process.env.KINGMAST_HMI_PERFORMANCE_EVIDENCE==='1';
-const outputPath=process.env.KINGMAST_HMI_PERFORMANCE_OUTPUT??'/tmp/kingmast.hmi-performance.json';
+const outputPath=process.env.KINGMAST_HMI_PERFORMANCE_OUTPUT??'performance-evidence.json';
 
 function percentile(values:number[],ratio:number){
   if(values.length===0)return 0;
