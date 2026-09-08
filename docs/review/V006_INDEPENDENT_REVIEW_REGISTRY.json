@@ -1,0 +1,21 @@
+{
+  "schema": "kingmast-independent-review-registry/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "overallStatus": "pending",
+  "targetHardwareQualified": false,
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "reviews": [
+    {"id":"REV-SAFETY","domain":"functional-safety-and-SOTIF","status":"pending","reviewer":null,"reviewedAt":null,"evidenceRefs":[],"disposition":null,"findings":[]},
+    {"id":"REV-CYBER","domain":"cybersecurity-and-update-lifecycle","status":"pending","reviewer":null,"reviewedAt":null,"evidenceRefs":[],"disposition":null,"findings":[]},
+    {"id":"REV-HARDWARE","domain":"vehicle-computer-electrical-harness-and-read-only-boundary","status":"pending","reviewer":null,"reviewedAt":null,"evidenceRefs":[],"disposition":null,"findings":[]},
+    {"id":"REV-HMI","domain":"driver-HMI-human-factors","status":"pending","reviewer":null,"reviewedAt":null,"evidenceRefs":[],"disposition":null,"findings":[]},
+    {"id":"REV-EVIDENCE","domain":"evidence-integrity-and-reproducibility","status":"pending","reviewer":null,"reviewedAt":null,"evidenceRefs":[],"disposition":null,"findings":[]}
+  ],
+  "notes": [
+    "Repository CI validates the review bookkeeping contract only and cannot perform an independent engineering review.",
+    "A reviewer must be independent from the operator/author of the physical evidence under review.",
+    "No review entry may create public-road approval or homologation claims."
+  ]
+}
