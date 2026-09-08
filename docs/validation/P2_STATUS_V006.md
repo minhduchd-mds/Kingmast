@@ -26,7 +26,7 @@ For commit `f0b47e76174e6a255b6297b5097761e575cb640e`:
 - CI host soak: 3 seconds, 7,996,500 risk operations, RSS growth 10.301 MiB, event-loop p99 20.414 ms, all classification invariants passed.
 - HMI performance: boot-to-ready 2642.41 ms, first usable driving surface 2675.15 ms, frame p99 50 ms, jank ratio 1.85%, WebGL context-loss fallback passed.
 
-These figures are CI regression evidence only and are not target-hardware qualification results.
+These figures are CI regression evidence only and are not target-hardware qualification results. This status document also creates no qualification or public-road approval claim.
 
 ## Remaining physical Gate-3 blockers
 
