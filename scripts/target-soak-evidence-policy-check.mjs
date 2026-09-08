@@ -16,11 +16,15 @@ expect(Number.isInteger(report.requiredDurationSeconds)&&report.requiredDuration
 expect(['pending-physical-execution','captured-awaiting-review'].includes(report.status),'unsupported status');
 expect(['not-reviewed','pending-independent-review'].includes(report.reviewStatus),'unsupported review status');
 
+const physicalEvidenceKeys=[
+  'hardwareTarget','hardwareInstanceSha256','buildCommit','buildId','firmwareRevision','configurationRevision','calibrationRevision',
+  'capturedDurationSeconds','hostSoakReportSha256','classificationPassed','memoryPassed','eventLoopPassed','runtimeEnvelopePassed',
+  'thermalTelemetryRequired','thermalAvailable','temperaturePassed','freeMemoryPassed',
+];
+
 if(report.status==='pending-physical-execution'){
   expect(report.physicalVehicleComputerTest===false,'pending registry must not claim a physical execution');
-  for(const key of ['hardwareTarget','hardwareInstanceSha256','buildCommit','buildId','firmwareRevision','configurationRevision','calibrationRevision','capturedDurationSeconds','hostSoakReportSha256','classificationPassed','memoryPassed','eventLoopPassed']){
-    expect(report[key]===null,`pending registry must keep ${key} null`);
-  }
+  for(const key of physicalEvidenceKeys)expect(report[key]===null,`pending registry must keep ${key} null`);
 }else{
   expect(report.physicalVehicleComputerTest===true,'captured registry requires physicalVehicleComputerTest=true');
   expect(label(report.hardwareTarget),'captured registry requires hardware target');
@@ -35,8 +39,15 @@ if(report.status==='pending-physical-execution'){
   expect(report.classificationPassed===true,'classification evidence must pass');
   expect(report.memoryPassed===true,'memory evidence must pass');
   expect(report.eventLoopPassed===true,'event-loop evidence must pass');
+  expect(report.runtimeEnvelopePassed===true,'runtime-envelope evidence must pass');
+  expect(typeof report.thermalTelemetryRequired==='boolean','captured registry must record whether thermal telemetry was required');
+  expect(typeof report.thermalAvailable==='boolean','captured registry must record whether thermal telemetry was available');
+  expect(typeof report.temperaturePassed==='boolean','captured registry must record temperature budget result');
+  expect(report.temperaturePassed===true,'captured registry temperature budget must pass');
+  if(report.thermalTelemetryRequired===true)expect(report.thermalAvailable===true,'required thermal telemetry must be available');
+  expect(report.freeMemoryPassed===true,'captured registry free-memory budget must pass');
   expect(report.reviewStatus==='pending-independent-review','physical capture still requires independent review');
 }
 
 if(process.exitCode)process.exit(process.exitCode);
-console.log(`[target-soak-policy] ${report.status}; physical=${report.physicalVehicleComputerTest}; required=${report.requiredDurationSeconds}s; qualification=false`);
+console.log(`[target-soak-policy] ${report.status}; physical=${report.physicalVehicleComputerTest}; required=${report.requiredDurationSeconds}s; runtime-envelope=${report.runtimeEnvelopePassed??'pending'}; qualification=false`);
