@@ -109,7 +109,7 @@ jobs:
           KINGMAST_BUILD_ID: ci-${{ github.run_id }}
           KINGMAST_FIELD_DIAGNOSTICS_INPUT_JSON: '{"edge":{"status":"offline","rejectedPackets":0,"sensorAgesMs":{"gnss":null,"radarFront":null,"camera":null}},"providerTrust":{"authRejected":0,"replayRejected":0,"capacityRejected":0,"providers":[]}}'
         run: |
-          pnpm diagnostics:field-evidence > /tmp/kingmast.field-diagnostics.json
+          pnpm --silent diagnostics:field-evidence > /tmp/kingmast.field-diagnostics.json
           node -e "const r=require('/tmp/kingmast.field-diagnostics.json'); const p=r.privacy||{}; if(r.schema!=='kingmast-field-diagnostics-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-software-contract-only-not-physical-field-evidence'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.physicalCaptureReady!==false||r.allPassed!==true||p.rawCabinVideoIncluded!==false||p.rawCameraFramesIncluded!==false||p.preciseCoordinatesIncluded!==false||p.requestPayloadsIncluded!==false||p.secretsIncluded!==false||p.rawHardwareSerialIncluded!==false) process.exit(1); console.log('KINGMAST bounded field diagnostics software contract passed; physical capture remains pending.');"
       - name: Realtime reconnect and HMI transport evidence
         run: |
