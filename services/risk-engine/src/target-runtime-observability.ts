@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 const MIB=1024*1024;
 const MAX_THERMAL_ZONES=32;
+const UPTIME_REGRESSION_TOLERANCE_S=1;
 
 export interface TargetThermalSnapshot {
   available:boolean;
@@ -77,6 +78,8 @@ export class TargetRuntimeAccumulator {
   private sampleCount=0;
   private uptimeStartS:number|null=null;
   private uptimeEndS:number|null=null;
+  private previousUptimeS:number|null=null;
+  private uptimeRegressionCount=0;
   private load1Max=0;
   private load5Max=0;
   private load15Max=0;
@@ -90,6 +93,8 @@ export class TargetRuntimeAccumulator {
   observe(snapshot:TargetRuntimeSnapshot){
     this.sampleCount+=1;
     this.uptimeStartS??=snapshot.uptimeS;
+    if(this.previousUptimeS!==null&&snapshot.uptimeS+UPTIME_REGRESSION_TOLERANCE_S<this.previousUptimeS)this.uptimeRegressionCount+=1;
+    this.previousUptimeS=snapshot.uptimeS;
     this.uptimeEndS=snapshot.uptimeS;
     this.load1Max=Math.max(this.load1Max,snapshot.load1);
     this.load5Max=Math.max(this.load5Max,snapshot.load5);
@@ -110,15 +115,17 @@ export class TargetRuntimeAccumulator {
     const temperaturePassed=!thermalAvailable||this.thermalMaxC<=requirements.maxTemperatureC;
     const freeMemoryMinMiB=Number.isFinite(this.freeMemoryMinMiB)?round(this.freeMemoryMinMiB):0;
     const memoryPassed=requirements.minFreeMemoryMiB<=0||freeMemoryMinMiB>=requirements.minFreeMemoryMiB;
+    const uptimePassed=this.uptimeRegressionCount===0;
     return{
       sampleCount:this.sampleCount,
       uptimeStartS:this.uptimeStartS,
       uptimeEndS:this.uptimeEndS,
+      uptime:{startS:this.uptimeStartS,endS:this.uptimeEndS,regressions:this.uptimeRegressionCount,toleranceS:UPTIME_REGRESSION_TOLERANCE_S,passed:uptimePassed},
       load:{max1m:round(this.load1Max),max5m:round(this.load5Max),max15m:round(this.load15Max)},
       memory:{totalMiB:round(this.totalMemoryMiB),freeMinMiB:freeMemoryMinMiB,minFreeBudgetMiB:requirements.minFreeMemoryMiB,passed:memoryPassed},
       thermal:{available:thermalAvailable,availableSamples:this.thermalAvailableSamples,sensorsMax:this.thermalSensorsMax,minC:Number.isFinite(this.thermalMinC)?round(this.thermalMinC):null,maxC:Number.isFinite(this.thermalMaxC)?round(this.thermalMaxC):null,required:requirements.thermalRequired,maxBudgetC:requirements.maxTemperatureC,availabilityPassed:thermalRequiredPassed,temperaturePassed},
       privacy:{rawHardwareSerialIncluded:false,hostnameIncluded:false,networkAddressesIncluded:false,processArgumentsIncluded:false,environmentIncluded:false},
-      passed:thermalRequiredPassed&&temperaturePassed&&memoryPassed,
+      passed:uptimePassed&&thermalRequiredPassed&&temperaturePassed&&memoryPassed,
     };
   }
 }
