@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
 const Label=z.string().trim().min(1).max(96).regex(/^[A-Za-z0-9][A-Za-z0-9._:+/@-]*$/);
-const MaybeLabel=Label.nullable().optional();
 const Sha256=z.string().regex(/^[a-f0-9]{64}$/i);
-const MaybeSha256=Sha256.nullable().optional();
 const Counter=z.number().int().nonnegative().max(1_000_000_000);
 const AgeMs=z.number().int().nonnegative().max(86_400_000).nullable();
 
@@ -50,17 +48,17 @@ export interface FieldDiagnosticsOptions {
   generatedAt?:string;
 }
 
-function optionalLabel(value:string|undefined){
+function optionalLabel(value:string|undefined):string|null{
   const trimmed=value?.trim();
   if(!trimmed)return null;
-  const parsed=MaybeLabel.safeParse(trimmed);
+  const parsed=Label.safeParse(trimmed);
   return parsed.success?parsed.data:null;
 }
 
-function optionalSha256(value:string|undefined){
+function optionalSha256(value:string|undefined):string|null{
   const trimmed=value?.trim();
   if(!trimmed)return null;
-  const parsed=MaybeSha256.safeParse(trimmed);
+  const parsed=Sha256.safeParse(trimmed);
   return parsed.success?parsed.data.toLowerCase():null;
 }
 
@@ -108,7 +106,7 @@ export function buildFieldDiagnosticsReport(options:FieldDiagnosticsOptions){
   const physicalVehicleComputerTest=options.physicalVehicleComputerTest===true;
   const physicalCaptureReady=physicalVehicleComputerTest&&identityComplete;
   const providerSummary=aggregateProviders(runtime.providerTrust.providers);
-  const report={
+  return{
     schema:'kingmast-field-diagnostics-report/v1' as const,
     generatedAt:options.generatedAt??new Date().toISOString(),
     productVersion:identity.productVersion,
@@ -134,5 +132,4 @@ export function buildFieldDiagnosticsReport(options:FieldDiagnosticsOptions){
       'A physical capture does not by itself qualify target hardware or approve closed-track/public-road use.',
     ],
   };
-  return report;
 }
