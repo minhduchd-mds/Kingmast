@@ -90,6 +90,10 @@ jobs:
         run: |
           pnpm --filter @kingmast/risk-engine exec tsx src/sil-replay-cli.ts > /tmp/kingmast.sil-replay.json
           node -e "const r=require('/tmp/kingmast.sil-replay.json'); if(r.schema!=='kingmast-sil-replay-report/v1'||r.controlAuthority!=='none'||r.total<7||r.failed!==0||r.allPassed!==true) process.exit(1); console.log('KINGMAST SIL replay passed '+r.passed+'/'+r.total+' cases.');"
+      - name: Deterministic service fault preflight evidence
+        run: |
+          pnpm --silent faults:service-evidence > /tmp/kingmast.service-faults.json
+          node -e "const r=require('/tmp/kingmast.service-faults.json'); if(r.schema!=='kingmast-service-fault-preflight-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-service-fault-preflight-only-not-physical-hil'||r.validationLayer!=='L2-service-integration'||r.physicalHilExecuted!==false||r.physicalHilQualified!==false||r.targetHardwareQualified!==false||r.total<10||r.failed!==0||r.allPassed!==true||!Array.isArray(r.cases)||r.cases.some(x=>x.physicalScenarioSatisfied!==false)) process.exit(1); console.log('KINGMAST L2 service fault preflight passed '+r.passed+'/'+r.total+' deterministic software cases without claiming physical HIL.');"
       - name: Risk-core performance regression evidence
         run: |
           pnpm --filter @kingmast/risk-engine exec tsx src/performance-evidence-cli.ts > /tmp/kingmast.risk-performance.json
@@ -101,7 +105,7 @@ jobs:
           KINGMAST_HOST_SOAK_EVENT_LOOP_P99_MS: 250
         run: |
           pnpm --filter @kingmast/risk-engine exec tsx src/host-soak-evidence-cli.ts > /tmp/kingmast.host-soak.json
-          node -e "const r=require('/tmp/kingmast.host-soak.json'); if(r.schema!=='kingmast-host-soak-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-host-soak-regression-only-not-target-hardware'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.physicalPreflight?.passed!==true||r.classification?.passed!==true||r.memory?.passed!==true||r.eventLoop?.passed!==true||r.allPassed!==true||r.workload?.operations<1) process.exit(1); console.log('KINGMAST host soak regression passed '+r.workload.operations+' risk operations in '+r.workload.durationSeconds+' s; RSS growth '+r.memory.rssGrowthMiB+' MiB.');"
+          node -e "const r=require('/tmp/kingmast.host-soak.json'); if(r.schema!=='kingmast-host-soak-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-host-soak-regression-only-not-target-hardware'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.physicalPreflight?.passed!==true||r.classification?.passed!==true||r.memory?.passed!==true||r.eventLoop?.passed!==true||r.runtimeEnvelope?.passed!==true||r.allPassed!==true||r.workload?.operations<1) process.exit(1); console.log('KINGMAST host soak regression passed '+r.workload.operations+' risk operations in '+r.workload.durationSeconds+' s; RSS growth '+r.memory.rssGrowthMiB+' MiB.');"
       - name: Bounded field diagnostics evidence
         env:
           KINGMAST_PRODUCT_VERSION: 0.0.6
@@ -147,14 +151,14 @@ jobs:
           node -e "const r=require('./apps/hmi/performance-evidence.json'); if(r.schema!=='kingmast-hmi-performance-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-browser-regression-only-not-target-display-or-vehicle-computer'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.allPassed!==true||r.rendererFallback?.passed!==true) process.exit(1); console.log('KINGMAST HMI performance regression boot '+r.latency.bootToReadyMs+' ms, frame p99 '+r.frameTiming.p99Ms+' ms, renderer fallback '+r.rendererFallback.mode+'.');"
       - name: Generate engineering evidence anchor
         env:
-          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.field-diagnostics.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,apps/hmi/performance-evidence.json,docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json,docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json,docs/validation/GATE3_ACCEPTANCE_PACK_V006.md,docs/validation/runtime/V006_TARGET_SOAK_CAPTURE.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.service-faults.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.field-diagnostics.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,apps/hmi/performance-evidence.json,docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json,docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json,docs/validation/GATE3_ACCEPTANCE_PACK_V006.md,docs/validation/runtime/V006_TARGET_SOAK_CAPTURE.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
         run: |
           node scripts/generate-evidence-anchor.mjs > /tmp/kingmast.evidence-anchor.json
-          node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<17||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
+          node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<18||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
       - name: Verify engineering evidence anchor
         env:
           KINGMAST_EVIDENCE_ANCHOR_PATH: /tmp/kingmast.evidence-anchor.json
-          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.field-diagnostics.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,apps/hmi/performance-evidence.json,docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json,docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json,docs/validation/GATE3_ACCEPTANCE_PACK_V006.md,docs/validation/runtime/V006_TARGET_SOAK_CAPTURE.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.service-faults.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.field-diagnostics.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,apps/hmi/performance-evidence.json,docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json,docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json,docs/validation/GATE3_ACCEPTANCE_PACK_V006.md,docs/validation/runtime/V006_TARGET_SOAK_CAPTURE.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
         run: pnpm evidence:anchor-verify
       - name: Run automotive HMI UI tests
         run: pnpm --filter @kingmast/hmi test:ui
@@ -167,6 +171,7 @@ jobs:
             /tmp/kingmast.provenance.json
             /tmp/kingmast.hmi-human-factors.json
             /tmp/kingmast.sil-replay.json
+            /tmp/kingmast.service-faults.json
             /tmp/kingmast.risk-performance.json
             /tmp/kingmast.host-soak.json
             /tmp/kingmast.field-diagnostics.json
