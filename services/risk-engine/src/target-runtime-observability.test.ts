@@ -24,6 +24,8 @@ describe('TargetRuntimeAccumulator',()=>{
     expect(summary.sampleCount).toBe(2);
     expect(summary.uptimeStartS).toBe(100);
     expect(summary.uptimeEndS).toBe(105);
+    expect(summary.uptime.regressions).toBe(0);
+    expect(summary.uptime.passed).toBe(true);
     expect(summary.load.max1m).toBe(1.8);
     expect(summary.memory.freeMinMiB).toBe(768);
     expect(summary.thermal.maxC).toBe(71);
@@ -48,5 +50,15 @@ describe('TargetRuntimeAccumulator',()=>{
     expect(summary.passed).toBe(false);
     expect(summary.privacy.rawHardwareSerialIncluded).toBe(false);
     expect(summary.privacy.hostnameIncluded).toBe(false);
+  });
+
+  it('invalidates a capture when host uptime regresses beyond tolerance',()=>{
+    const accumulator=new TargetRuntimeAccumulator();
+    accumulator.observe(snapshot({uptimeS:10_000}));
+    accumulator.observe(snapshot({uptimeS:4}));
+    const summary=accumulator.summary({thermalRequired:false,maxTemperatureC:100,minFreeMemoryMiB:0});
+    expect(summary.uptime.regressions).toBe(1);
+    expect(summary.uptime.passed).toBe(false);
+    expect(summary.passed).toBe(false);
   });
 });
