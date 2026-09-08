@@ -130,20 +130,20 @@ jobs:
       - name: HMI performance regression evidence
         env:
           KINGMAST_HMI_PERFORMANCE_EVIDENCE: '1'
-          KINGMAST_HMI_PERFORMANCE_OUTPUT: /tmp/kingmast.hmi-performance.json
+          KINGMAST_HMI_PERFORMANCE_OUTPUT: performance-evidence.json
         run: |
           pnpm --filter @kingmast/hmi performance:evidence
-          node -e "const r=require('/tmp/kingmast.hmi-performance.json'); if(r.schema!=='kingmast-hmi-performance-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-browser-regression-only-not-target-display-or-vehicle-computer'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.allPassed!==true||r.rendererFallback?.passed!==true) process.exit(1); console.log('KINGMAST HMI performance regression boot '+r.latency.bootToReadyMs+' ms, frame p99 '+r.frameTiming.p99Ms+' ms, renderer fallback '+r.rendererFallback.mode+'.');"
+          node -e "const r=require('./apps/hmi/performance-evidence.json'); if(r.schema!=='kingmast-hmi-performance-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-browser-regression-only-not-target-display-or-vehicle-computer'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.allPassed!==true||r.rendererFallback?.passed!==true) process.exit(1); console.log('KINGMAST HMI performance regression boot '+r.latency.bootToReadyMs+' ms, frame p99 '+r.frameTiming.p99Ms+' ms, renderer fallback '+r.rendererFallback.mode+'.');"
       - name: Generate engineering evidence anchor
         env:
-          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,/tmp/kingmast.hmi-performance.json,docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json,docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json,docs/validation/GATE3_ACCEPTANCE_PACK_V006.md,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,apps/hmi/performance-evidence.json,docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json,docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json,docs/validation/GATE3_ACCEPTANCE_PACK_V006.md,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
         run: |
           node scripts/generate-evidence-anchor.mjs > /tmp/kingmast.evidence-anchor.json
           node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<15||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
       - name: Verify engineering evidence anchor
         env:
           KINGMAST_EVIDENCE_ANCHOR_PATH: /tmp/kingmast.evidence-anchor.json
-          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,/tmp/kingmast.hmi-performance.json,docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json,docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json,docs/validation/GATE3_ACCEPTANCE_PACK_V006.md,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,apps/hmi/performance-evidence.json,docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json,docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json,docs/validation/GATE3_ACCEPTANCE_PACK_V006.md,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
         run: pnpm evidence:anchor-verify
       - name: Run automotive HMI UI tests
         run: pnpm --filter @kingmast/hmi test:ui
@@ -160,7 +160,7 @@ jobs:
             /tmp/kingmast.host-soak.json
             /tmp/kingmast.realtime-recovery.json
             /tmp/kingmast.realtime-loopback.json
-            /tmp/kingmast.hmi-performance.json
+            apps/hmi/performance-evidence.json
             /tmp/kingmast.evidence-anchor.json
             docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json
             docs/validation/V006_GATE3_ACCEPTANCE_CRITERIA.json
