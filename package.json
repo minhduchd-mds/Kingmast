@@ -24,6 +24,7 @@
     "qualification:target-soak": "node scripts/target-soak-evidence-policy-check.mjs",
     "hil:evidence": "node scripts/hil-evidence-check.mjs",
     "hil:package-check": "node scripts/hil-evidence-package-check.mjs",
+    "hil:physical-package": "node scripts/hil-physical-capture-package.mjs",
     "boot:evidence": "node scripts/boot-security-evidence-check.mjs",
     "skills:validate": "node scripts/validate-agent-skills.mjs",
     "safety:boundary": "node scripts/safety-boundary-check.mjs",
