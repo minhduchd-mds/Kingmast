@@ -62,9 +62,16 @@ expect(workflow.includes("KINGMAST_HOST_SOAK_SECONDS: ${{ inputs.duration_second
 expect(workflow.includes('r.workload?.durationSeconds<7200'),'target workflow must reject captures shorter than two hours');
 expect(workflow.includes("r.targetHardwareQualified!==false"),'target workflow must reject any hardware-qualification claim');
 expect(workflow.includes('r.runtimeEnvelope?.passed!==true'),'target workflow must require runtime-envelope evidence to pass');
-expect(workflow.includes('kingmast-target-soak-artifact-manifest/v1'),'target workflow must emit the bounded artifact manifest');
+expect(workflow.includes('scripts/capture-target-field-runtime.mjs'),'target workflow must capture fresh bounded field diagnostics from the target service');
+expect(workflow.includes('r.physicalCaptureReady!==true'),'target workflow must reject incomplete physical field diagnostics');
+expect(workflow.includes('r.health?.coverage?.physicalCoreCoverageComplete!==true'),'target workflow must require explicit core diagnostics coverage');
+expect(workflow.includes('kingmast-target-hardware-artifact-manifest/v2'),'target workflow must emit the combined bounded hardware artifact manifest');
+expect(workflow.includes('hostSoakReportSha256'),'target workflow manifest must bind the physical soak report');
+expect(workflow.includes('fieldDiagnosticsReportSha256'),'target workflow manifest must bind the physical field-diagnostics report');
+expect(workflow.includes('providerDiagnosticsCoverageComplete'),'target workflow manifest must preserve provider diagnostics coverage truth');
 expect(workflow.includes('rawHardwareSerialIncluded:false'),'target workflow manifest must preserve raw-hardware-serial privacy');
+expect(workflow.includes('rawCabinVideoIncluded:false'),'target workflow manifest must preserve raw-cabin-video privacy');
 expect(workflow.includes('secretsIncluded:false'),'target workflow manifest must preserve secret-exclusion privacy');
 
 if(process.exitCode)process.exit(process.exitCode);
-console.log(`[target-soak-policy] ${report.status}; physical=${report.physicalVehicleComputerTest}; required=${report.requiredDurationSeconds}s; runtime-envelope=${report.runtimeEnvelopePassed??'pending'}; guarded-workflow=true; qualification=false`);
+console.log(`[target-soak-policy] ${report.status}; physical=${report.physicalVehicleComputerTest}; required=${report.requiredDurationSeconds}s; runtime-envelope=${report.runtimeEnvelopePassed??'pending'}; guarded-workflow=true; combined-field-diagnostics=true; qualification=false`);
