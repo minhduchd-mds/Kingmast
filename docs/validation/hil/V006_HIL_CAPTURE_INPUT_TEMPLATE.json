@@ -5,19 +5,36 @@
   "physicalControllerTest": false,
   "scenarioId": "HIL-001",
   "status": "template-only",
+  "softwareCommit": null,
   "startedAt": null,
   "finishedAt": null,
   "operator": null,
   "reviewer": null,
   "resultDisposition": null,
   "resultSummary": null,
-  "resultFields": {},
+  "resultFields": {
+    "controllerId": null,
+    "benchId": null,
+    "radarSourceId": null,
+    "harnessRevision": null,
+    "softwareCommit": null,
+    "configurationHash": null,
+    "calibrationHash": null,
+    "measurementRef": null
+  },
   "evidenceRefs": [],
   "evidenceDigests": [],
+  "privacy": {
+    "rawHardwareSerialIncluded": false,
+    "secretsIncluded": false,
+    "preciseCoordinatesIncluded": false,
+    "rawCabinVideoIncluded": false,
+    "rawCameraFramesIncluded": false
+  },
   "notes": [
     "Copy this template only onto the approved physical HIL runner and populate it from a genuine bench execution.",
     "Do not commit raw serial numbers, secrets, precise coordinates, raw cabin video or unrestricted packet payloads.",
-    "The packaging workflow rejects this template until physicalControllerTest=true and all scenario-specific fields are complete.",
+    "The packaging workflow rejects this template until physicalControllerTest=true, status=captured and all scenario-specific fields are complete.",
     "A captured package is evidence awaiting independent review; it is not target-hardware qualification or public-road approval."
   ]
 }
