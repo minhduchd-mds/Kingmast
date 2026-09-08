@@ -128,11 +128,11 @@ jobs:
           KINGMAST_REQUIRE_THERMAL_TELEMETRY: ${{ inputs.require_thermal_telemetry }}
           KINGMAST_HOST_SOAK_MAX_TEMP_C: ${{ inputs.max_temp_c }}
           KINGMAST_HOST_SOAK_MIN_FREE_MEMORY_MIB: ${{ inputs.min_free_memory_mib }}
-        run: pnpm performance:host-soak > /tmp/kingmast.target-host-soak.json
+        run: pnpm performance:host-soak > "$RUNNER_TEMP/kingmast.target-host-soak.json"
       - name: Validate physical soak capture
         run: |
           node <<'NODE'
-          const r=require('/tmp/kingmast.target-host-soak.json');
+          const r=require(process.env.RUNNER_TEMP+'/kingmast.target-host-soak.json');
           if(r.schema!=='kingmast-host-soak-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='physical-target-host-soak-capture-only-not-qualification'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==true||r.physicalPreflight?.passed!==true||r.classification?.passed!==true||r.memory?.passed!==true||r.eventLoop?.passed!==true||r.runtimeEnvelope?.passed!==true||r.allPassed!==true||r.workload?.durationSeconds<7200)process.exit(1);
           console.log(`KINGMAST physical target soak evidence passed ${r.workload.durationSeconds}s; hardware qualification remains false.`);
           NODE
@@ -141,11 +141,10 @@ jobs:
           KINGMAST_TARGET_DIAGNOSTICS_URL: http://127.0.0.1:4000
           KINGMAST_TARGET_VIEWER_TOKEN: ${{ secrets.KINGMAST_TARGET_VIEWER_TOKEN }}
           KINGMAST_TARGET_EDGE_TOKEN: ${{ secrets.KINGMAST_TARGET_EDGE_TOKEN }}
-          KINGMAST_TARGET_FIELD_RUNTIME_PATH: /tmp/kingmast.target-field-runtime.json
-        run: node scripts/capture-target-field-runtime.mjs
+        run: node scripts/capture-target-field-runtime.mjs > "$RUNNER_TEMP/kingmast.target-field-runtime.json"
       - name: Validate bounded target runtime diagnostics source
         run: |
-          runtime=/tmp/kingmast.target-field-runtime.json
+          runtime="$RUNNER_TEMP/kingmast.target-field-runtime.json"
           if [ ! -f "$runtime" ] || [ -L "$runtime" ]; then
             echo "Missing regular physical diagnostics source: $runtime" >&2
             exit 1
@@ -155,7 +154,7 @@ jobs:
             echo "Physical diagnostics source exceeds 64 KiB bound" >&2
             exit 1
           fi
-          node -e "const r=require('/tmp/kingmast.target-field-runtime.json'); if(r.coverage?.sensorAges!==true||r.coverage?.edgeRejectedPackets!==true)process.exit(1); console.log('Fresh bounded physical diagnostics source accepted with core runtime coverage.');"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.target-field-runtime.json'); if(r.coverage?.sensorAges!==true||r.coverage?.edgeRejectedPackets!==true)process.exit(1); console.log('Fresh bounded physical diagnostics source accepted with core runtime coverage.');"
       - name: Capture physical field diagnostics
         env:
           KINGMAST_PHYSICAL_VEHICLE_COMPUTER_TEST: '1'
@@ -169,12 +168,12 @@ jobs:
           KINGMAST_CONFIGURATION_REVISION: ${{ inputs.configuration_revision }}
           KINGMAST_CALIBRATION_REVISION: ${{ inputs.calibration_revision }}
         run: |
-          export KINGMAST_FIELD_DIAGNOSTICS_INPUT_JSON="$(cat /tmp/kingmast.target-field-runtime.json)"
-          pnpm --silent diagnostics:field-evidence > /tmp/kingmast.target-field-diagnostics.json
+          export KINGMAST_FIELD_DIAGNOSTICS_INPUT_JSON="$(cat "$RUNNER_TEMP/kingmast.target-field-runtime.json")"
+          pnpm --silent diagnostics:field-evidence > "$RUNNER_TEMP/kingmast.target-field-diagnostics.json"
       - name: Validate physical field diagnostics
         run: |
           node <<'NODE'
-          const r=require('/tmp/kingmast.target-field-diagnostics.json');
+          const r=require(process.env.RUNNER_TEMP+'/kingmast.target-field-diagnostics.json');
           const p=r.privacy||{};
           if(r.schema!=='kingmast-field-diagnostics-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='physical-target-diagnostic-capture-only-not-qualification'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==true||r.physicalCaptureReady!==true||r.identity?.complete!==true||r.identity?.hardwareInstanceIsHashed!==true||r.health?.coverage?.physicalCoreCoverageComplete!==true||r.allPassed!==true||p.rawCabinVideoIncluded!==false||p.rawCameraFramesIncluded!==false||p.preciseCoordinatesIncluded!==false||p.requestPayloadsIncluded!==false||p.secretsIncluded!==false||p.rawHardwareSerialIncluded!==false)process.exit(1);
           console.log(`KINGMAST physical field diagnostics capture passed; provider coverage complete=${r.health.coverage.providerCoverageComplete}; qualification remains false.`);
@@ -187,8 +186,9 @@ jobs:
           node <<'NODE'
           const {createHash}=require('node:crypto');
           const {readFileSync,writeFileSync}=require('node:fs');
-          const soakRaw=readFileSync('/tmp/kingmast.target-host-soak.json');
-          const diagnosticsRaw=readFileSync('/tmp/kingmast.target-field-diagnostics.json');
+          const {join}=require('node:path');
+          const soakRaw=readFileSync(join(process.env.RUNNER_TEMP,'kingmast.target-host-soak.json'));
+          const diagnosticsRaw=readFileSync(join(process.env.RUNNER_TEMP,'kingmast.target-field-diagnostics.json'));
           const r=JSON.parse(soakRaw.toString('utf8'));
           const d=JSON.parse(diagnosticsRaw.toString('utf8'));
           const manifest={
@@ -219,15 +219,15 @@ jobs:
             reviewStatus:'pending-independent-review',
             privacy:{rawHardwareSerialIncluded:false,hostnameIncluded:false,networkAddressesIncluded:false,processArgumentsIncluded:false,environmentIncluded:false,preciseCoordinatesIncluded:false,rawCameraFramesIncluded:false,rawCabinVideoIncluded:false,secretsIncluded:false},
           };
-          writeFileSync('/tmp/kingmast.target-hardware-manifest.json',JSON.stringify(manifest,null,2)+'\n');
+          writeFileSync(join(process.env.RUNNER_TEMP,'kingmast.target-hardware-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
           NODE
       - name: Upload target evidence package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: kingmast-target-hardware-evidence-${{ github.run_id }}
           path: |
-            /tmp/kingmast.target-host-soak.json
-            /tmp/kingmast.target-field-diagnostics.json
-            /tmp/kingmast.target-hardware-manifest.json
+            ${{ runner.temp }}/kingmast.target-host-soak.json
+            ${{ runner.temp }}/kingmast.target-field-diagnostics.json
+            ${{ runner.temp }}/kingmast.target-hardware-manifest.json
           if-no-files-found: error
           retention-days: 30
