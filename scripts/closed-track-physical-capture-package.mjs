@@ -5,7 +5,7 @@ const repoRoot=process.cwd();
 const registry=JSON.parse(readFileSync(resolve(repoRoot,'docs/validation/closed-track/V006_CLOSED_TRACK_EVIDENCE_REGISTRY.json'),'utf8'));
 const scenarioId=(process.env.KINGMAST_CLOSED_TRACK_SCENARIO_ID??'').trim();
 const captureRoot=resolve(process.env.KINGMAST_CLOSED_TRACK_CAPTURE_ROOT??'/var/lib/kingmast/closed-track-captures');
-const outputPath=resolve(process.env.KINGMAST_CLOSED_TRACK_OUTPUT_PATH??'/tmp/kingmast.closed-track-physical-package.json');
+const outputPath=resolve(process.env.KINGMAST_CLOSED_TRACK_OUTPUT_PATH??'kingmast.closed-track-physical-package.json');
 const failures=[];
 
 function fail(message){failures.push(message);}
