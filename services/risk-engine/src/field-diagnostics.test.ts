@@ -12,6 +12,12 @@ const completeIdentity={
   calibrationRevision:'cal-v006-03',
 };
 
+const physicalRuntime={
+  edge:{status:'live' as const,rejectedPackets:0,sensorAgesMs:{gnss:120,radarFront:80,camera:90}},
+  providerTrust:{authRejected:0,replayRejected:0,capacityRejected:0,providers:[]},
+  coverage:{sensorAges:true,edgeRejectedPackets:true,providerAuthRejected:false,providerReplayRejected:false,providerCapacityRejected:false,providerStatuses:false},
+};
+
 describe('field diagnostics evidence',()=>{
   it('builds a privacy-bounded software-only report by default',()=>{
     const report=buildFieldDiagnosticsReport({identity:fieldDiagnosticIdentityFromEnv({})});
@@ -20,6 +26,7 @@ describe('field diagnostics evidence',()=>{
     expect(report.targetHardwareQualified).toBe(false);
     expect(report.physicalVehicleComputerTest).toBe(false);
     expect(report.physicalCaptureReady).toBe(false);
+    expect(report.health.coverage.runtimeProvided).toBe(false);
     expect(report.privacy).toEqual({rawCabinVideoIncluded:false,rawCameraFramesIncluded:false,preciseCoordinatesIncluded:false,requestPayloadsIncluded:false,secretsIncluded:false,rawHardwareSerialIncluded:false});
   });
 
@@ -32,6 +39,7 @@ describe('field diagnostics evidence',()=>{
           {state:'healthy',trustStatus:'verified',liveV2xTrusted:true,snapshotAgeMs:250},
           {state:'stale',trustStatus:'untrusted',liveV2xTrusted:false,snapshotAgeMs:9000,providerId:'private-provider-name'},
         ]},
+        coverage:{sensorAges:true,edgeRejectedPackets:true,providerAuthRejected:true,providerReplayRejected:true,providerCapacityRejected:true,providerStatuses:true},
         coordinates:{lat:21.0,lng:105.8},
       },
     });
@@ -39,19 +47,26 @@ describe('field diagnostics evidence',()=>{
     expect(report.health.rejectedPackets).toBe(7);
     expect(report.health.providerTrustFailures).toEqual({authRejected:3,replayRejected:2,capacityRejected:1});
     expect(report.health.providers).toMatchObject({total:2,liveV2xTrusted:1,maxSnapshotAgeMs:9000,states:{healthy:1,degraded:0,stale:1}});
+    expect(report.health.coverage.providerCoverageComplete).toBe(true);
     expect(JSON.stringify(report)).not.toContain('private-provider-name');
     expect(JSON.stringify(report)).not.toContain('must-be-stripped');
     expect(JSON.stringify(report)).not.toContain('105.8');
   });
 
-  it('requires complete hashed identity before a physical capture is considered ready',()=>{
-    const ready=buildFieldDiagnosticsReport({identity:completeIdentity,physicalVehicleComputerTest:true});
+  it('requires complete hashed identity and fresh core runtime coverage before a physical capture is ready',()=>{
+    const ready=buildFieldDiagnosticsReport({identity:completeIdentity,runtime:physicalRuntime,physicalVehicleComputerTest:true});
     expect(ready.identity.complete).toBe(true);
     expect(ready.identity.hardwareInstanceIsHashed).toBe(true);
+    expect(ready.health.coverage.physicalCoreCoverageComplete).toBe(true);
+    expect(ready.health.coverage.providerCoverageComplete).toBe(false);
     expect(ready.physicalCaptureReady).toBe(true);
     expect(ready.targetHardwareQualified).toBe(false);
+    expect(ready.limitations.some((item)=>item.includes('unavailable evidence'))).toBe(true);
 
-    const incomplete=buildFieldDiagnosticsReport({identity:{...completeIdentity,calibrationRevision:null},physicalVehicleComputerTest:true});
+    const missingRuntime=buildFieldDiagnosticsReport({identity:completeIdentity,physicalVehicleComputerTest:true});
+    expect(missingRuntime.physicalCaptureReady).toBe(false);
+
+    const incomplete=buildFieldDiagnosticsReport({identity:{...completeIdentity,calibrationRevision:null},runtime:physicalRuntime,physicalVehicleComputerTest:true});
     expect(incomplete.identity.complete).toBe(false);
     expect(incomplete.physicalCaptureReady).toBe(false);
   });
