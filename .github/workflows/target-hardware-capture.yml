@@ -110,6 +110,7 @@ jobs:
       - name: Repository and target safety gates
         run: |
           pnpm security:secrets
+          pnpm security:workflow-policy
           pnpm safety:boundary
           pnpm qualification:target-soak
       - name: Execute physical target soak capture
@@ -128,12 +129,55 @@ jobs:
           KINGMAST_HOST_SOAK_MAX_TEMP_C: ${{ inputs.max_temp_c }}
           KINGMAST_HOST_SOAK_MIN_FREE_MEMORY_MIB: ${{ inputs.min_free_memory_mib }}
         run: pnpm performance:host-soak > /tmp/kingmast.target-host-soak.json
-      - name: Validate physical capture
+      - name: Validate physical soak capture
         run: |
           node <<'NODE'
           const r=require('/tmp/kingmast.target-host-soak.json');
           if(r.schema!=='kingmast-host-soak-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='physical-target-host-soak-capture-only-not-qualification'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==true||r.physicalPreflight?.passed!==true||r.classification?.passed!==true||r.memory?.passed!==true||r.eventLoop?.passed!==true||r.runtimeEnvelope?.passed!==true||r.allPassed!==true||r.workload?.durationSeconds<7200)process.exit(1);
           console.log(`KINGMAST physical target soak evidence passed ${r.workload.durationSeconds}s; hardware qualification remains false.`);
+          NODE
+      - name: Require fresh bounded target runtime diagnostics source
+        run: |
+          runtime=/var/lib/kingmast/field-diagnostics/runtime.json
+          if [ ! -f "$runtime" ] || [ -L "$runtime" ]; then
+            echo "Missing regular physical diagnostics source: $runtime" >&2
+            exit 1
+          fi
+          bytes=$(wc -c < "$runtime")
+          if [ "$bytes" -gt 65536 ]; then
+            echo "Physical diagnostics source exceeds 64 KiB bound" >&2
+            exit 1
+          fi
+          modified=$(stat -c %Y "$runtime")
+          now=$(date +%s)
+          age=$((now-modified))
+          if [ "$age" -lt 0 ] || [ "$age" -gt 300 ]; then
+            echo "Physical diagnostics source is not fresh (age=${age}s, max=300s)" >&2
+            exit 1
+          fi
+          node -e "const fs=require('node:fs'); const p='/var/lib/kingmast/field-diagnostics/runtime.json'; JSON.parse(fs.readFileSync(p,'utf8')); console.log('Fresh bounded physical diagnostics source accepted.');"
+      - name: Capture physical field diagnostics
+        env:
+          KINGMAST_PHYSICAL_VEHICLE_COMPUTER_TEST: '1'
+          KINGMAST_REQUIRE_PHYSICAL_FIELD_CAPTURE: '1'
+          KINGMAST_PRODUCT_VERSION: 0.0.6
+          KINGMAST_BUILD_COMMIT: ${{ github.sha }}
+          KINGMAST_BUILD_ID: target-${{ github.run_id }}-${{ github.run_attempt }}
+          KINGMAST_HARDWARE_TARGET: ${{ inputs.hardware_target }}
+          KINGMAST_HARDWARE_INSTANCE_SHA256: ${{ inputs.hardware_instance_sha256 }}
+          KINGMAST_FIRMWARE_REVISION: ${{ inputs.firmware_revision }}
+          KINGMAST_CONFIGURATION_REVISION: ${{ inputs.configuration_revision }}
+          KINGMAST_CALIBRATION_REVISION: ${{ inputs.calibration_revision }}
+        run: |
+          export KINGMAST_FIELD_DIAGNOSTICS_INPUT_JSON="$(cat /var/lib/kingmast/field-diagnostics/runtime.json)"
+          pnpm --silent diagnostics:field-evidence > /tmp/kingmast.target-field-diagnostics.json
+      - name: Validate physical field diagnostics
+        run: |
+          node <<'NODE'
+          const r=require('/tmp/kingmast.target-field-diagnostics.json');
+          const p=r.privacy||{};
+          if(r.schema!=='kingmast-field-diagnostics-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='physical-target-diagnostic-capture-only-not-qualification'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==true||r.physicalCaptureReady!==true||r.identity?.complete!==true||r.identity?.hardwareInstanceIsHashed!==true||r.allPassed!==true||p.rawCabinVideoIncluded!==false||p.rawCameraFramesIncluded!==false||p.preciseCoordinatesIncluded!==false||p.requestPayloadsIncluded!==false||p.secretsIncluded!==false||p.rawHardwareSerialIncluded!==false)process.exit(1);
+          console.log('KINGMAST physical field diagnostics capture passed bounded identity/privacy checks; qualification remains false.');
           NODE
       - name: Generate bounded capture manifest
         env:
@@ -143,16 +187,19 @@ jobs:
           node <<'NODE'
           const {createHash}=require('node:crypto');
           const {readFileSync,writeFileSync}=require('node:fs');
-          const raw=readFileSync('/tmp/kingmast.target-host-soak.json');
-          const r=JSON.parse(raw.toString('utf8'));
+          const soakRaw=readFileSync('/tmp/kingmast.target-host-soak.json');
+          const diagnosticsRaw=readFileSync('/tmp/kingmast.target-field-diagnostics.json');
+          const r=JSON.parse(soakRaw.toString('utf8'));
+          const d=JSON.parse(diagnosticsRaw.toString('utf8'));
           const manifest={
-            schema:'kingmast-target-soak-artifact-manifest/v1',
+            schema:'kingmast-target-hardware-artifact-manifest/v2',
             generatedAt:new Date().toISOString(),
             controlAuthority:'none',
             sourceCommit:process.env.GITHUB_SHA,
             workflowRunId:process.env.KINGMAST_RUN_ID,
             workflowRunAttempt:process.env.KINGMAST_RUN_ATTEMPT,
-            hostSoakReportSha256:createHash('sha256').update(raw).digest('hex'),
+            hostSoakReportSha256:createHash('sha256').update(soakRaw).digest('hex'),
+            fieldDiagnosticsReportSha256:createHash('sha256').update(diagnosticsRaw).digest('hex'),
             physicalVehicleComputerTest:true,
             targetHardwareQualified:false,
             identity:r.physicalPreflight.identity,
@@ -161,14 +208,15 @@ jobs:
             memoryPassed:r.memory.passed,
             eventLoopPassed:r.eventLoop.passed,
             runtimeEnvelopePassed:r.runtimeEnvelope.passed,
+            physicalDiagnosticsCaptureReady:d.physicalCaptureReady,
             thermalTelemetryRequired:r.physicalPreflight.requireThermalTelemetry,
             thermalAvailable:r.runtimeEnvelope.thermal.available,
             temperaturePassed:r.runtimeEnvelope.thermal.temperaturePassed,
             freeMemoryPassed:r.runtimeEnvelope.memory.passed,
             reviewStatus:'pending-independent-review',
-            privacy:{rawHardwareSerialIncluded:false,hostnameIncluded:false,networkAddressesIncluded:false,processArgumentsIncluded:false,environmentIncluded:false,preciseCoordinatesIncluded:false,rawCameraFramesIncluded:false,secretsIncluded:false},
+            privacy:{rawHardwareSerialIncluded:false,hostnameIncluded:false,networkAddressesIncluded:false,processArgumentsIncluded:false,environmentIncluded:false,preciseCoordinatesIncluded:false,rawCameraFramesIncluded:false,rawCabinVideoIncluded:false,secretsIncluded:false},
           };
-          writeFileSync('/tmp/kingmast.target-host-soak-manifest.json',JSON.stringify(manifest,null,2)+'\n');
+          writeFileSync('/tmp/kingmast.target-hardware-manifest.json',JSON.stringify(manifest,null,2)+'\n');
           NODE
       - name: Upload target evidence package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -176,6 +224,7 @@ jobs:
           name: kingmast-target-hardware-evidence-${{ github.run_id }}
           path: |
             /tmp/kingmast.target-host-soak.json
-            /tmp/kingmast.target-host-soak-manifest.json
+            /tmp/kingmast.target-field-diagnostics.json
+            /tmp/kingmast.target-hardware-manifest.json
           if-no-files-found: error
           retention-days: 30
