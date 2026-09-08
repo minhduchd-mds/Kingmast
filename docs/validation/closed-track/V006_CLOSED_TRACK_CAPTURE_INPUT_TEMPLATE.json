@@ -1,0 +1,38 @@
+{
+  "schema": "kingmast-closed-track-physical-capture/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "physicalClosedTrackTest": false,
+  "scenarioId": "CT-001",
+  "status": "template-only",
+  "softwareCommit": null,
+  "startedAt": null,
+  "finishedAt": null,
+  "operator": null,
+  "reviewer": null,
+  "independentObserver": null,
+  "entryApprovalRef": null,
+  "testFacilityId": null,
+  "vehicleOrRigId": null,
+  "configurationRevision": null,
+  "calibrationRevision": null,
+  "approvedBoundsRef": null,
+  "timeSyncRef": null,
+  "resultDisposition": null,
+  "resultSummary": null,
+  "evidenceRefs": [],
+  "evidenceDigests": [],
+  "privacy": {
+    "rawHardwareSerialIncluded": false,
+    "secretsIncluded": false,
+    "preciseCoordinatesIncluded": false,
+    "rawCabinVideoIncluded": false,
+    "rawCameraFramesIncluded": false
+  },
+  "notes": [
+    "This template records evidence from an already approved controlled-track activity; it does not authorize a test run.",
+    "Populate it only after a genuine physical execution within separately approved facility and scenario bounds.",
+    "Do not place public-road routes, precise coordinates, unrestricted raw video, secrets or raw hardware serials in repository-facing evidence.",
+    "Packaging a capture never sets closedTrackApproved, targetHardwareQualified or publicRoadApproved to true."
+  ]
+}
