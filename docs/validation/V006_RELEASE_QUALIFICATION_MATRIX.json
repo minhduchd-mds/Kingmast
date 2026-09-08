@@ -1,0 +1,86 @@
+{
+  "schema": "kingmast-release-qualification-matrix/v1",
+  "productVersion": "0.0.6",
+  "controlAuthority": "none",
+  "qualificationClaim": "development-compatibility-matrix-not-target-hardware-qualification",
+  "targetHardwareQualified": false,
+  "physicalVehicleComputerQualified": false,
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "toolchain": {
+    "nodeMajor": 22,
+    "pnpm": "10.34.0",
+    "hmi": {
+      "next": "^16.3.4",
+      "react": "^19.2.8",
+      "typescript": "^7.0.2"
+    },
+    "riskEngine": {
+      "fastify": "^5.6.0",
+      "zod": "^4.1.5",
+      "typescript": "^5.9.2"
+    }
+  },
+  "displayClasses": [
+    {
+      "id": "vehicle-primary-1366x768",
+      "width": 1366,
+      "height": 768,
+      "status": "ci-ui-regression-covered",
+      "evidence": ["apps/hmi/tests/ui.spec.ts", "apps/hmi/tests/surround-visualization.spec.ts", "apps/hmi/tests/performance-evidence.spec.ts"]
+    },
+    {
+      "id": "vehicle-wide-1920x720",
+      "width": 1920,
+      "height": 720,
+      "status": "ci-ui-regression-covered",
+      "evidence": ["apps/hmi/tests/surround-visualization.spec.ts"]
+    },
+    {
+      "id": "vehicle-compact-1280x480",
+      "width": 1280,
+      "height": 480,
+      "status": "ci-ui-regression-covered",
+      "evidence": ["apps/hmi/tests/surround-visualization.spec.ts"]
+    }
+  ],
+  "vehicleComputerTargets": [
+    {
+      "id": "ci-linux-x64",
+      "status": "software-regression-only",
+      "targetHardwareEvidenceRequired": true
+    },
+    {
+      "id": "vehicle-computer-aarch64",
+      "status": "planned-target-class",
+      "targetHardwareEvidenceRequired": true
+    },
+    {
+      "id": "production-vehicle-computer",
+      "status": "not-qualified",
+      "targetHardwareEvidenceRequired": true
+    }
+  ],
+  "compatibility": {
+    "edgeProtocolVersion": 1,
+    "productVersion": "0.0.6",
+    "firmwareTrustEvidence": "docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json",
+    "abRecoveryModel": "docs/updates/AB_RECOVERY_MODEL_V006.md",
+    "configurationRevisionPolicy": "explicit external revision required for target-hardware evidence",
+    "calibrationRevisionPolicy": "explicit external revision required for target-hardware evidence",
+    "rollbackEvidenceRequired": true
+  },
+  "gate3RequiredEvidence": [
+    "target vehicle-computer identity and OS image",
+    "software commit and package lock identity",
+    "firmware revision and signed-manifest evidence",
+    "configuration revision",
+    "sensor calibration revision",
+    "display class and renderer identity",
+    "power-cycle and boot-to-ready measurements",
+    "long-duration resource soak",
+    "fault injection and degraded-mode evidence",
+    "controlled closed-track test record",
+    "review approval with no public-road authorization implied"
+  ]
+}
