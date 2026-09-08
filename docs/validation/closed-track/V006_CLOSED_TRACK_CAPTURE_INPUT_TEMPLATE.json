@@ -32,7 +32,9 @@
   "notes": [
     "This template records evidence from an already approved controlled-track activity; it does not authorize a test run.",
     "Populate it only after a genuine physical execution within separately approved facility and scenario bounds.",
+    "softwareCommit must be the exact full 40-character commit checked out by the packaging workflow; KINGMAST_EXPECTED_SOURCE_COMMIT mismatch is rejected.",
+    "Use 1..64 unique evidenceRefs and one unique SHA-256 evidenceDigests binding for every reference.",
     "Do not place public-road routes, precise coordinates, unrestricted raw video, secrets or raw hardware serials in repository-facing evidence.",
-    "Packaging a capture never sets closedTrackApproved, targetHardwareQualified or publicRoadApproved to true."
+    "Packaging a capture never sets closedTrackApproved, targetHardwareQualified or publicRoadApproved to true and never mutates the registry automatically."
   ]
 }

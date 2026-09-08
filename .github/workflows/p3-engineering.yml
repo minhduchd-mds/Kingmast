@@ -8,26 +8,46 @@ on:
       - 'autonomy-lab/hil/**'
       - 'autonomy-lab/safety-sim/**'
       - 'docs/architecture/P3_LOGICAL_SERVICE_MAP.json'
+      - 'docs/validation/PHYSICAL_EVIDENCE_TRUST_CHAIN_V006.md'
+      - 'docs/validation/hil/**'
+      - 'docs/validation/closed-track/**'
       - 'scripts/p3-logical-service-map-check.mjs'
       - 'scripts/external-simulator-workflow-policy-check.mjs'
+      - 'scripts/lib/physical-evidence-manifest.mjs'
+      - 'scripts/physical-evidence-*.mjs'
+      - 'scripts/hil-physical-capture-package.mjs'
+      - 'scripts/hil-evidence-package-check.mjs'
+      - 'scripts/closed-track-physical-capture-package.mjs'
       - 'services/risk-engine/src/runtime-health-supervisor*'
       - 'services/risk-engine/src/runtime-health-evidence-cli.ts'
       - 'package.json'
       - '.github/workflows/p3-engineering.yml'
       - '.github/workflows/external-simulator-evidence.yml'
+      - '.github/workflows/hil-physical-evidence.yml'
+      - '.github/workflows/closed-track-evidence.yml'
   pull_request:
     paths:
       - 'autonomy-lab/digital-twin/**'
       - 'autonomy-lab/hil/**'
       - 'autonomy-lab/safety-sim/**'
       - 'docs/architecture/P3_LOGICAL_SERVICE_MAP.json'
+      - 'docs/validation/PHYSICAL_EVIDENCE_TRUST_CHAIN_V006.md'
+      - 'docs/validation/hil/**'
+      - 'docs/validation/closed-track/**'
       - 'scripts/p3-logical-service-map-check.mjs'
       - 'scripts/external-simulator-workflow-policy-check.mjs'
+      - 'scripts/lib/physical-evidence-manifest.mjs'
+      - 'scripts/physical-evidence-*.mjs'
+      - 'scripts/hil-physical-capture-package.mjs'
+      - 'scripts/hil-evidence-package-check.mjs'
+      - 'scripts/closed-track-physical-capture-package.mjs'
       - 'services/risk-engine/src/runtime-health-supervisor*'
       - 'services/risk-engine/src/runtime-health-evidence-cli.ts'
       - 'package.json'
       - '.github/workflows/p3-engineering.yml'
       - '.github/workflows/external-simulator-evidence.yml'
+      - '.github/workflows/hil-physical-evidence.yml'
+      - '.github/workflows/closed-track-evidence.yml'
   workflow_dispatch:
 
 permissions:
@@ -72,6 +92,12 @@ jobs:
           node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.cross-simulator-fixture.json'); if(r.schema!=='kingmast-cross-simulator-parity-report/v1'||r.controlAuthority!=='none'||r.fixtureMode!==true||r.externalSimulatorEvidence!==false||r.commonScenarioCount<8||r.failed!==0||r.allPassed!==true||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false) process.exit(1); console.log('KINGMAST cross-simulator comparator self-test passed '+r.passed+'/'+r.commonScenarioCount+' fixture cases; no external simulator claim.');"
       - name: External simulator execution workflow policy
         run: pnpm --silent sim:external-workflow-policy
+      - name: Physical evidence trust-chain self-test
+        run: |
+          pnpm --silent evidence:physical-trust-selftest -- --json --ci > "$RUNNER_TEMP/kingmast.physical-evidence-trust-selftest.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.physical-evidence-trust-selftest.json'); if(r.schema!=='kingmast-physical-evidence-trust-selftest/v1'||r.controlAuthority!=='none'||r.fixtureOnly!==true||r.physicalEvidenceCaptured!==false||r.targetHardwareQualified!==false||r.closedTrackApproved!==false||r.publicRoadApproved!==false||r.total<8||r.failed!==0||r.allPassed!==true) process.exit(1); console.log('KINGMAST physical evidence trust-chain self-test passed '+r.passed+'/'+r.total+' fixture checks; no physical result is claimed.');"
+      - name: Physical HIL and controlled-track workflow policy
+        run: pnpm --silent evidence:physical-workflow-policy
       - name: P3 logical service architecture
         run: pnpm --silent architecture:p3-service-map
       - name: Virtual HIL stimulus plan
@@ -90,8 +116,10 @@ jobs:
             ${{ runner.temp }}/kingmast.scenario-campaign.json
             ${{ runner.temp }}/kingmast.external-evidence-selftest.json
             ${{ runner.temp }}/kingmast.cross-simulator-fixture.json
+            ${{ runner.temp }}/kingmast.physical-evidence-trust-selftest.json
             ${{ runner.temp }}/kingmast.runtime-health.json
             docs/architecture/P3_LOGICAL_SERVICE_MAP.json
+            docs/validation/PHYSICAL_EVIDENCE_TRUST_CHAIN_V006.md
             autonomy-lab/digital-twin/external-simulator-contract.json
             autonomy-lab/digital-twin/runner-contract.json
           if-no-files-found: error

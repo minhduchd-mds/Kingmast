@@ -32,6 +32,12 @@ if(!existsSync(full)){
       if(!/must not be presented as target-controller or physical HIL qualification/i.test(noteText))fail('template must explicitly reject CI host-soak as physical HIL qualification');
     }else if(payload.claim==='physical-hil-result'){
       if(payload.status!=='passed'&&payload.status!=='failed')fail('physical result package status must be passed or failed');
+      if(payload.controlAuthority!=='none')fail('physical HIL package controlAuthority must remain none');
+      if(payload.targetHardwareQualified!==false)fail('physical HIL package targetHardwareQualified must remain false');
+      if(payload.publicRoadApproved!==false)fail('physical HIL package publicRoadApproved must remain false');
+      if(payload.automaticQualification!==false)fail('physical HIL package automaticQualification must remain false');
+      if(payload.registryMutation!==false)fail('physical HIL package registryMutation must remain false');
+      if(payload.reviewDisposition!=='captured-awaiting-independent-review')fail('physical HIL package must remain captured-awaiting-independent-review');
       const result=payload.result;
       if(!result||typeof result!=='object'||Array.isArray(result)){
         fail('physical result package requires a result object');
@@ -39,22 +45,28 @@ if(!existsSync(full)){
         if(!nonEmptyString(result.controllerId))fail('controllerId is required');
         if(!nonEmptyString(result.benchId))fail('benchId is required');
         if(!validSha(result.softwareCommit))fail('softwareCommit must be a full 40-character commit SHA');
+        const binding=payload.sourceCommitBinding;
+        if(!binding||!validSha(binding.expected)||binding.matched!==true)fail('physical HIL package requires an exact sourceCommitBinding');
+        else if(validSha(result.softwareCommit)&&binding.expected.toLowerCase()!==result.softwareCommit.toLowerCase())fail('sourceCommitBinding.expected must match result.softwareCommit');
         if(!validIso(result.startedAt)||!validIso(result.finishedAt))fail('startedAt and finishedAt ISO timestamps are required');
         else if(Date.parse(result.finishedAt)<Date.parse(result.startedAt))fail('finishedAt cannot precede startedAt');
         if(!nonEmptyString(result.operator))fail('operator is required');
         if(!nonEmptyString(result.reviewer))fail('independent reviewer is required');
         if(result.operator===result.reviewer)fail('reviewer must differ from operator for physical HIL evidence');
         if(!Array.isArray(result.evidenceRefs)||result.evidenceRefs.length===0||result.evidenceRefs.some((item)=>!nonEmptyString(item)))fail('evidenceRefs must contain at least one reference');
+        else if(new Set(result.evidenceRefs).size!==result.evidenceRefs.length)fail('evidenceRefs must not contain duplicates');
         if(!Array.isArray(result.evidenceDigests)||result.evidenceDigests.length===0)fail('evidenceDigests must contain at least one SHA-256 binding');
         else{
           const digestRefs=new Set();
           for(const item of result.evidenceDigests){
             if(!item||typeof item!=='object'||Array.isArray(item)){fail('evidenceDigests contains a non-object item');continue;}
             if(!nonEmptyString(item.ref))fail('each evidence digest requires ref');
+            else if(digestRefs.has(item.ref))fail(`duplicate evidence digest ref ${item.ref}`);
             else digestRefs.add(item.ref);
             if(!validDigest(item.sha256))fail(`invalid SHA-256 digest for ${String(item.ref)}`);
           }
           if(Array.isArray(result.evidenceRefs))for(const ref of result.evidenceRefs)if(!digestRefs.has(ref))fail(`missing SHA-256 binding for evidence ref ${ref}`);
+          if(Array.isArray(result.evidenceRefs)&&digestRefs.size!==new Set(result.evidenceRefs).size)fail('evidenceDigests must bind exactly the declared evidenceRefs');
         }
         if(result.configurationHash!==undefined&&!validDigest(result.configurationHash))fail('configurationHash must be SHA-256 when supplied');
         if(result.calibrationHash!==undefined&&!validDigest(result.calibrationHash))fail('calibrationHash must be SHA-256 when supplied');

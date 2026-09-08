@@ -7,6 +7,7 @@ const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
 const scenarioId=(process.env.KINGMAST_HIL_SCENARIO_ID??'').trim();
 const captureRoot=resolve(process.env.KINGMAST_HIL_CAPTURE_ROOT??manifest.captureRoot);
 const outputPath=resolve(process.env.KINGMAST_HIL_OUTPUT_PATH??'kingmast.hil-physical-package.json');
+const expectedSourceCommit=(process.env.KINGMAST_EXPECTED_SOURCE_COMMIT??'').trim().toLowerCase();
 const failures=[];
 
 function fail(message){failures.push(message);}
@@ -17,6 +18,7 @@ function iso(value){return typeof value==='string'&&Number.isFinite(Date.parse(v
 function present(value){return (typeof value==='string'&&value.trim().length>0)||(typeof value==='number'&&Number.isFinite(value))||value===true||value===false;}
 
 if(manifest.schema!=='kingmast-hil-execution-manifest/v1'||manifest.version!=='0.0.6'||manifest.controlAuthority!=='none')fail('unexpected HIL execution manifest');
+if(!sha40(expectedSourceCommit))fail('KINGMAST_EXPECTED_SOURCE_COMMIT must bind packaging to a full 40-character source commit SHA');
 const scenario=Array.isArray(manifest.scenarios)?manifest.scenarios.find((item)=>item.id===scenarioId):null;
 if(!scenario)fail(`unsupported or missing KINGMAST_HIL_SCENARIO_ID: ${scenarioId||'<empty>'}`);
 
@@ -37,6 +39,7 @@ if(capture){
   if(capture.status!=='captured')fail('physical capture status must be captured');
   if(capture.scenarioId!==scenarioId)fail('capture scenarioId does not match requested scenario');
   if(!sha40(capture.softwareCommit))fail('softwareCommit must be a full 40-character commit SHA');
+  else if(sha40(expectedSourceCommit)&&capture.softwareCommit.toLowerCase()!==expectedSourceCommit)fail('physical capture softwareCommit does not match KINGMAST_EXPECTED_SOURCE_COMMIT');
   if(!iso(capture.startedAt)||!iso(capture.finishedAt))fail('startedAt and finishedAt must be ISO timestamps');
   else if(Date.parse(capture.finishedAt)<Date.parse(capture.startedAt))fail('finishedAt cannot precede startedAt');
   if(!label(capture.operator)||!label(capture.reviewer))fail('bounded operator and reviewer labels are required');
@@ -50,18 +53,22 @@ if(capture){
       if(!present(value))fail(`${scenarioId}: missing required result field ${key}`);
       if(/Hash$/.test(key)&&!sha256(value))fail(`${scenarioId}: ${key} must be SHA-256`);
     }
+    if(present(capture.resultFields.softwareCommit)&&String(capture.resultFields.softwareCommit).toLowerCase()!==String(capture.softwareCommit).toLowerCase())fail(`${scenarioId}: resultFields.softwareCommit must match capture.softwareCommit`);
   }
-  if(!Array.isArray(capture.evidenceRefs)||capture.evidenceRefs.length===0||capture.evidenceRefs.some((item)=>!label(item)))fail('evidenceRefs must contain bounded non-empty references');
-  if(!Array.isArray(capture.evidenceDigests)||capture.evidenceDigests.length===0)fail('evidenceDigests must contain SHA-256 bindings');
+  if(!Array.isArray(capture.evidenceRefs)||capture.evidenceRefs.length===0||capture.evidenceRefs.length>64||capture.evidenceRefs.some((item)=>!label(item)))fail('evidenceRefs must contain 1..64 bounded non-empty references');
+  else if(new Set(capture.evidenceRefs).size!==capture.evidenceRefs.length)fail('evidenceRefs must not contain duplicates');
+  if(!Array.isArray(capture.evidenceDigests)||capture.evidenceDigests.length===0||capture.evidenceDigests.length>64)fail('evidenceDigests must contain 1..64 SHA-256 bindings');
   else{
     const digestRefs=new Set();
     for(const item of capture.evidenceDigests){
       if(!item||typeof item!=='object'||Array.isArray(item)){fail('evidenceDigests contains a non-object item');continue;}
       if(!label(item.ref))fail('each evidence digest requires a bounded ref');
+      else if(digestRefs.has(item.ref))fail(`duplicate evidence digest ref ${item.ref}`);
       else digestRefs.add(item.ref);
       if(!sha256(item.sha256))fail(`invalid SHA-256 for evidence ref ${String(item.ref)}`);
     }
     if(Array.isArray(capture.evidenceRefs))for(const ref of capture.evidenceRefs)if(!digestRefs.has(ref))fail(`missing SHA-256 binding for evidence ref ${ref}`);
+    if(Array.isArray(capture.evidenceRefs)&&digestRefs.size!==new Set(capture.evidenceRefs).size)fail('evidenceDigests must bind exactly the declared evidenceRefs');
   }
   const privacy=capture.privacy;
   if(!privacy||typeof privacy!=='object'||Array.isArray(privacy))fail('explicit privacy block is required');
@@ -77,7 +84,7 @@ const fields=capture.resultFields;
 const result={
   controllerId:String(fields.controllerId),
   benchId:String(fields.benchId),
-  softwareCommit:capture.softwareCommit,
+  softwareCommit:capture.softwareCommit.toLowerCase(),
   startedAt:capture.startedAt,
   finishedAt:capture.finishedAt,
   operator:capture.operator,
@@ -100,13 +107,17 @@ const output={
   controlAuthority:'none',
   targetHardwareQualified:false,
   publicRoadApproved:false,
+  automaticQualification:false,
+  registryMutation:false,
   reviewDisposition:'captured-awaiting-independent-review',
+  sourceCommitBinding:{expected:expectedSourceCommit,matched:true},
   sourceCapture:{path:`${manifest.captureRoot}/${scenario.captureFile}`,physicalControllerTest:true},
   result,
   notes:[
     'This package records a physical HIL execution result but does not qualify target hardware or authorize road use.',
+    'The capture software commit is bound exactly to KINGMAST_EXPECTED_SOURCE_COMMIT before packaging.',
     'Registry promotion requires independent review and must remain a separate human-controlled step.'
   ]
 };
 writeFileSync(outputPath,JSON.stringify(output,null,2)+'\n');
-console.log(`KINGMAST physical HIL package created for ${scenarioId}: ${outputPath}`);
+console.log(`KINGMAST physical HIL package created for ${scenarioId}: ${outputPath}; sourceCommit=${expectedSourceCommit}; review=pending`);

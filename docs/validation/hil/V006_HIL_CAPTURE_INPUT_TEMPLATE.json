@@ -33,6 +33,8 @@
   },
   "notes": [
     "Copy this template only onto the approved physical HIL runner and populate it from a genuine bench execution.",
+    "softwareCommit must be the exact full 40-character commit checked out by the packaging workflow; KINGMAST_EXPECTED_SOURCE_COMMIT mismatch is rejected.",
+    "Use 1..64 unique evidenceRefs and one unique SHA-256 evidenceDigests binding for every reference.",
     "Do not commit raw serial numbers, secrets, precise coordinates, raw cabin video or unrestricted packet payloads.",
     "The packaging workflow rejects this template until physicalControllerTest=true, status=captured and all scenario-specific fields are complete.",
     "A captured package is evidence awaiting independent review; it is not target-hardware qualification or public-road approval."

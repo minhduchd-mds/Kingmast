@@ -6,6 +6,7 @@ const registry=JSON.parse(readFileSync(resolve(repoRoot,'docs/validation/closed-
 const scenarioId=(process.env.KINGMAST_CLOSED_TRACK_SCENARIO_ID??'').trim();
 const captureRoot=resolve(process.env.KINGMAST_CLOSED_TRACK_CAPTURE_ROOT??'/var/lib/kingmast/closed-track-captures');
 const outputPath=resolve(process.env.KINGMAST_CLOSED_TRACK_OUTPUT_PATH??'kingmast.closed-track-physical-package.json');
+const expectedSourceCommit=(process.env.KINGMAST_EXPECTED_SOURCE_COMMIT??'').trim().toLowerCase();
 const failures=[];
 
 function fail(message){failures.push(message);}
@@ -15,6 +16,7 @@ function sha256(value){return typeof value==='string'&&/^[a-f0-9]{64}$/i.test(va
 function iso(value){return typeof value==='string'&&Number.isFinite(Date.parse(value));}
 
 if(registry.schema!=='kingmast-closed-track-evidence-registry/v1'||registry.version!=='0.0.6'||registry.controlAuthority!=='none')fail('unexpected closed-track evidence registry');
+if(!sha40(expectedSourceCommit))fail('KINGMAST_EXPECTED_SOURCE_COMMIT must bind packaging to a full 40-character source commit SHA');
 const scenario=Array.isArray(registry.scenarios)?registry.scenarios.find((item)=>item.id===scenarioId):null;
 if(!scenario)fail(`unsupported or missing KINGMAST_CLOSED_TRACK_SCENARIO_ID: ${scenarioId||'<empty>'}`);
 
@@ -35,6 +37,7 @@ if(capture){
   if(capture.status!=='captured')fail('physical controlled-track capture status must be captured');
   if(capture.scenarioId!==scenarioId)fail('capture scenarioId does not match requested scenario');
   if(!sha40(capture.softwareCommit))fail('softwareCommit must be a full 40-character commit SHA');
+  else if(sha40(expectedSourceCommit)&&capture.softwareCommit.toLowerCase()!==expectedSourceCommit)fail('controlled-track capture softwareCommit does not match KINGMAST_EXPECTED_SOURCE_COMMIT');
   if(!iso(capture.startedAt)||!iso(capture.finishedAt))fail('startedAt and finishedAt must be ISO timestamps');
   else if(Date.parse(capture.finishedAt)<Date.parse(capture.startedAt))fail('finishedAt cannot precede startedAt');
   for(const key of ['operator','reviewer','independentObserver','entryApprovalRef','testFacilityId','vehicleOrRigId','configurationRevision','calibrationRevision','approvedBoundsRef','timeSyncRef'])if(!label(capture[key]))fail(`${key} is required`);
@@ -42,16 +45,20 @@ if(capture){
   if(capture.operator===capture.independentObserver)fail('independent observer must differ from operator');
   if(capture.resultDisposition!=='passed'&&capture.resultDisposition!=='failed')fail('resultDisposition must be passed or failed');
   if(!label(capture.resultSummary,2048)||capture.resultSummary.trim().length<8)fail('resultSummary must contain 8..2048 characters');
-  if(!Array.isArray(capture.evidenceRefs)||capture.evidenceRefs.length===0||capture.evidenceRefs.some((item)=>!label(item)))fail('evidenceRefs must contain bounded references');
-  if(!Array.isArray(capture.evidenceDigests)||capture.evidenceDigests.length===0)fail('evidenceDigests must contain SHA-256 bindings');
+  if(!Array.isArray(capture.evidenceRefs)||capture.evidenceRefs.length===0||capture.evidenceRefs.length>64||capture.evidenceRefs.some((item)=>!label(item)))fail('evidenceRefs must contain 1..64 bounded references');
+  else if(new Set(capture.evidenceRefs).size!==capture.evidenceRefs.length)fail('evidenceRefs must not contain duplicates');
+  if(!Array.isArray(capture.evidenceDigests)||capture.evidenceDigests.length===0||capture.evidenceDigests.length>64)fail('evidenceDigests must contain 1..64 SHA-256 bindings');
   else{
     const digestRefs=new Set();
     for(const item of capture.evidenceDigests){
       if(!item||typeof item!=='object'||Array.isArray(item)){fail('evidenceDigests contains a non-object item');continue;}
-      if(!label(item.ref))fail('each evidence digest requires a bounded ref');else digestRefs.add(item.ref);
+      if(!label(item.ref))fail('each evidence digest requires a bounded ref');
+      else if(digestRefs.has(item.ref))fail(`duplicate evidence digest ref ${item.ref}`);
+      else digestRefs.add(item.ref);
       if(!sha256(item.sha256))fail(`invalid SHA-256 for evidence ref ${String(item.ref)}`);
     }
     if(Array.isArray(capture.evidenceRefs))for(const ref of capture.evidenceRefs)if(!digestRefs.has(ref))fail(`missing SHA-256 binding for evidence ref ${ref}`);
+    if(Array.isArray(capture.evidenceRefs)&&digestRefs.size!==new Set(capture.evidenceRefs).size)fail('evidenceDigests must bind exactly the declared evidenceRefs');
   }
   const privacy=capture.privacy;
   if(!privacy||typeof privacy!=='object'||Array.isArray(privacy))fail('explicit privacy block is required');
@@ -73,10 +80,13 @@ const output={
   closedTrackApproved:false,
   targetHardwareQualified:false,
   publicRoadApproved:false,
+  automaticQualification:false,
+  registryMutation:false,
   reviewDisposition:'captured-awaiting-independent-review',
+  sourceCommitBinding:{expected:expectedSourceCommit,matched:true},
   sourceCapture:{path:`/var/lib/kingmast/closed-track-captures/${scenarioId}.json`,physicalClosedTrackTest:true},
   result:{
-    softwareCommit:capture.softwareCommit,
+    softwareCommit:capture.softwareCommit.toLowerCase(),
     startedAt:capture.startedAt,
     finishedAt:capture.finishedAt,
     operator:capture.operator,
@@ -95,9 +105,10 @@ const output={
   },
   notes:[
     'This package records evidence from an already approved controlled-track activity; it does not authorize a test run.',
+    'The capture software commit is bound exactly to KINGMAST_EXPECTED_SOURCE_COMMIT before packaging.',
     'Independent review remains required before registry promotion.',
     'This package does not create target-hardware qualification, homologation or public-road approval.'
   ]
 };
 writeFileSync(outputPath,JSON.stringify(output,null,2)+'\n');
-console.log(`KINGMAST controlled-track package created for ${scenarioId}: ${outputPath}`);
+console.log(`KINGMAST controlled-track package created for ${scenarioId}: ${outputPath}; sourceCommit=${expectedSourceCommit}; review=pending`);

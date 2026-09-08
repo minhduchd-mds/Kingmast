@@ -63,22 +63,41 @@ jobs:
           KINGMAST_HIL_SCENARIO_ID: ${{ inputs.scenario_id }}
           KINGMAST_HIL_CAPTURE_ROOT: /var/lib/kingmast/hil-captures
           KINGMAST_HIL_OUTPUT_PATH: ${{ runner.temp }}/kingmast.hil-physical-package.json
+          KINGMAST_EXPECTED_SOURCE_COMMIT: ${{ github.sha }}
         run: pnpm hil:physical-package
       - name: Validate physical HIL package contract
         env:
           KINGMAST_HIL_PACKAGE_PATH: ${{ runner.temp }}/kingmast.hil-physical-package.json
         run: pnpm hil:package-check
+      - name: Generate source-bound physical evidence manifest
+        env:
+          KINGMAST_PHYSICAL_EVIDENCE_KIND: hil
+          KINGMAST_PHYSICAL_PACKAGE_PATH: ${{ runner.temp }}/kingmast.hil-physical-package.json
+          KINGMAST_PHYSICAL_MANIFEST_PATH: ${{ runner.temp }}/kingmast.hil-physical-manifest.json
+          KINGMAST_EXPECTED_SOURCE_COMMIT: ${{ github.sha }}
+        run: pnpm evidence:physical-manifest
+      - name: Verify physical evidence manifest binding
+        env:
+          KINGMAST_PHYSICAL_EVIDENCE_KIND: hil
+          KINGMAST_PHYSICAL_PACKAGE_PATH: ${{ runner.temp }}/kingmast.hil-physical-package.json
+          KINGMAST_PHYSICAL_MANIFEST_PATH: ${{ runner.temp }}/kingmast.hil-physical-manifest.json
+          KINGMAST_EXPECTED_SOURCE_COMMIT: ${{ github.sha }}
+        run: pnpm evidence:physical-manifest-check
       - name: Assert evidence-only boundaries
         run: |
           node <<'NODE'
           const r=require(process.env.RUNNER_TEMP+'/kingmast.hil-physical-package.json');
-          if(r.schema!=='kingmast-hil-evidence-package/v1'||r.claim!=='physical-hil-result'||r.controlAuthority!=='none'||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.reviewDisposition!=='captured-awaiting-independent-review')process.exit(1);
-          console.log(`KINGMAST ${r.scenarioId} physical package captured; independent review remains required.`);
+          const m=require(process.env.RUNNER_TEMP+'/kingmast.hil-physical-manifest.json');
+          if(r.schema!=='kingmast-hil-evidence-package/v1'||r.claim!=='physical-hil-result'||r.controlAuthority!=='none'||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.automaticQualification!==false||r.registryMutation!==false||r.reviewDisposition!=='captured-awaiting-independent-review'||r.sourceCommitBinding?.expected!==process.env.GITHUB_SHA||r.sourceCommitBinding?.matched!==true)process.exit(1);
+          if(m.schema!=='kingmast-physical-evidence-manifest/v1'||m.kind!=='hil'||m.sourceCommit!==process.env.GITHUB_SHA||m.automaticQualification!==false||m.registryMutation!==false||m.targetHardwareQualified!==false||m.closedTrackApproved!==false||m.publicRoadApproved!==false||m.reviewDisposition!=='captured-awaiting-independent-review')process.exit(1);
+          console.log(`KINGMAST ${r.scenarioId} physical package is source-bound to ${m.sourceCommit}; independent review remains required.`);
           NODE
       - name: Upload bounded HIL evidence package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: kingmast-physical-hil-${{ inputs.scenario_id }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/kingmast.hil-physical-package.json
+          path: |
+            ${{ runner.temp }}/kingmast.hil-physical-package.json
+            ${{ runner.temp }}/kingmast.hil-physical-manifest.json
           if-no-files-found: error
           retention-days: 30

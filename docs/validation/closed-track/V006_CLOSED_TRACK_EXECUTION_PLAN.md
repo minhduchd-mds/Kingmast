@@ -29,17 +29,21 @@ Each test is executed within separately approved facility speed/geometry bounds.
 
 For every physical scenario capture, record at minimum:
 
-- exact 40-character software commit;
+- exact 40-character software commit equal to the checked-out packaging workflow commit;
 - bounded vehicle/rig and facility identifiers;
 - configuration and calibration revisions;
 - ISO start/finish timestamps;
-- different operator and independent reviewer identities;
+- different operator, reviewer and independent-observer identities where required;
 - synchronized input/warning/HMI timing references;
 - bounded operator observations;
-- SHA-256 digests for retained external evidence;
+- 1..64 unique evidence references with unique SHA-256 digest bindings;
 - result summary and independent review disposition.
 
 Raw evidence remains outside source control. Repository-facing evidence must not contain secrets, unrestricted raw camera/cabin video, raw hardware serials or unnecessary precise coordinates.
+
+The guarded `Controlled Track Evidence` workflow supplies `KINGMAST_EXPECTED_SOURCE_COMMIT=${GITHUB_SHA}` to the packager. A capture whose `softwareCommit` does not match that exact repository commit is rejected before packaging.
+
+After the package is created, a `kingmast-physical-evidence-manifest/v1` manifest binds the exact package bytes by SHA-256 to the scenario, source commit, workflow run ID and run attempt. The workflow re-validates that manifest before artifact upload.
 
 ## Acceptance behavior
 
@@ -55,4 +59,6 @@ These are test-activity controls; they are not KINGMAST actuator features.
 
 ## Promotion rule
 
-Physical capture alone changes a scenario at most to `captured-awaiting-independent-review`. Only a separate independent review may move it to `reviewed-pass` or `reviewed-fail`. `closedTrackApproved`, `targetHardwareQualified` and `publicRoadApproved` remain false in repository bookkeeping.
+Physical capture alone changes a scenario at most to `captured-awaiting-independent-review`. The packaging workflow sets `automaticQualification=false` and `registryMutation=false`. Only a separate independent review may move a registry entry to `reviewed-pass` or `reviewed-fail`. `closedTrackApproved`, `targetHardwareQualified` and `publicRoadApproved` remain false in repository bookkeeping.
+
+See `docs/validation/PHYSICAL_EVIDENCE_TRUST_CHAIN_V006.md` for the common HIL/controlled-track trust-chain contract.

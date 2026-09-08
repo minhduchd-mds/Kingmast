@@ -25,13 +25,15 @@ The capture must use:
 
 - `physicalControllerTest=true`
 - `status=captured`
-- a full 40-character `softwareCommit`
+- a full 40-character `softwareCommit` equal to the exact checked-out workflow commit
 - ISO start/finish timestamps
 - different bounded `operator` and `reviewer` labels
 - `resultDisposition=passed|failed`
 - all scenario-specific `resultFields`
-- at least one evidence reference and a SHA-256 digest for every reference
+- 1..64 unique evidence references and a unique SHA-256 digest binding for every reference
 - explicit privacy flags all set to `false`
+
+The physical packager requires `KINGMAST_EXPECTED_SOURCE_COMMIT`. The guarded workflow supplies `${GITHUB_SHA}` and rejects a capture made from any different source commit.
 
 ## Workflow
 
@@ -41,14 +43,18 @@ The workflow:
 
 1. installs dependencies reproducibly;
 2. runs repository safety/security gates;
-3. packages the local physical capture with `scripts/hil-physical-capture-package.mjs`;
+3. packages the local physical capture with `scripts/hil-physical-capture-package.mjs` and exact source-commit binding;
 4. validates the resulting package with `pnpm hil:package-check`;
-5. uploads only the bounded evidence package.
+5. generates `kingmast-physical-evidence-manifest/v1` with the exact package SHA-256 plus workflow provenance;
+6. re-validates package-to-manifest integrity and all no-qualification flags;
+7. uploads only the bounded JSON package and bounded JSON manifest.
 
-The workflow never edits `V006_HIL_EVIDENCE_REGISTRY.json` and never sets `targetHardwareQualified=true`.
+The workflow never edits `V006_HIL_EVIDENCE_REGISTRY.json`, never grants CAN-write authority, and never sets `targetHardwareQualified=true` or `publicRoadApproved=true`.
 
 ## Review and promotion
 
-After a physical package exists, an independent reviewer verifies the referenced evidence outside GitHub, confirms equipment/configuration/calibration identity, and records the review decision. Only then may the corresponding registry item be manually promoted from `pending` to `passed` or `failed` with the required evidence metadata.
+After a physical package exists, an independent reviewer verifies the referenced evidence outside GitHub, confirms equipment/configuration/calibration identity, confirms the package SHA-256 manifest and records the review decision. Only then may the corresponding registry item be manually promoted from `pending` to a reviewed result with the required evidence metadata.
 
 A `passed` HIL scenario is still only one Gate-3 evidence item. Closed-track approval, target-hardware qualification, legal approval and public-road approval remain separate decisions.
+
+See `docs/validation/PHYSICAL_EVIDENCE_TRUST_CHAIN_V006.md` for the common HIL/controlled-track trust-chain contract.
