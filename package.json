@@ -17,6 +17,8 @@
     "realtime:policy": "node scripts/realtime-resilience-policy-check.mjs",
     "hmi:design-system": "pnpm --filter @kingmast/hmi design-system:check",
     "toolchain:hmi-policy": "node scripts/hmi-toolchain-policy-check.mjs",
+    "qualification:release": "node scripts/release-qualification-check.mjs",
+    "qualification:gate3": "node scripts/gate3-acceptance-policy-check.mjs",
     "hil:evidence": "node scripts/hil-evidence-check.mjs",
     "hil:package-check": "node scripts/hil-evidence-package-check.mjs",
     "boot:evidence": "node scripts/boot-security-evidence-check.mjs",
