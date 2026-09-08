@@ -51,6 +51,7 @@ test.describe('KINGMAST HMI performance evidence',()=>{
     await expect(page.getByRole('heading',{name:'Navigate'})).toBeVisible();
     const mapCanvas=page.locator('canvas.maplibregl-canvas').first();
     const mapFallback=page.getByTestId('map-renderer-fallback');
+    await expect.poll(async()=>Boolean(await mapCanvas.isVisible().catch(()=>false)||await mapFallback.isVisible().catch(()=>false)),{timeout:7_000}).toBe(true);
     let webglFallbackMode:'context-loss'|'renderer-unavailable'|'not-observed'='not-observed';
     if(await mapCanvas.isVisible().catch(()=>false)){
       await mapCanvas.dispatchEvent('webglcontextlost');
