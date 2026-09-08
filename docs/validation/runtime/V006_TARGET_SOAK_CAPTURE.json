@@ -1,0 +1,27 @@
+{
+  "schema": "kingmast-target-soak-capture/v1",
+  "productVersion": "0.0.6",
+  "controlAuthority": "none",
+  "status": "pending-physical-execution",
+  "physicalVehicleComputerTest": false,
+  "targetHardwareQualified": false,
+  "requiredDurationSeconds": 7200,
+  "hardwareTarget": null,
+  "hardwareInstanceSha256": null,
+  "buildCommit": null,
+  "buildId": null,
+  "firmwareRevision": null,
+  "configurationRevision": null,
+  "calibrationRevision": null,
+  "capturedDurationSeconds": null,
+  "hostSoakReportSha256": null,
+  "classificationPassed": null,
+  "memoryPassed": null,
+  "eventLoopPassed": null,
+  "reviewStatus": "not-reviewed",
+  "notes": [
+    "This registry is intentionally pending until a selected physical vehicle-computer target is executed for at least two hours.",
+    "A captured host-soak report is evidence only and does not qualify hardware, approve closed-track operation or create homologation claims.",
+    "No raw hardware serial, cabin video, camera frames, precise coordinates or secrets belong in this registry."
+  ]
+}
