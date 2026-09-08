@@ -28,6 +28,8 @@ jobs:
         run: pnpm security:config-auth
       - name: Provider identity policy
         run: pnpm security:provider-auth
+      - name: Fastify route rate-limit policy
+        run: pnpm security:route-rate-limit
       - name: Audit integrity policy
         run: pnpm audit:integrity
       - name: Firmware security policy
