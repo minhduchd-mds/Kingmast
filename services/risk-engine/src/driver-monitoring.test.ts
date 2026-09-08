@@ -7,15 +7,25 @@ describe('assessDriverMonitoring',()=>{
   it('requires temporal evidence before drowsiness is suspected',()=>{
     const result=assessDriverMonitoring(windowSamples(10,(index)=>({eyesClosed:index>=4})));
     expect(result.state).toBe('drowsiness-suspected');
+    expect(result.maxEyesClosedMs).toBeGreaterThanOrEqual(5_000);
+    expect(result.attentionScore).toBeLessThan(.7);
     expect(result.storesRawVideo).toBe(false);
   });
   it('detects sustained distraction without treating one frame as a driver state',()=>{
     const result=assessDriverMonitoring(windowSamples(5,(index)=>({gazeAway:index>=1})));
     expect(result.state).toBe('prolonged-distraction');
+    expect(result.maxGazeAwayMs).toBeGreaterThanOrEqual(4_000);
+  });
+  it('escalates a sustained eye-closure event even before a long-window PERCLOS threshold is required',()=>{
+    const result=assessDriverMonitoring(windowSamples(4,(index)=>({eyesClosed:index>=2})));
+    expect(result.state).toBe('drowsiness-suspected');
+    expect(result.reason).toBe('sustained-eye-closure-event');
+    expect(result.maxEyesClosedMs).toBe(2_000);
   });
   it('reports unavailable when the face is consistently missing',()=>{
     const result=assessDriverMonitoring(windowSamples(5,()=>({faceDetected:false})));
     expect(result.state).toBe('driver-unavailable');
+    expect(result.attentionScore).toBe(0);
   });
   it('never reports attentive from an insufficient temporal window',()=>{
     const result=assessDriverMonitoring(windowSamples(1,()=>({})));
@@ -47,5 +57,12 @@ describe('assessDriverMonitoring',()=>{
     const result=assessDriverMonitoring(windowSamples(10,(index)=>({eyesClosed:index>=6,confidence:index>=6?.95:.6})));
     expect(result.perclos).toBeGreaterThan(.45);
     expect(result.state).toBe('drowsiness-suspected');
+  });
+  it('keeps an attentive driver near the top of the bounded attention score',()=>{
+    const result=assessDriverMonitoring(windowSamples(6,()=>({})));
+    expect(result.state).toBe('attentive');
+    expect(result.attentionScore).toBeGreaterThan(.9);
+    expect(result.maxEyesClosedMs).toBe(0);
+    expect(result.maxGazeAwayMs).toBe(0);
   });
 });
