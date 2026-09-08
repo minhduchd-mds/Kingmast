@@ -14,7 +14,7 @@ P2 advances KINGMAST from the completed P0/P1 software baseline toward repeatabl
 - Target-soak honesty registry that remains `pending-physical-execution` until real target evidence exists.
 - Engineering evidence anchor binds 17 materials, including field diagnostics and target-soak registry.
 
-## Latest validated CI baseline
+## Validated CI evidence reference
 
 The P2 field-diagnostics/target-soak software batch was validated on commit `f0b47e76174e6a255b6297b5097761e575cb640e`:
 
