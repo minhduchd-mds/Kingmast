@@ -1,0 +1,79 @@
+name: Independent Safety Research
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'autonomy-lab/**'
+      - 'package.json'
+      - '.github/workflows/independent-safety-research.yml'
+      - 'docs/validation/hil/**'
+      - 'docs/validation/closed-track/**'
+  pull_request:
+    paths:
+      - 'autonomy-lab/**'
+      - 'package.json'
+      - '.github/workflows/independent-safety-research.yml'
+      - 'docs/validation/hil/**'
+      - 'docs/validation/closed-track/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingmast-independent-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  research-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+
+      - name: Independent source and scenario contract
+        run: node autonomy-lab/safety-research/validate-safety-research.mjs
+
+      - name: Research gap detector
+        run: |
+          node autonomy-lab/safety-research/research-gap-report.mjs --json --ci > "$RUNNER_TEMP/kingmast.safety-research-gaps.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.safety-research-gaps.json'); if(r.schema!=='kingmast-safety-research-gap-report/v1'||r.controlAuthority!=='none'||r.automaticProductionPromotion!==false||r.domainCount<15||r.domainsWithResearchGaps!==0) process.exit(1); console.log('KINGMAST safety research domains '+r.domainCount+'; open research gaps '+r.domainsWithResearchGaps+'.');"
+
+      - name: Independent deterministic safety simulation
+        run: |
+          node autonomy-lab/safety-sim/run-independent-safety-sim.mjs --json --ci > "$RUNNER_TEMP/kingmast.independent-safety-sim.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.independent-safety-sim.json'); if(r.schema!=='kingmast-independent-safety-simulation-report/v1'||r.controlAuthority!=='none'||r.importsProductionRiskCode!==false||r.onlineLearning!==false||r.productionThresholdMutation!==false||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false||r.publicRoadApproved!==false||r.total<35||r.failed!==0||r.allPassed!==true||r.researchMetrics?.recognitionResearchScore<90) process.exit(1); console.log('KINGMAST independent safety simulation '+r.passed+'/'+r.total+'; research score '+r.researchMetrics.recognitionResearchScore+'/100 (simulation coverage only).');"
+
+      - name: Deterministic parameter exploration
+        run: |
+          node autonomy-lab/safety-sim/run-parameter-sweep.mjs --json --ci > "$RUNNER_TEMP/kingmast.safety-sweep.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.safety-sweep.json'); if(r.schema!=='kingmast-independent-safety-parameter-sweep/v1'||r.controlAuthority!=='none'||r.productionThresholdMutation!==false||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false||r.publicRoadApproved!==false||r.scenarioCount<35||r.variantCount<185||r.exceptionCount!==0||r.domainCount<15) process.exit(1); console.log('KINGMAST safety parameter sweep '+r.variantCount+' variants; decision changes '+r.decisionChangeCount+' are research candidates only.');"
+
+      - name: ASAM interoperability bridge contract
+        run: |
+          node autonomy-lab/adapters/export-asam-bridge.mjs --all --json > "$RUNNER_TEMP/kingmast.asam-bridge.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.asam-bridge.json'); if(r.schema!=='kingmast-asam-simulation-bridge-report/v1'||r.controlAuthority!=='none'||r.targetVersions?.openDrive!=='1.9.0'||r.targetVersions?.openScenarioXml!=='1.4.0'||r.asamSchemaValidated!==false||r.carlaExecuted!==false||r.esminiExecuted!==false||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false||r.publicRoadApproved!==false||r.scenarioCount<35) process.exit(1); console.log('KINGMAST ASAM bridge prepared '+r.scenarioCount+' simulator-neutral manifests without claiming schema conformance.');"
+
+      - name: Virtual-to-physical evidence traceability
+        run: node autonomy-lab/validation/validate-virtual-to-physical-map.mjs
+
+      - name: Vietnam controlled-track research pack
+        run: node autonomy-lab/validation/validate-vietnam-track-pack.mjs
+
+      - name: Upload research-only simulation artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-independent-safety-research-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/kingmast.safety-research-gaps.json
+            ${{ runner.temp }}/kingmast.independent-safety-sim.json
+            ${{ runner.temp }}/kingmast.safety-sweep.json
+            ${{ runner.temp }}/kingmast.asam-bridge.json
+          if-no-files-found: error
+          retention-days: 14
