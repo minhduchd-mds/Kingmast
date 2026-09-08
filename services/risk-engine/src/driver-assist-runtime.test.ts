@@ -14,6 +14,18 @@ describe('DriverAssistRuntime',()=>{
     expect(runtime.snapshot(base+3_000,true).ldw.availability).toBe('unavailable');
   });
 
+  it('requires repeated caution evidence while allowing critical LDW to surface immediately',()=>{
+    const runtime=new DriverAssistRuntime();
+    const first=runtime.ingestLane({timestampMs:base,speedKmh:72,laneWidthM:3.5,lateralOffsetM:.2,lateralVelocityMps:.4,headingErrorDeg:0,confidence:.94,turnSignal:'off'});
+    expect(first.severity).toBe('safe');
+    expect(first.reason).toBe('lane-departure-pending-confirmation');
+    const confirmed=runtime.ingestLane({timestampMs:base+300,speedKmh:72,laneWidthM:3.5,lateralOffsetM:.22,lateralVelocityMps:.4,headingErrorDeg:0,confidence:.94,turnSignal:'off'});
+    expect(confirmed.severity).toBe('caution');
+
+    const immediate=new DriverAssistRuntime().ingestLane({timestampMs:base,speedKmh:72,laneWidthM:3.5,lateralOffsetM:.68,lateralVelocityMps:.6,headingErrorDeg:0,confidence:.94,turnSignal:'off'});
+    expect(immediate.severity).toBe('critical');
+  });
+
   it('uses a temporal DMS window and does not store raw cabin video',()=>{
     const runtime=new DriverAssistRuntime();
     for(let i=0;i<5;i++)runtime.ingestDriverMonitoring({timestampMs:base+i*1_000,faceDetected:true,eyesClosed:false,gazeAway:true,headYawDeg:40,headPitchDeg:0,confidence:.92});
@@ -89,6 +101,40 @@ describe('DriverAssistRuntime',()=>{
     expect(status.availability).toBe('degraded');
     expect(status.reason).toBe('surround-camera-coverage-incomplete');
     expect(status.fullyReady).toBe(false);
+  });
+
+  it('rejects duplicate surround camera identities from a live 360 readiness claim',()=>{
+    const runtime=new DriverAssistRuntime();
+    runtime.ingestSurround({timestampMs:base,cameras:[
+      {cameraId:'front',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+      {cameraId:'rear',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+      {cameraId:'left',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+      {cameraId:'left',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+    ]});
+    const status=runtime.snapshot(base+100,true).surround;
+    expect(status.availability).toBe('degraded');
+    expect(status.reason).toBe('surround-camera-identity-duplicate');
+    expect(status.fullyReady).toBe(false);
+  });
+
+  it('degrades 360 readiness for occlusion or excessive frame skew',()=>{
+    const occluded=new DriverAssistRuntime();
+    occluded.ingestSurround({timestampMs:base,cameras:[
+      {cameraId:'front',synchronized:true,calibrated:true,reprojectionErrorPx:1,occluded:true},
+      {cameraId:'rear',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+      {cameraId:'left',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+      {cameraId:'right',synchronized:true,calibrated:true,reprojectionErrorPx:1},
+    ]});
+    expect(occluded.snapshot(base+100,true).surround.reason).toBe('surround-camera-occluded');
+
+    const skewed=new DriverAssistRuntime();
+    skewed.ingestSurround({timestampMs:base,cameras:[
+      {cameraId:'front',synchronized:true,calibrated:true,reprojectionErrorPx:1,frameSkewMs:120},
+      {cameraId:'rear',synchronized:true,calibrated:true,reprojectionErrorPx:1,frameSkewMs:20},
+      {cameraId:'left',synchronized:true,calibrated:true,reprojectionErrorPx:1,frameSkewMs:25},
+      {cameraId:'right',synchronized:true,calibrated:true,reprojectionErrorPx:1,frameSkewMs:18},
+    ]});
+    expect(skewed.snapshot(base+100,true).surround.reason).toBe('surround-frame-skew-exceeded');
   });
 
   it('only marks the read-only assistant context live when fresh vehicle context exists',()=>{
