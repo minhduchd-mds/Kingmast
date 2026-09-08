@@ -1,4 +1,4 @@
-import { readdir,readFile,stat } from 'node:fs/promises';
+import { open,readdir } from 'node:fs/promises';
 import { extname,join,relative } from 'node:path';
 
 const root=process.cwd();
@@ -37,9 +37,15 @@ async function walk(dir){
     const rel=relative(root,full).replaceAll('\\','/');
     if(ignoredPaths.has(rel))continue;
     if(!textExtensions.has(extname(entry.name))&&!['Dockerfile','CODEOWNERS'].includes(entry.name))continue;
-    const info=await stat(full);if(info.size>maxBytes)continue;
-    const text=await readFile(full,'utf8');
-    text.split(/\r?\n/).forEach((line,index)=>inspectLine(rel,line,index+1));
+    const handle=await open(full,'r');
+    try{
+      const info=await handle.stat();
+      if(info.size>maxBytes)continue;
+      const text=await handle.readFile('utf8');
+      text.split(/\r?\n/).forEach((line,index)=>inspectLine(rel,line,index+1));
+    }finally{
+      await handle.close();
+    }
   }
 }
 
