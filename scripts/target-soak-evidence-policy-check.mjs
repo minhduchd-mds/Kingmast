@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises';
 
-const path=new URL('../docs/validation/runtime/V006_TARGET_SOAK_CAPTURE.json',import.meta.url);
-const report=JSON.parse(await readFile(path,'utf8'));
+const registryPath=new URL('../docs/validation/runtime/V006_TARGET_SOAK_CAPTURE.json',import.meta.url);
+const workflowPath=new URL('../.github/workflows/target-hardware-capture.yml',import.meta.url);
+const report=JSON.parse(await readFile(registryPath,'utf8'));
+const workflow=await readFile(workflowPath,'utf8');
 
 function fail(message){console.error(`[target-soak-policy] ${message}`);process.exitCode=1;}
 function expect(condition,message){if(!condition)fail(message);}
@@ -49,5 +51,20 @@ if(report.status==='pending-physical-execution'){
   expect(report.reviewStatus==='pending-independent-review','physical capture still requires independent review');
 }
 
+expect(/\bworkflow_dispatch\s*:/m.test(workflow),'target capture workflow must remain manual workflow_dispatch only');
+expect(!/^\s*push\s*:/m.test(workflow),'target capture workflow must not run on push');
+expect(!/^\s*pull_request\s*:/m.test(workflow),'target capture workflow must not run on pull requests');
+expect(workflow.includes('runs-on: [self-hosted, linux, kingmast-target]'),'target capture must use the dedicated self-hosted kingmast-target runner label');
+expect(workflow.includes('environment: target-hardware-evidence'),'target capture must use the protected target-hardware-evidence environment');
+expect(workflow.includes('acknowledge_evidence_only'),'target capture must require explicit evidence-only acknowledgement');
+expect(workflow.includes("KINGMAST_PHYSICAL_VEHICLE_COMPUTER_TEST: '1'"),'target workflow must explicitly enter physical capture mode');
+expect(workflow.includes("KINGMAST_HOST_SOAK_SECONDS: ${{ inputs.duration_seconds }}"),'target workflow must bind soak duration to validated manual input');
+expect(workflow.includes('r.workload?.durationSeconds<7200'),'target workflow must reject captures shorter than two hours');
+expect(workflow.includes("r.targetHardwareQualified!==false"),'target workflow must reject any hardware-qualification claim');
+expect(workflow.includes('r.runtimeEnvelope?.passed!==true'),'target workflow must require runtime-envelope evidence to pass');
+expect(workflow.includes('kingmast-target-soak-artifact-manifest/v1'),'target workflow must emit the bounded artifact manifest');
+expect(workflow.includes('rawHardwareSerialIncluded:false'),'target workflow manifest must preserve raw-hardware-serial privacy');
+expect(workflow.includes('secretsIncluded:false'),'target workflow manifest must preserve secret-exclusion privacy');
+
 if(process.exitCode)process.exit(process.exitCode);
-console.log(`[target-soak-policy] ${report.status}; physical=${report.physicalVehicleComputerTest}; required=${report.requiredDurationSeconds}s; runtime-envelope=${report.runtimeEnvelopePassed??'pending'}; qualification=false`);
+console.log(`[target-soak-policy] ${report.status}; physical=${report.physicalVehicleComputerTest}; required=${report.requiredDurationSeconds}s; runtime-envelope=${report.runtimeEnvelopePassed??'pending'}; guarded-workflow=true; qualification=false`);
