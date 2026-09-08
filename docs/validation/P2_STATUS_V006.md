@@ -16,7 +16,7 @@ P2 advances KINGMAST from the completed P0/P1 software baseline toward repeatabl
 
 ## Latest validated CI baseline
 
-For commit `f0b47e76174e6a255b6297b5097761e575cb640e`:
+The P2 field-diagnostics/target-soak software batch was validated on commit `f0b47e76174e6a255b6297b5097761e575cb640e`:
 
 - Verify workflow: passed.
 - CodeQL JavaScript/TypeScript analysis: passed.
