@@ -1,0 +1,29 @@
+{
+  "schema": "kingmast-hil-execution-manifest/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "physicalExecutionRequired": true,
+  "automaticQualification": false,
+  "captureRoot": "/var/lib/kingmast/hil-captures",
+  "scenarios": [
+    {"id":"HIL-001","title":"Frozen front radar and stale-range rejection","captureFile":"HIL-001.json","requiredResultKeys":["controllerId","benchId","radarSourceId","harnessRevision","softwareCommit","configurationHash","calibrationHash","measurementRef"]},
+    {"id":"HIL-002","title":"Replay, sequence regression and future-clock rejection","captureFile":"HIL-002.json","requiredResultKeys":["controllerId","benchId","packetGeneratorId","softwareCommit","rejectedInputRef","gatewayLogRef"]},
+    {"id":"HIL-003","title":"DMS temporal dropout and discontinuity","captureFile":"HIL-003.json","requiredResultKeys":["controllerId","benchId","cabinSensorId","sourceId","softwareCommit","timingTraceRef","runtimeAvailabilityRef"]},
+    {"id":"HIL-004","title":"Surround synchronization and calibration degradation","captureFile":"HIL-004.json","requiredResultKeys":["controllerId","benchId","cameraSetId","calibrationHash","harnessRevision","synchronizationTraceRef","reprojectionRef","hmiCaptureRef"]},
+    {"id":"HIL-005","title":"Per-device authentication tamper and revocation path","captureFile":"HIL-005.json","requiredResultKeys":["controllerId","benchId","deviceIdentityRef","provisioningRef","softwareCommit","tamperedPacketRef","revocationLogRef"]},
+    {"id":"HIL-006","title":"Signed update verification and unhealthy boot rollback","captureFile":"HIL-006.json","requiredResultKeys":["controllerId","benchId","bootloaderVersion","firmwareArtifactHash","manifestSignatureRef","rollbackFloorBefore","rollbackFloorAfter","bootHealthTraceRef"]},
+    {"id":"HIL-007","title":"Power-loss recovery during update lifecycle","captureFile":"HIL-007.json","requiredResultKeys":["controllerId","benchId","powerSourceId","interruptionTimelineRef","bootPartitionStateRef","recoveryLogRef","rollbackFloorBefore","rollbackFloorAfter"]},
+    {"id":"HIL-008","title":"CAN receive-path loss and confidence degradation","captureFile":"HIL-008.json","requiredResultKeys":["controllerId","benchId","readOnlyCanAdapterId","busSimulatorId","harnessRevision","canLossTimingRef","riskOutputRef"]},
+    {"id":"HIL-009","title":"GNSS jump, loss and recovery","captureFile":"HIL-009.json","requiredResultKeys":["controllerId","benchId","gnssReceiverId","gnssSourceId","positionQualityTraceRef","softwareCommit","degradedRecoveryRef"]},
+    {"id":"HIL-010","title":"Radar-camera disagreement and fusion uncertainty","captureFile":"HIL-010.json","requiredResultKeys":["controllerId","benchId","radarId","cameraId","contradictoryStimulusRef","configurationHash","calibrationHash","fusionOutputRef"]},
+    {"id":"HIL-011","title":"Process restart, reconnect and bounded soak behavior","captureFile":"HIL-011.json","requiredResultKeys":["controllerId","benchId","softwareCommit","restartTimelineRef","resourceTraceRef","reconnectTraceRef","boundedStateRef"]},
+    {"id":"HIL-012","title":"Physical read-only CAN authority boundary","captureFile":"HIL-012.json","requiredResultKeys":["controllerId","benchId","adapterPartNumber","harnessRevision","txDisableMechanism","busAnalyzerRef","independentReviewerRef"]}
+  ],
+  "promotionRule": {
+    "initialStatus": "captured-awaiting-independent-review",
+    "registryMutationByWorkflow": false,
+    "passRequiresIndependentReviewer": true,
+    "targetHardwareQualified": false,
+    "publicRoadApproved": false
+  }
+}
