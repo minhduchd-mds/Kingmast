@@ -7,19 +7,27 @@ on:
       - 'autonomy-lab/digital-twin/**'
       - 'autonomy-lab/hil/**'
       - 'autonomy-lab/safety-sim/**'
+      - 'docs/architecture/P3_LOGICAL_SERVICE_MAP.json'
+      - 'scripts/p3-logical-service-map-check.mjs'
+      - 'scripts/external-simulator-workflow-policy-check.mjs'
       - 'services/risk-engine/src/runtime-health-supervisor*'
       - 'services/risk-engine/src/runtime-health-evidence-cli.ts'
       - 'package.json'
       - '.github/workflows/p3-engineering.yml'
+      - '.github/workflows/external-simulator-evidence.yml'
   pull_request:
     paths:
       - 'autonomy-lab/digital-twin/**'
       - 'autonomy-lab/hil/**'
       - 'autonomy-lab/safety-sim/**'
+      - 'docs/architecture/P3_LOGICAL_SERVICE_MAP.json'
+      - 'scripts/p3-logical-service-map-check.mjs'
+      - 'scripts/external-simulator-workflow-policy-check.mjs'
       - 'services/risk-engine/src/runtime-health-supervisor*'
       - 'services/risk-engine/src/runtime-health-evidence-cli.ts'
       - 'package.json'
       - '.github/workflows/p3-engineering.yml'
+      - '.github/workflows/external-simulator-evidence.yml'
   workflow_dispatch:
 
 permissions:
@@ -56,6 +64,10 @@ jobs:
         run: |
           node autonomy-lab/digital-twin/compare-simulator-results.mjs --fixtures --json --ci > "$RUNNER_TEMP/kingmast.cross-simulator-fixture.json"
           node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.cross-simulator-fixture.json'); if(r.schema!=='kingmast-cross-simulator-parity-report/v1'||r.controlAuthority!=='none'||r.fixtureMode!==true||r.externalSimulatorEvidence!==false||r.commonScenarioCount<8||r.failed!==0||r.allPassed!==true||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false) process.exit(1); console.log('KINGMAST cross-simulator comparator self-test passed '+r.passed+'/'+r.commonScenarioCount+' fixture cases; no external simulator claim.');"
+      - name: External simulator execution workflow policy
+        run: node scripts/external-simulator-workflow-policy-check.mjs
+      - name: P3 logical service architecture
+        run: node scripts/p3-logical-service-map-check.mjs
       - name: Virtual HIL stimulus plan
         run: node autonomy-lab/hil/validate-virtual-hil-plan.mjs
       - name: Runtime health supervisor unit tests
@@ -72,5 +84,7 @@ jobs:
             ${{ runner.temp }}/kingmast.scenario-campaign.json
             ${{ runner.temp }}/kingmast.cross-simulator-fixture.json
             ${{ runner.temp }}/kingmast.runtime-health.json
+            docs/architecture/P3_LOGICAL_SERVICE_MAP.json
+            autonomy-lab/digital-twin/external-simulator-contract.json
           if-no-files-found: error
           retention-days: 14

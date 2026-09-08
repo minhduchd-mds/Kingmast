@@ -1,0 +1,91 @@
+name: External Simulator Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      campaign_scope:
+        description: 'Bounded external simulator campaign scope'
+        required: true
+        type: choice
+        options: [smoke, validation]
+        default: smoke
+      evidence_only_acknowledgement:
+        description: 'I understand this creates virtual simulator evidence only, not HIL/track/public-road qualification'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  ESIMINI_RUNNER: /opt/kingmast/bin/run-esmini-campaign
+  CARLA_RUNNER: /opt/kingmast/bin/run-carla-campaign
+
+jobs:
+  external-simulator-evidence:
+    if: ${{ inputs.evidence_only_acknowledgement == true }}
+    runs-on: [self-hosted, linux, kingmast-simulator]
+    environment: simulator-evidence
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+
+      - name: Validate runner boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x "$ESIMINI_RUNNER"
+          test -x "$CARLA_RUNNER"
+          case "${{ inputs.campaign_scope }}" in smoke|validation) ;; *) exit 2 ;; esac
+
+      - name: Generate immutable campaign intent
+        shell: bash
+        run: |
+          set -euo pipefail
+          node autonomy-lab/safety-sim/generate-scenario-campaign.mjs --json --ci > "$RUNNER_TEMP/kingmast.scenario-campaign.json"
+          sha256sum "$RUNNER_TEMP/kingmast.scenario-campaign.json" > "$RUNNER_TEMP/kingmast.scenario-campaign.sha256"
+
+      - name: Run esmini via runner-local reviewed wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ESIMINI_RUNNER" --repository "$GITHUB_WORKSPACE" --campaign "$RUNNER_TEMP/kingmast.scenario-campaign.json" --scope "${{ inputs.campaign_scope }}" --output "$RUNNER_TEMP/kingmast.esmini-result.json"
+
+      - name: Run CARLA via runner-local reviewed wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$CARLA_RUNNER" --repository "$GITHUB_WORKSPACE" --campaign "$RUNNER_TEMP/kingmast.scenario-campaign.json" --scope "${{ inputs.campaign_scope }}" --output "$RUNNER_TEMP/kingmast.carla-result.json"
+
+      - name: Validate cross-simulator parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node autonomy-lab/digital-twin/compare-simulator-results.mjs --carla "$RUNNER_TEMP/kingmast.carla-result.json" --esmini "$RUNNER_TEMP/kingmast.esmini-result.json" --json --ci > "$RUNNER_TEMP/kingmast.cross-simulator.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.cross-simulator.json'); if(r.schema!=='kingmast-cross-simulator-parity-report/v1'||r.controlAuthority!=='none'||r.fixtureMode!==false||r.externalSimulatorEvidence!==true||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.allPassed!==true) process.exit(1); console.log('External simulator parity evidence accepted for '+r.commonScenarioCount+' common virtual scenarios; no physical qualification claim.');"
+
+      - name: Hash external result package
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum "$RUNNER_TEMP/kingmast.esmini-result.json" "$RUNNER_TEMP/kingmast.carla-result.json" "$RUNNER_TEMP/kingmast.cross-simulator.json" > "$RUNNER_TEMP/kingmast.external-simulator.sha256"
+
+      - name: Upload external simulator evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-external-simulator-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/kingmast.scenario-campaign.json
+            ${{ runner.temp }}/kingmast.scenario-campaign.sha256
+            ${{ runner.temp }}/kingmast.esmini-result.json
+            ${{ runner.temp }}/kingmast.carla-result.json
+            ${{ runner.temp }}/kingmast.cross-simulator.json
+            ${{ runner.temp }}/kingmast.external-simulator.sha256
+          if-no-files-found: error
+          retention-days: 30
