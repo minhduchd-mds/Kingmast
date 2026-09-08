@@ -2,6 +2,7 @@ import type { RiskAssessment,VehicleSample } from '@kingmast/contracts';
 import { monitorEventLoopDelay,performance } from 'node:perf_hooks';
 import { assessRisk } from './risk.js';
 import { fieldDiagnosticIdentityFromEnv } from './field-diagnostics.js';
+import { captureTargetRuntimeSnapshot,TargetRuntimeAccumulator } from './target-runtime-observability.js';
 
 const SCHEMA='kingmast-host-soak-report/v1' as const;
 const CONTROL_AUTHORITY='none' as const;
@@ -10,7 +11,9 @@ const DEFAULT_DURATION_SECONDS=30;
 const DEFAULT_BATCH_SIZE=500;
 const DEFAULT_MEMORY_GROWTH_BUDGET_MIB=96;
 const DEFAULT_EVENT_LOOP_P99_BUDGET_MS=250;
+const DEFAULT_MAX_TEMPERATURE_C=95;
 const SAMPLE_INTERVAL_MS=250;
+const RUNTIME_SAMPLE_INTERVAL_MS=1_000;
 const MIB=1024*1024;
 const PHYSICAL_MIN_DURATION_SECONDS=7_200;
 const MAX_DURATION_SECONDS=43_200;
@@ -83,6 +86,9 @@ const durationSeconds=boundedInteger('KINGMAST_HOST_SOAK_SECONDS',DEFAULT_DURATI
 const batchSize=boundedInteger('KINGMAST_HOST_SOAK_BATCH',DEFAULT_BATCH_SIZE,10,10_000);
 const memoryGrowthBudgetMiB=boundedNumber('KINGMAST_HOST_SOAK_MEMORY_GROWTH_MIB',DEFAULT_MEMORY_GROWTH_BUDGET_MIB,16,1_024);
 const eventLoopP99BudgetMs=boundedNumber('KINGMAST_HOST_SOAK_EVENT_LOOP_P99_MS',DEFAULT_EVENT_LOOP_P99_BUDGET_MS,25,2_000);
+const maxTemperatureC=boundedNumber('KINGMAST_HOST_SOAK_MAX_TEMP_C',DEFAULT_MAX_TEMPERATURE_C,40,150);
+const minFreeMemoryMiB=boundedNumber('KINGMAST_HOST_SOAK_MIN_FREE_MEMORY_MIB',0,0,65_536);
+const requireThermalTelemetry=process.env.KINGMAST_REQUIRE_THERMAL_TELEMETRY==='1';
 const physicalVehicleComputerTest=process.env.KINGMAST_PHYSICAL_VEHICLE_COMPUTER_TEST==='1';
 const identity=fieldDiagnosticIdentityFromEnv();
 const identityComplete=Boolean(identity.buildCommit&&identity.buildId&&identity.hardwareTarget&&identity.hardwareInstanceHash&&identity.firmwareRevision&&identity.configurationRevision&&identity.calibrationRevision);
@@ -91,13 +97,16 @@ const qualificationClaim=physicalVehicleComputerTest?'physical-target-host-soak-
 
 const failures:string[]=[];
 const memorySamples:MemorySample[]=[];
+const targetRuntime=new TargetRuntimeAccumulator();
 const eventLoopDelay=monitorEventLoopDelay({resolution:20});
 const startedAt=performance.now();
 const cpuStarted=process.cpuUsage();
 let lastSampleAt=startedAt;
+let lastRuntimeSampleAt=startedAt;
 let operations=0;
 let batchIndex=0;
 memorySamples.push(captureMemory(0));
+targetRuntime.observe(captureTargetRuntimeSnapshot());
 eventLoopDelay.enable();
 
 while(performance.now()-startedAt<durationSeconds*1_000){
@@ -114,6 +123,10 @@ while(performance.now()-startedAt<durationSeconds*1_000){
     memorySamples.push(captureMemory(now-startedAt));
     lastSampleAt=now;
   }
+  if(now-lastRuntimeSampleAt>=RUNTIME_SAMPLE_INTERVAL_MS){
+    targetRuntime.observe(captureTargetRuntimeSnapshot());
+    lastRuntimeSampleAt=now;
+  }
   await delayImmediate();
 }
 
@@ -122,6 +135,7 @@ const finishedAt=performance.now();
 const elapsedMs=finishedAt-startedAt;
 const cpu=process.cpuUsage(cpuStarted);
 memorySamples.push(captureMemory(elapsedMs));
+targetRuntime.observe(captureTargetRuntimeSnapshot());
 
 const rssStart=memorySamples[0]?.rss??0;
 const rssEnd=memorySamples.at(-1)?.rss??rssStart;
@@ -136,7 +150,8 @@ const eventLoopP99Ms=nanosToMs(eventLoopDelay.percentile(99));
 const eventLoopMaxMs=nanosToMs(eventLoopDelay.max);
 const eventLoopPassed=eventLoopP99Ms<=eventLoopP99BudgetMs;
 const classificationPassed=failures.length===0;
-const allPassed=classificationPassed&&memoryPassed&&eventLoopPassed&&operations>=batchSize&&physicalPreflightPassed;
+const runtimeEnvelope=targetRuntime.summary({thermalRequired:requireThermalTelemetry,maxTemperatureC,minFreeMemoryMiB});
+const allPassed=classificationPassed&&memoryPassed&&eventLoopPassed&&operations>=batchSize&&physicalPreflightPassed&&runtimeEnvelope.passed;
 const cpuTotalMs=(cpu.user+cpu.system)/1_000;
 
 const report={
@@ -146,9 +161,10 @@ const report={
   qualificationClaim,
   targetHardwareQualified:false,
   physicalVehicleComputerTest,
-  physicalPreflight:{passed:physicalPreflightPassed,minDurationSeconds:PHYSICAL_MIN_DURATION_SECONDS,identityComplete,identity},
+  physicalPreflight:{passed:physicalPreflightPassed,minDurationSeconds:PHYSICAL_MIN_DURATION_SECONDS,identityComplete,identity,requireThermalTelemetry,minFreeMemoryMiB,maxTemperatureC},
   benchmarkScope:'process-local-risk-core-host-soak',
   runtime:{node:process.version,platform:process.platform,arch:process.arch,ci:process.env.CI==='true'},
+  runtimeEnvelope,
   workload:{durationSeconds:round(elapsedMs/1_000),scenarioCount:scenarios.length,batchSize,batches:batchIndex,operations,operationsPerSecond:round(operations/(elapsedMs/1_000))},
   classification:{passed:classificationPassed,failures},
   memory:{
@@ -168,8 +184,10 @@ const report={
   cpu:{userMs:round(cpu.user/1_000),systemMs:round(cpu.system/1_000),totalMs:round(cpuTotalMs),cpuToWallRatio:round(cpuTotalMs/elapsedMs)},
   allPassed,
   limitations:[
-    physicalVehicleComputerTest?'This is a physical target process soak capture, not full vehicle I/O/HIL qualification or homologation.':'Shared CI host timing, memory and CPU measurements are regression signals only.',
-    'This report does not create automotive real-time, thermal-envelope, power-budget or vehicle-control authority claims.',
+    physicalVehicleComputerTest?'This is a physical target process soak capture, not full vehicle I/O/HIL qualification or homologation.':'Shared CI host timing, memory, CPU and runtime-envelope measurements are regression signals only.',
+    'Runtime-envelope telemetry is deliberately bounded and excludes hostname, network addresses, raw hardware serials, process arguments and environment values.',
+    'Thermal telemetry is platform-dependent; physical target procedures may require it explicitly with KINGMAST_REQUIRE_THERMAL_TELEMETRY=1.',
+    'This report does not create automotive real-time, thermal-chamber, power-budget or vehicle-control authority claims.',
     'Physical controller I/O, reboot/reconnect, thermal throttling, power cycling, sensor pipelines and controlled closed-track evidence remain separate Gate-3 evidence items.',
   ],
 };
