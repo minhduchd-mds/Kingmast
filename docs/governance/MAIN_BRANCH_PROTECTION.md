@@ -69,7 +69,7 @@ The connected repository interface available to this engineering session can rea
 
 ## Administration boundary
 
-These settings require GitHub repository administration/ruleset permissions. Source-code changes cannot substitute for server-side enforcement. Until the observed ruleset includes the required PR/review/status-check controls, this item remains partially open even though deletion, force-push, signatures and scanning are already enforced.
+This remaining server-side configuration requires GitHub repository administration and ruleset permissions. Source-code changes cannot substitute for server-side enforcement. Until the observed ruleset includes the required PR/review/status-check controls, this item remains partially open even though deletion, force-push, signatures and scanning are already enforced.
 
 ## Safety rationale
 
