@@ -1,0 +1,81 @@
+{
+  "schema": "kingmast-gate3-acceptance-criteria/v1",
+  "productVersion": "0.0.6",
+  "controlAuthority": "none",
+  "gate": "Gate-2-to-Gate-3-controlled-closed-track",
+  "currentDisposition": "blocked-pending-physical-evidence-and-review",
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "homologationClaim": false,
+  "criteria": [
+    {
+      "id": "G3-HW-IDENTITY",
+      "title": "Target vehicle-computer identity",
+      "passCondition": "Hardware model, CPU architecture, RAM, storage, OS image, kernel/runtime and display class are recorded in the evidence package.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-SW-IDENTITY",
+      "title": "Software and dependency identity",
+      "passCondition": "Git commit, product version, package lock digest, SBOM and build provenance resolve to the tested installation.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-FW-CONFIG-CAL",
+      "title": "Firmware, configuration and calibration identity",
+      "passCondition": "Signed firmware manifest/revision, configuration revision and sensor calibration revision are recorded and compatible with the tested software build.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-BOOT",
+      "title": "Power-cycle and boot-to-ready",
+      "passCondition": "Cold/warm power cycles complete without unsafe state and target-hardware boot-to-usable-driver-surface measurements are recorded with an approved project-specific threshold.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-HMI-PERF",
+      "title": "HMI performance under representative load",
+      "passCondition": "Target display records frame-time/jank under map, surround and warning load, and demonstrates deterministic fallback after renderer loss.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-SOAK",
+      "title": "Long-duration resource soak",
+      "passCondition": "Target hardware completes an approved multi-hour soak with bounded RSS/heap, event-loop health and no unbounded safety-state growth.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-FAULT",
+      "title": "Fault injection and degraded modes",
+      "passCondition": "Sensor loss/staleness, reconnect, provider loss, storage/evidence degradation, WebGL loss and restart scenarios fail safely and preserve warning-only authority.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-ROLLBACK",
+      "title": "Update rollback and recovery",
+      "passCondition": "Signed update rejection, incompatible release rejection, failed-install recovery and rollback are exercised against the target release chain.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-CLOSED-TRACK",
+      "title": "Controlled closed-track execution",
+      "passCondition": "Approved scenarios are executed in a controlled closed-track environment with test operator, vehicle, route, weather, sensor state and result evidence recorded.",
+      "physicalEvidenceRequired": true
+    },
+    {
+      "id": "G3-REVIEW",
+      "title": "Independent acceptance review",
+      "passCondition": "Safety/cyber/engineering reviewers approve the evidence package for the defined closed-track scope only. Public-road and homologation approval remain separate decisions.",
+      "physicalEvidenceRequired": true
+    }
+  ],
+  "ciEvidenceIsRegressionOnly": [
+    "risk-core deterministic performance",
+    "short host-soak regression",
+    "realtime reconnect and loopback integration",
+    "structural HMI human-factors checks",
+    "browser HMI performance regression",
+    "SIL scenario replay",
+    "security and supply-chain gates"
+  ]
+}
