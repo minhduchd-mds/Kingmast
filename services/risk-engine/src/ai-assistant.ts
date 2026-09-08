@@ -12,9 +12,9 @@ export interface AssistantPlan{
 export const ASSISTANT_TOOL_ALLOWLIST:readonly AssistantTool[]=['navigation.summary','navigation.alternatives','vehicle.health','road.active-hazards','road.next-maneuver','charging.options','settings.summary','alerts.explain'] as const;
 
 const patterns:Array<{intent:AssistantIntent;tools:AssistantTool[];terms:string[];parked?:boolean;hint:string}>=[
-  {intent:'explain-alert',tools:['alerts.explain','road.active-hazards'],terms:['why warning','why alert','tại sao cảnh báo','giải thích cảnh báo'],hint:'Explain the observed warning using traceable telemetry/risk reasons only.'},
+  {intent:'explain-alert',tools:['alerts.explain','road.active-hazards','vehicle.health'],terms:['why warning','why alert','why lane warning','why dms warning','tại sao cảnh báo','giải thích cảnh báo','vì sao lệch làn','vì sao cảnh báo buồn ngủ'],hint:'Explain the observed warning using traceable telemetry, driver-assist runtime state and risk reasons only.'},
   {intent:'charging',tools:['charging.options','navigation.summary'],terms:['charge','charging','sạc','trạm sạc'],hint:'Summarize route-relevant charging options and reserve impact.'},
-  {intent:'vehicle-status',tools:['vehicle.health'],terms:['vehicle status','sensor','health','xe thế nào','tình trạng xe','cảm biến'],hint:'Summarize read-only vehicle and sensor health.'},
+  {intent:'vehicle-status',tools:['vehicle.health'],terms:['vehicle status','sensor','health','ldw','dms','lane departure','driver attention','camera 360','surround camera','xe thế nào','tình trạng xe','cảm biến','lệch làn','tài xế mất tập trung','camera toàn cảnh'],hint:'Summarize read-only vehicle, sensor and driver-assistance runtime health. Distinguish live, degraded, unavailable and staged states.'},
   {intent:'road-context',tools:['road.active-hazards','road.next-maneuver'],terms:['ahead','road','hazard','phía trước','đường','nguy hiểm'],hint:'Summarize high-priority road context without inventing provider data.'},
   {intent:'navigation',tools:['navigation.summary','road.next-maneuver','navigation.alternatives'],terms:['route','navigate','direction','đường đi','dẫn đường','tuyến'],hint:'Use current route and maneuver data only.'},
   {intent:'settings',tools:['settings.summary'],terms:['settings','setting','cài đặt','tùy chọn'],parked:true,hint:'Explain settings; deep edits remain parked-only.'},
