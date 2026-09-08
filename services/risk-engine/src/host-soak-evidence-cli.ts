@@ -1,10 +1,10 @@
 import type { RiskAssessment,VehicleSample } from '@kingmast/contracts';
 import { monitorEventLoopDelay,performance } from 'node:perf_hooks';
 import { assessRisk } from './risk.js';
+import { fieldDiagnosticIdentityFromEnv } from './field-diagnostics.js';
 
 const SCHEMA='kingmast-host-soak-report/v1' as const;
 const CONTROL_AUTHORITY='none' as const;
-const QUALIFICATION_CLAIM='ci-host-soak-regression-only-not-target-hardware' as const;
 const NOW_MS=1_800_000_000_000;
 const DEFAULT_DURATION_SECONDS=30;
 const DEFAULT_BATCH_SIZE=500;
@@ -12,6 +12,8 @@ const DEFAULT_MEMORY_GROWTH_BUDGET_MIB=96;
 const DEFAULT_EVENT_LOOP_P99_BUDGET_MS=250;
 const SAMPLE_INTERVAL_MS=250;
 const MIB=1024*1024;
+const PHYSICAL_MIN_DURATION_SECONDS=7_200;
+const MAX_DURATION_SECONDS=43_200;
 
 interface Scenario {
   name:string;
@@ -77,10 +79,15 @@ function captureMemory(atMs:number):MemorySample{
   return{atMs,rss:memory.rss,heapUsed:memory.heapUsed,external:memory.external};
 }
 
-const durationSeconds=boundedInteger('KINGMAST_HOST_SOAK_SECONDS',DEFAULT_DURATION_SECONDS,2,3_600);
+const durationSeconds=boundedInteger('KINGMAST_HOST_SOAK_SECONDS',DEFAULT_DURATION_SECONDS,2,MAX_DURATION_SECONDS);
 const batchSize=boundedInteger('KINGMAST_HOST_SOAK_BATCH',DEFAULT_BATCH_SIZE,10,10_000);
 const memoryGrowthBudgetMiB=boundedNumber('KINGMAST_HOST_SOAK_MEMORY_GROWTH_MIB',DEFAULT_MEMORY_GROWTH_BUDGET_MIB,16,1_024);
 const eventLoopP99BudgetMs=boundedNumber('KINGMAST_HOST_SOAK_EVENT_LOOP_P99_MS',DEFAULT_EVENT_LOOP_P99_BUDGET_MS,25,2_000);
+const physicalVehicleComputerTest=process.env.KINGMAST_PHYSICAL_VEHICLE_COMPUTER_TEST==='1';
+const identity=fieldDiagnosticIdentityFromEnv();
+const identityComplete=Boolean(identity.buildCommit&&identity.buildId&&identity.hardwareTarget&&identity.hardwareInstanceHash&&identity.firmwareRevision&&identity.configurationRevision&&identity.calibrationRevision);
+const physicalPreflightPassed=!physicalVehicleComputerTest||(durationSeconds>=PHYSICAL_MIN_DURATION_SECONDS&&identityComplete);
+const qualificationClaim=physicalVehicleComputerTest?'physical-target-host-soak-capture-only-not-qualification':'ci-host-soak-regression-only-not-target-hardware';
 
 const failures:string[]=[];
 const memorySamples:MemorySample[]=[];
@@ -129,16 +136,17 @@ const eventLoopP99Ms=nanosToMs(eventLoopDelay.percentile(99));
 const eventLoopMaxMs=nanosToMs(eventLoopDelay.max);
 const eventLoopPassed=eventLoopP99Ms<=eventLoopP99BudgetMs;
 const classificationPassed=failures.length===0;
-const allPassed=classificationPassed&&memoryPassed&&eventLoopPassed&&operations>=batchSize;
+const allPassed=classificationPassed&&memoryPassed&&eventLoopPassed&&operations>=batchSize&&physicalPreflightPassed;
 const cpuTotalMs=(cpu.user+cpu.system)/1_000;
 
 const report={
   schema:SCHEMA,
   generatedAt:new Date().toISOString(),
   controlAuthority:CONTROL_AUTHORITY,
-  qualificationClaim:QUALIFICATION_CLAIM,
+  qualificationClaim,
   targetHardwareQualified:false,
-  physicalVehicleComputerTest:false,
+  physicalVehicleComputerTest,
+  physicalPreflight:{passed:physicalPreflightPassed,minDurationSeconds:PHYSICAL_MIN_DURATION_SECONDS,identityComplete,identity},
   benchmarkScope:'process-local-risk-core-host-soak',
   runtime:{node:process.version,platform:process.platform,arch:process.arch,ci:process.env.CI==='true'},
   workload:{durationSeconds:round(elapsedMs/1_000),scenarioCount:scenarios.length,batchSize,batches:batchIndex,operations,operationsPerSecond:round(operations/(elapsedMs/1_000))},
@@ -160,9 +168,9 @@ const report={
   cpu:{userMs:round(cpu.user/1_000),systemMs:round(cpu.system/1_000),totalMs:round(cpuTotalMs),cpuToWallRatio:round(cpuTotalMs/elapsedMs)},
   allPassed,
   limitations:[
-    'Shared CI host timing, memory and CPU measurements are regression signals only.',
-    'This report does not qualify a target vehicle computer, thermal envelope, power budget or automotive real-time deadline.',
-    'Physical controller soak, reboot/reconnect, sensor I/O, thermal throttling and power-cycle evidence remain HIL/target-hardware work.',
+    physicalVehicleComputerTest?'This is a physical target process soak capture, not full vehicle I/O/HIL qualification or homologation.':'Shared CI host timing, memory and CPU measurements are regression signals only.',
+    'This report does not create automotive real-time, thermal-envelope, power-budget or vehicle-control authority claims.',
+    'Physical controller I/O, reboot/reconnect, thermal throttling, power cycling, sensor pipelines and controlled closed-track evidence remain separate Gate-3 evidence items.',
   ],
 };
 
