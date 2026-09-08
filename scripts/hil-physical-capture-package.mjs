@@ -1,12 +1,12 @@
 import {readFileSync,writeFileSync} from 'node:fs';
-import {resolve,join,relative,isAbsolute} from 'node:path';
+import {resolve,relative,isAbsolute} from 'node:path';
 
 const root=process.cwd();
 const manifestPath=resolve(root,'docs/validation/hil/V006_HIL_EXECUTION_MANIFEST.json');
 const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
 const scenarioId=(process.env.KINGMAST_HIL_SCENARIO_ID??'').trim();
 const captureRoot=resolve(process.env.KINGMAST_HIL_CAPTURE_ROOT??manifest.captureRoot);
-const outputPath=resolve(process.env.KINGMAST_HIL_OUTPUT_PATH??'/tmp/kingmast.hil-physical-package.json');
+const outputPath=resolve(process.env.KINGMAST_HIL_OUTPUT_PATH??'kingmast.hil-physical-package.json');
 const failures=[];
 
 function fail(message){failures.push(message);}
