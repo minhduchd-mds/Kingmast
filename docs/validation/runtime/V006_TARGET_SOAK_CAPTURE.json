@@ -18,10 +18,15 @@
   "classificationPassed": null,
   "memoryPassed": null,
   "eventLoopPassed": null,
+  "runtimeEnvelopePassed": null,
+  "thermalTelemetryRequired": null,
+  "thermalAvailable": null,
+  "temperaturePassed": null,
+  "freeMemoryPassed": null,
   "reviewStatus": "not-reviewed",
   "notes": [
     "This registry is intentionally pending until a selected physical vehicle-computer target is executed for at least two hours.",
     "A captured host-soak report is evidence only and does not qualify hardware, approve closed-track operation or create homologation claims.",
-    "No raw hardware serial, cabin video, camera frames, precise coordinates or secrets belong in this registry."
+    "Runtime-envelope evidence is bounded to uptime/load/free-memory and aggregate thermal observations; no raw hardware serial, hostname, network address, process arguments, environment dump, cabin video, camera frames, precise coordinates or secrets belong in this registry."
   ]
 }
