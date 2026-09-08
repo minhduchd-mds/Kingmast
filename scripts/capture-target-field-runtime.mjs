@@ -1,6 +1,3 @@
-import {writeFileSync} from 'node:fs';
-import {resolve} from 'node:path';
-
 const base=new URL(process.env.KINGMAST_TARGET_DIAGNOSTICS_URL??'http://127.0.0.1:4000');
 const allowedHosts=new Set(['127.0.0.1','localhost','::1','[::1]']);
 if(!allowedHosts.has(base.hostname))throw new Error('KINGMAST target diagnostics capture is restricted to a loopback host');
@@ -10,7 +7,6 @@ base.pathname='/';base.search='';base.hash='';
 
 const viewerToken=(process.env.KINGMAST_TARGET_VIEWER_TOKEN??'').trim();
 const edgeToken=(process.env.KINGMAST_TARGET_EDGE_TOKEN??'').trim();
-const outputPath=resolve(process.env.KINGMAST_TARGET_FIELD_RUNTIME_PATH??'/tmp/kingmast.target-field-runtime.json');
 const MAX_RESPONSE_BYTES=64*1024;
 
 async function responseJson(response,endpoint){
@@ -84,5 +80,7 @@ const runtime={
     providerStatuses:connected!==null,
   },
 };
-writeFileSync(outputPath,JSON.stringify(runtime,null,2)+'\n',{mode:0o600});
-console.log(`KINGMAST bounded target field runtime captured to ${outputPath}; provider-auth rejection counter coverage=${runtime.coverage.providerAuthRejected}.`);
+const encoded=JSON.stringify(runtime,null,2)+'\n';
+if(Buffer.byteLength(encoded)>MAX_RESPONSE_BYTES)throw new Error('bounded target field runtime output exceeded 64 KiB');
+process.stdout.write(encoded);
+console.error(`KINGMAST bounded target field runtime captured to stdout; provider-auth rejection counter coverage=${runtime.coverage.providerAuthRejected}.`);
