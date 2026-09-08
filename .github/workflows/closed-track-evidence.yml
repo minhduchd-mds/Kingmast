@@ -58,12 +58,12 @@ jobs:
         env:
           KINGMAST_CLOSED_TRACK_SCENARIO_ID: ${{ inputs.scenario_id }}
           KINGMAST_CLOSED_TRACK_CAPTURE_ROOT: /var/lib/kingmast/closed-track-captures
-          KINGMAST_CLOSED_TRACK_OUTPUT_PATH: /tmp/kingmast.closed-track-physical-package.json
+          KINGMAST_CLOSED_TRACK_OUTPUT_PATH: ${{ runner.temp }}/kingmast.closed-track-physical-package.json
         run: pnpm qualification:closed-track-package
       - name: Assert evidence-only boundaries
         run: |
           node <<'NODE'
-          const r=require('/tmp/kingmast.closed-track-physical-package.json');
+          const r=require(process.env.RUNNER_TEMP+'/kingmast.closed-track-physical-package.json');
           if(r.schema!=='kingmast-closed-track-evidence-package/v1'||r.claim!=='physical-controlled-track-result'||r.controlAuthority!=='none'||r.closedTrackApproved!==false||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.reviewDisposition!=='captured-awaiting-independent-review')process.exit(1);
           console.log(`KINGMAST ${r.scenarioId} controlled-track evidence packaged; independent review remains required and no road authorization is created.`);
           NODE
@@ -71,6 +71,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: kingmast-controlled-track-${{ inputs.scenario_id }}-${{ github.run_id }}
-          path: /tmp/kingmast.closed-track-physical-package.json
+          path: ${{ runner.temp }}/kingmast.closed-track-physical-package.json
           if-no-files-found: error
           retention-days: 30
