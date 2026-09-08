@@ -56,10 +56,27 @@ describe('Gate-3 physical evidence governance',()=>{
     expect(workflow).not.toContain('publicRoadApproved: true');
   });
 
+  it('packages controlled-track evidence without authorizing execution or road use',()=>{
+    const workflow=read('.github/workflows/closed-track-evidence.yml');
+    const template=readJson('docs/validation/closed-track/V006_CLOSED_TRACK_CAPTURE_INPUT_TEMPLATE.json');
+    expect(workflow).toContain('workflow_dispatch');
+    expect(workflow).toContain('self-hosted, linux, kingmast-track-evidence');
+    expect(workflow).toContain('environment: closed-track-evidence');
+    expect(workflow).toContain('acknowledge_existing_physical_capture');
+    expect(workflow).toContain('already exists');
+    expect(workflow).not.toContain('closedTrackApproved: true');
+    expect(workflow).not.toContain('targetHardwareQualified: true');
+    expect(workflow).not.toContain('publicRoadApproved: true');
+    expect(template.physicalClosedTrackTest).toBe(false);
+    expect(template.status).toBe('template-only');
+    expect(template.privacy.preciseCoordinatesIncluded).toBe(false);
+  });
+
   it('keeps executable honesty validators present for future physical promotion',()=>{
     expect(read('scripts/hil-execution-manifest-check.mjs')).toContain('automaticQualification');
     expect(read('scripts/hil-physical-capture-package.mjs')).toContain('physicalControllerTest=true is required');
     expect(read('scripts/closed-track-evidence-check.mjs')).toContain('publicRoadApproved must remain false');
+    expect(read('scripts/closed-track-physical-capture-package.mjs')).toContain('does not authorize a test run');
     expect(read('scripts/independent-review-registry-check.mjs')).toContain('publicRoadApproved');
   });
 });
