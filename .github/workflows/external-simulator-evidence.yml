@@ -40,6 +40,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
+          node autonomy-lab/digital-twin/validate-runner-contract.mjs
           test -x "$ESIMINI_RUNNER"
           test -x "$CARLA_RUNNER"
           case "${{ inputs.campaign_scope }}" in smoke|validation) ;; *) exit 2 ;; esac
@@ -48,6 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           node autonomy-lab/safety-sim/generate-scenario-campaign.mjs --json --ci > "$RUNNER_TEMP/kingmast.scenario-campaign.json"
           sha256sum "$RUNNER_TEMP/kingmast.scenario-campaign.json" > "$RUNNER_TEMP/kingmast.scenario-campaign.sha256"
 
@@ -55,26 +58,45 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           "$ESIMINI_RUNNER" --repository "$GITHUB_WORKSPACE" --campaign "$RUNNER_TEMP/kingmast.scenario-campaign.json" --scope "${{ inputs.campaign_scope }}" --output "$RUNNER_TEMP/kingmast.esmini-result.json"
 
       - name: Run CARLA via runner-local reviewed wrapper
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           "$CARLA_RUNNER" --repository "$GITHUB_WORKSPACE" --campaign "$RUNNER_TEMP/kingmast.scenario-campaign.json" --scope "${{ inputs.campaign_scope }}" --output "$RUNNER_TEMP/kingmast.carla-result.json"
+
+      - name: Validate external result envelopes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node autonomy-lab/digital-twin/validate-external-simulator-result.mjs --engine esmini --file "$RUNNER_TEMP/kingmast.esmini-result.json" --campaign "$RUNNER_TEMP/kingmast.scenario-campaign.json" --commit "$GITHUB_SHA" --scope "${{ inputs.campaign_scope }}"
+          node autonomy-lab/digital-twin/validate-external-simulator-result.mjs --engine carla --file "$RUNNER_TEMP/kingmast.carla-result.json" --campaign "$RUNNER_TEMP/kingmast.scenario-campaign.json" --commit "$GITHUB_SHA" --scope "${{ inputs.campaign_scope }}"
 
       - name: Validate cross-simulator parity
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           node autonomy-lab/digital-twin/compare-simulator-results.mjs --carla "$RUNNER_TEMP/kingmast.carla-result.json" --esmini "$RUNNER_TEMP/kingmast.esmini-result.json" --json --ci > "$RUNNER_TEMP/kingmast.cross-simulator.json"
           node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.cross-simulator.json'); if(r.schema!=='kingmast-cross-simulator-parity-report/v1'||r.controlAuthority!=='none'||r.fixtureMode!==false||r.externalSimulatorEvidence!==true||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.allPassed!==true) process.exit(1); console.log('External simulator parity evidence accepted for '+r.commonScenarioCount+' common virtual scenarios; no physical qualification claim.');"
+
+      - name: Build bounded external evidence manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          node autonomy-lab/digital-twin/build-external-simulator-evidence-manifest.mjs --campaign "$RUNNER_TEMP/kingmast.scenario-campaign.json" --carla "$RUNNER_TEMP/kingmast.carla-result.json" --esmini "$RUNNER_TEMP/kingmast.esmini-result.json" --parity "$RUNNER_TEMP/kingmast.cross-simulator.json" --commit "$GITHUB_SHA" --scope "${{ inputs.campaign_scope }}" > "$RUNNER_TEMP/kingmast.external-simulator.manifest.json"
+          node -e "const m=require(process.env.RUNNER_TEMP+'/kingmast.external-simulator.manifest.json'); if(m.schema!=='kingmast-external-simulator-evidence-manifest/v1'||m.controlAuthority!=='none'||m.externalSimulatorExecuted!==true||m.independentReviewComplete!==false||m.reviewStatus!=='captured-awaiting-independent-review'||m.physicalHilExecuted!==false||m.closedTrackExecuted!==false||m.targetHardwareQualified!==false||m.publicRoadApproved!==false) process.exit(1); console.log('External simulator evidence manifest built for '+m.engines.length+' engines; independent review remains pending.');"
 
       - name: Hash external result package
         shell: bash
         run: |
           set -euo pipefail
-          sha256sum "$RUNNER_TEMP/kingmast.esmini-result.json" "$RUNNER_TEMP/kingmast.carla-result.json" "$RUNNER_TEMP/kingmast.cross-simulator.json" > "$RUNNER_TEMP/kingmast.external-simulator.sha256"
+          umask 077
+          sha256sum "$RUNNER_TEMP/kingmast.scenario-campaign.json" "$RUNNER_TEMP/kingmast.esmini-result.json" "$RUNNER_TEMP/kingmast.carla-result.json" "$RUNNER_TEMP/kingmast.cross-simulator.json" "$RUNNER_TEMP/kingmast.external-simulator.manifest.json" > "$RUNNER_TEMP/kingmast.external-simulator.sha256"
 
       - name: Upload external simulator evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -86,6 +108,7 @@ jobs:
             ${{ runner.temp }}/kingmast.esmini-result.json
             ${{ runner.temp }}/kingmast.carla-result.json
             ${{ runner.temp }}/kingmast.cross-simulator.json
+            ${{ runner.temp }}/kingmast.external-simulator.manifest.json
             ${{ runner.temp }}/kingmast.external-simulator.sha256
           if-no-files-found: error
           retention-days: 30

@@ -59,15 +59,21 @@ jobs:
           node autonomy-lab/safety-sim/generate-scenario-campaign.mjs --json --ci > "$RUNNER_TEMP/kingmast.scenario-campaign.json"
           node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.scenario-campaign.json'); if(r.schema!=='kingmast-safety-scenario-campaign/v1'||r.controlAuthority!=='none'||r.campaignCaseCount<500||r.externalSimulatorExecuted!==false||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false||r.publicRoadApproved!==false) process.exit(1); console.log('KINGMAST planned safety campaign '+r.campaignCaseCount+' cases across '+r.profileCount+' environment profiles; execution remains pending.');"
       - name: Digital-twin external simulator contract
-        run: node autonomy-lab/digital-twin/validate-external-simulator-contract.mjs
+        run: pnpm --silent sim:digital-twin-contract
+      - name: External simulator runner contract
+        run: pnpm --silent sim:external-runner-contract
+      - name: External simulator evidence trust-chain self-test
+        run: |
+          pnpm --silent sim:external-evidence-selftest -- --json > "$RUNNER_TEMP/kingmast.external-evidence-selftest.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.external-evidence-selftest.json'); if(r.schema!=='kingmast-external-simulator-evidence-toolchain-selftest/v1'||r.controlAuthority!=='none'||r.externalSimulatorExecuted!==false||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.total<6||r.failed!==0||r.allPassed!==true) process.exit(1); console.log('KINGMAST external simulator evidence toolchain self-test passed '+r.passed+'/'+r.total+' checks; external execution remains false.');"
       - name: Cross-simulator comparator fixture self-test
         run: |
           node autonomy-lab/digital-twin/compare-simulator-results.mjs --fixtures --json --ci > "$RUNNER_TEMP/kingmast.cross-simulator-fixture.json"
           node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.cross-simulator-fixture.json'); if(r.schema!=='kingmast-cross-simulator-parity-report/v1'||r.controlAuthority!=='none'||r.fixtureMode!==true||r.externalSimulatorEvidence!==false||r.commonScenarioCount<8||r.failed!==0||r.allPassed!==true||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false) process.exit(1); console.log('KINGMAST cross-simulator comparator self-test passed '+r.passed+'/'+r.commonScenarioCount+' fixture cases; no external simulator claim.');"
       - name: External simulator execution workflow policy
-        run: node scripts/external-simulator-workflow-policy-check.mjs
+        run: pnpm --silent sim:external-workflow-policy
       - name: P3 logical service architecture
-        run: node scripts/p3-logical-service-map-check.mjs
+        run: pnpm --silent architecture:p3-service-map
       - name: Virtual HIL stimulus plan
         run: node autonomy-lab/hil/validate-virtual-hil-plan.mjs
       - name: Runtime health supervisor unit tests
@@ -82,9 +88,11 @@ jobs:
           name: kingmast-p3-engineering-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/kingmast.scenario-campaign.json
+            ${{ runner.temp }}/kingmast.external-evidence-selftest.json
             ${{ runner.temp }}/kingmast.cross-simulator-fixture.json
             ${{ runner.temp }}/kingmast.runtime-health.json
             docs/architecture/P3_LOGICAL_SERVICE_MAP.json
             autonomy-lab/digital-twin/external-simulator-contract.json
+            autonomy-lab/digital-twin/runner-contract.json
           if-no-files-found: error
           retention-days: 14

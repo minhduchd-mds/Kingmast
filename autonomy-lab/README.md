@@ -12,6 +12,8 @@ This directory is intentionally excluded from the commercial warning-only ECU re
 
 `autonomy-lab/adapters/` holds simulator-neutral interoperability bridges. The current ASAM bridge targets OpenDRIVE 1.9.0 and OpenSCENARIO XML 1.4.0 metadata, but does not claim schema conformance until an external schema/simulator validates generated artifacts.
 
+`autonomy-lab/digital-twin/` defines the external CARLA/esmini execution boundary. The checked-in runner contract fixes the reviewed wrapper paths and result envelope, while the manual external-simulator workflow binds genuine outputs to the exact source commit, campaign SHA-256, runner-native result identity, cross-simulator parity report and a bounded evidence manifest. The manifest remains `captured-awaiting-independent-review`; simulator success cannot promote HIL, target-hardware, controlled-track or public-road status.
+
 `autonomy-lab/validation/` maps virtual research domains to existing HIL and controlled-track evidence IDs and contains a Vietnam-specific synthetic controlled-track research pack. Those mappings never promote virtual results into physical pass status.
 
 Run:
@@ -21,7 +23,11 @@ pnpm research:safety-check
 pnpm research:safety-gaps -- --json
 pnpm sim:safety-independent -- --json --ci
 pnpm sim:safety-sweep -- --json --ci
+pnpm sim:safety-campaign -- --json --ci
 pnpm sim:asam-bridge -- --all --json
+pnpm sim:digital-twin-contract
+pnpm sim:external-runner-contract
+pnpm sim:external-evidence-selftest -- --json
 pnpm sim:physical-traceability
 pnpm sim:vn-track-pack
 ```

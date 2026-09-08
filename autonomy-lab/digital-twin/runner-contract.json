@@ -1,0 +1,64 @@
+{
+  "schema": "kingmast-external-simulator-runner-contract/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "qualificationClaim": "runner-interface-contract-only-not-external-or-physical-evidence",
+  "allowedScopes": {
+    "smoke": {"minimumScenarioResults": 8, "maximumScenarioResults": 64},
+    "validation": {"minimumScenarioResults": 35, "maximumScenarioResults": 560}
+  },
+  "wrappers": [
+    {
+      "engine": "esmini",
+      "project": "esmini/esmini",
+      "path": "/opt/kingmast/bin/run-esmini-campaign",
+      "argv": ["--repository", "--campaign", "--scope", "--output"],
+      "networkDownloadAllowed": false
+    },
+    {
+      "engine": "carla",
+      "project": "carla-simulator/carla",
+      "path": "/opt/kingmast/bin/run-carla-campaign",
+      "argv": ["--repository", "--campaign", "--scope", "--output"],
+      "networkDownloadAllowed": false
+    }
+  ],
+  "resultContract": {
+    "schema": "kingmast-external-simulator-result/v1",
+    "scenarioGranularities": ["base", "campaign-case"],
+    "requiredTopLevelFields": [
+      "schema",
+      "engine",
+      "engineVersion",
+      "sourceCommit",
+      "campaignScope",
+      "scenarioGranularity",
+      "scenarioArtifactSha256",
+      "resultArtifactSha256",
+      "fixtureOnly",
+      "externalExecution",
+      "controlAuthority",
+      "physicalHilExecuted",
+      "closedTrackExecuted",
+      "targetHardwareQualified",
+      "publicRoadApproved",
+      "results"
+    ],
+    "requiredScenarioFields": ["scenarioId", "outcome", "collision", "minTtcS", "maxLateralErrorM", "warningLatencyMs"],
+    "allowedOutcomes": ["monitor", "warn", "degrade", "reject"],
+    "maxEngineVersionLength": 96,
+    "maxScenarioIdLength": 160,
+    "maxResults": 560
+  },
+  "evidenceBoundary": {
+    "externalExecutionMaySatisfyPhysicalHil": false,
+    "externalExecutionMaySatisfyClosedTrack": false,
+    "externalExecutionMayQualifyTargetHardware": false,
+    "externalExecutionMayApprovePublicRoad": false,
+    "independentReviewRequiredForPromotion": true
+  },
+  "physicalHilExecuted": false,
+  "closedTrackExecuted": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false
+}

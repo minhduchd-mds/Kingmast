@@ -4,14 +4,17 @@
   "controlAuthority": "none",
   "qualificationClaim": "external-simulator-contract-only-not-physical-validation",
   "canonicalScenarioSource": "autonomy-lab/safety-sim/scenario-library.json",
+  "runnerContract": "autonomy-lab/digital-twin/runner-contract.json",
+  "evidenceManifestSchema": "kingmast-external-simulator-evidence-manifest/v1",
   "standardTargets": {"openDrive":"1.9.0","openScenarioXml":"1.4.0"},
   "engines": [
     {"id":"esmini","project":"esmini/esmini","executionMode":"external-runner","versionCapturedAtRun":true,"bundledInCi":false},
     {"id":"carla","project":"carla-simulator/carla","executionMode":"external-runner","versionCapturedAtRun":true,"bundledInCi":false}
   ],
+  "requiredResultEnvelopeFields": ["engine","engineVersion","sourceCommit","campaignScope","scenarioGranularity","scenarioArtifactSha256","resultArtifactSha256","fixtureOnly","externalExecution","controlAuthority","results"],
   "requiredResultFields": ["scenarioId","outcome","collision","minTtcS","maxLateralErrorM","warningLatencyMs"],
   "parityPolicy": {"outcomeMustMatch":true,"collisionMustMatch":true,"warningLatencyToleranceMs":250,"minTtcToleranceS":0.5,"maxLateralErrorToleranceM":0.75,"minimumCommonScenarios":8},
-  "evidencePolicy": {"externalExecutionRequiredForRealEvidence":true,"engineVersionRequired":true,"scenarioArtifactSha256Required":true,"resultArtifactSha256Required":true,"fixtureResultsMayClaimExternalExecution":false,"automaticHilPass":false,"automaticClosedTrackPass":false,"automaticProductionQualification":false},
+  "evidencePolicy": {"externalExecutionRequiredForRealEvidence":true,"engineVersionRequired":true,"sourceCommitRequired":true,"campaignScopeRequired":true,"scenarioArtifactSha256Required":true,"resultArtifactSha256Required":true,"evidenceManifestRequired":true,"independentReviewRequired":true,"fixtureResultsMayClaimExternalExecution":false,"automaticHilPass":false,"automaticClosedTrackPass":false,"automaticProductionQualification":false},
   "physicalHilExecuted": false,
   "closedTrackExecuted": false,
   "targetHardwareQualified": false,
