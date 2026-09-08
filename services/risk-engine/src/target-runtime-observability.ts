@@ -1,5 +1,5 @@
 import { existsSync,readFileSync,readdirSync } from 'node:fs';
-import { freeMem,loadavg,totalMem,uptime } from 'node:os';
+import { freemem,loadavg,totalmem,uptime } from 'node:os';
 import { join } from 'node:path';
 
 const MIB=1024*1024;
@@ -67,8 +67,8 @@ export function captureTargetRuntimeSnapshot(nowMs=Date.now()):TargetRuntimeSnap
     load1:round(Math.max(0,load1)),
     load5:round(Math.max(0,load5)),
     load15:round(Math.max(0,load15)),
-    totalMemoryMiB:round(Math.max(0,totalMem()/MIB)),
-    freeMemoryMiB:round(Math.max(0,freeMem()/MIB)),
+    totalMemoryMiB:round(Math.max(0,totalmem()/MIB)),
+    freeMemoryMiB:round(Math.max(0,freemem()/MIB)),
     thermal:readLinuxThermalSnapshot(),
   };
 }
