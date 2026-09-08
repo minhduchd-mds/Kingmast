@@ -25,10 +25,20 @@ const ProviderSourceSchema=z.object({
   providers:z.array(ProviderStatusSchema).max(32).default([]),
 }).default({authRejected:0,replayRejected:0,capacityRejected:0,providers:[]});
 
+const CoverageSourceSchema=z.object({
+  sensorAges:z.boolean().default(false),
+  edgeRejectedPackets:z.boolean().default(false),
+  providerAuthRejected:z.boolean().default(false),
+  providerReplayRejected:z.boolean().default(false),
+  providerCapacityRejected:z.boolean().default(false),
+  providerStatuses:z.boolean().default(false),
+}).default({sensorAges:false,edgeRejectedPackets:false,providerAuthRejected:false,providerReplayRejected:false,providerCapacityRejected:false,providerStatuses:false});
+
 const RuntimeSourceSchema=z.object({
   edge:EdgeSourceSchema,
   providerTrust:ProviderSourceSchema,
-}).default({edge:{status:'offline',rejectedPackets:0,sensorAgesMs:{gnss:null,radarFront:null,camera:null}},providerTrust:{authRejected:0,replayRejected:0,capacityRejected:0,providers:[]}});
+  coverage:CoverageSourceSchema,
+}).default({edge:{status:'offline',rejectedPackets:0,sensorAgesMs:{gnss:null,radarFront:null,camera:null}},providerTrust:{authRejected:0,replayRejected:0,capacityRejected:0,providers:[]},coverage:{sensorAges:false,edgeRejectedPackets:false,providerAuthRejected:false,providerReplayRejected:false,providerCapacityRejected:false,providerStatuses:false}});
 
 export interface FieldDiagnosticIdentity {
   productVersion:string;
@@ -91,6 +101,7 @@ function aggregateProviders(providers:z.infer<typeof ProviderStatusSchema>[]){
 }
 
 export function buildFieldDiagnosticsReport(options:FieldDiagnosticsOptions){
+  const runtimeProvided=options.runtime!==undefined;
   const runtime=RuntimeSourceSchema.parse(options.runtime??{});
   const identity={
     productVersion:Label.parse(options.identity.productVersion),
@@ -104,8 +115,16 @@ export function buildFieldDiagnosticsReport(options:FieldDiagnosticsOptions){
   };
   const identityComplete=Boolean(identity.buildCommit&&identity.buildId&&identity.hardwareTarget&&identity.hardwareInstanceHash&&identity.firmwareRevision&&identity.configurationRevision&&identity.calibrationRevision);
   const physicalVehicleComputerTest=options.physicalVehicleComputerTest===true;
-  const physicalCaptureReady=physicalVehicleComputerTest&&identityComplete;
+  const physicalCoreCoverageComplete=runtimeProvided&&runtime.coverage.sensorAges&&runtime.coverage.edgeRejectedPackets;
+  const providerCoverageComplete=runtime.coverage.providerAuthRejected&&runtime.coverage.providerReplayRejected&&runtime.coverage.providerCapacityRejected&&runtime.coverage.providerStatuses;
+  const physicalCaptureReady=physicalVehicleComputerTest&&identityComplete&&physicalCoreCoverageComplete;
   const providerSummary=aggregateProviders(runtime.providerTrust.providers);
+  const limitations=[
+    'This report is a bounded service/field-diagnostics contract and never creates vehicle-control authority.',
+    'CI output is software evidence only. A physical capture requires explicit target identity, hashed hardware instance identity, firmware/configuration/calibration revisions, fresh core runtime coverage and a physical execution flag.',
+    'A physical capture does not by itself qualify target hardware or approve closed-track/public-road use.',
+  ];
+  if(!providerCoverageComplete)limitations.push('One or more provider-trust counters/status sources were not instrumented in this capture; zero values for uncovered fields mean unavailable evidence, not proof of zero failures.');
   return{
     schema:'kingmast-field-diagnostics-report/v1' as const,
     generatedAt:options.generatedAt??new Date().toISOString(),
@@ -122,14 +141,11 @@ export function buildFieldDiagnosticsReport(options:FieldDiagnosticsOptions){
       rejectedPackets:runtime.edge.rejectedPackets,
       providerTrustFailures:{authRejected:runtime.providerTrust.authRejected,replayRejected:runtime.providerTrust.replayRejected,capacityRejected:runtime.providerTrust.capacityRejected},
       providers:providerSummary,
+      coverage:{...runtime.coverage,runtimeProvided,physicalCoreCoverageComplete,providerCoverageComplete},
     },
     privacy:{rawCabinVideoIncluded:false,rawCameraFramesIncluded:false,preciseCoordinatesIncluded:false,requestPayloadsIncluded:false,secretsIncluded:false,rawHardwareSerialIncluded:false},
     bounds:{providerStatusEntriesMax:32,counterMax:1_000_000_000,sensorAgeMaxMs:86_400_000,identityLabelMaxChars:96},
     allPassed:true,
-    limitations:[
-      'This report is a bounded service/field-diagnostics contract and never creates vehicle-control authority.',
-      'CI output is software evidence only. A physical capture requires explicit target identity, hashed hardware instance identity, firmware/configuration/calibration revisions and a physical execution flag.',
-      'A physical capture does not by itself qualify target hardware or approve closed-track/public-road use.',
-    ],
+    limitations,
   };
 }
