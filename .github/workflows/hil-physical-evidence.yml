@@ -1,0 +1,84 @@
+name: Physical HIL Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario_id:
+        description: Physical HIL scenario to package
+        required: true
+        type: choice
+        options:
+          - HIL-001
+          - HIL-002
+          - HIL-003
+          - HIL-004
+          - HIL-005
+          - HIL-006
+          - HIL-007
+          - HIL-008
+          - HIL-009
+          - HIL-010
+          - HIL-011
+          - HIL-012
+      acknowledge_physical_evidence_only:
+        description: I confirm a genuine physical bench capture exists and this workflow does not qualify hardware or authorize road use
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingmast-physical-hil-evidence
+  cancel-in-progress: false
+
+jobs:
+  package-physical-hil:
+    if: ${{ inputs.acknowledge_physical_evidence_only == true }}
+    runs-on: [self-hosted, linux, kingmast-hil]
+    environment: hil-physical-evidence
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 10.34.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install reproducibly
+        run: pnpm install --frozen-lockfile
+      - name: Repository safety gates
+        run: |
+          pnpm security:secrets
+          pnpm security:workflow-policy
+          pnpm safety:boundary
+          pnpm hil:evidence
+      - name: Package genuine physical HIL capture
+        env:
+          KINGMAST_HIL_SCENARIO_ID: ${{ inputs.scenario_id }}
+          KINGMAST_HIL_CAPTURE_ROOT: /var/lib/kingmast/hil-captures
+          KINGMAST_HIL_OUTPUT_PATH: /tmp/kingmast.hil-physical-package.json
+        run: pnpm hil:physical-package
+      - name: Validate physical HIL package contract
+        env:
+          KINGMAST_HIL_PACKAGE_PATH: /tmp/kingmast.hil-physical-package.json
+        run: pnpm hil:package-check
+      - name: Assert evidence-only boundaries
+        run: |
+          node <<'NODE'
+          const r=require('/tmp/kingmast.hil-physical-package.json');
+          if(r.schema!=='kingmast-hil-evidence-package/v1'||r.claim!=='physical-hil-result'||r.controlAuthority!=='none'||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.reviewDisposition!=='captured-awaiting-independent-review')process.exit(1);
+          console.log(`KINGMAST ${r.scenarioId} physical package captured; independent review remains required.`);
+          NODE
+      - name: Upload bounded HIL evidence package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-physical-hil-${{ inputs.scenario_id }}-${{ github.run_id }}
+          path: /tmp/kingmast.hil-physical-package.json
+          if-no-files-found: error
+          retention-days: 30
