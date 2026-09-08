@@ -7,17 +7,25 @@
   "closedTrackApproved": false,
   "publicRoadApproved": false,
   "homologationClaim": false,
+  "preparationArtifacts": {
+    "targetHardwareWorkflow": ".github/workflows/target-hardware-capture.yml",
+    "targetSoakRegistry": "docs/validation/runtime/V006_TARGET_SOAK_CAPTURE.json",
+    "hilExecutionManifest": "docs/validation/hil/V006_HIL_EXECUTION_MANIFEST.json",
+    "hilEvidenceRegistry": "docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json",
+    "controlledTrackRegistry": "docs/validation/closed-track/V006_CLOSED_TRACK_EVIDENCE_REGISTRY.json",
+    "independentReviewRegistry": "docs/review/V006_INDEPENDENT_REVIEW_REGISTRY.json"
+  },
   "criteria": [
     {
       "id": "G3-HW-IDENTITY",
       "title": "Target vehicle-computer identity",
-      "passCondition": "Hardware model, CPU architecture, RAM, storage, OS image, kernel/runtime and display class are recorded in the evidence package.",
+      "passCondition": "Hardware model, CPU architecture, RAM, storage, OS image, kernel/runtime and display class are recorded in the physical evidence package with only privacy-bounded hardware-instance identity.",
       "physicalEvidenceRequired": true
     },
     {
       "id": "G3-SW-IDENTITY",
       "title": "Software and dependency identity",
-      "passCondition": "Git commit, product version, package lock digest, SBOM and build provenance resolve to the tested installation.",
+      "passCondition": "Git commit, product version, package lock digest, SBOM and build provenance resolve to the tested installation and are bound to retained evidence digests.",
       "physicalEvidenceRequired": true
     },
     {
@@ -40,32 +48,32 @@
     },
     {
       "id": "G3-SOAK",
-      "title": "Long-duration resource soak",
-      "passCondition": "Target hardware completes an approved multi-hour soak with bounded RSS/heap, event-loop health and no unbounded safety-state growth.",
+      "title": "Long-duration resource soak and field diagnostics",
+      "passCondition": "Target hardware completes an approved multi-hour soak with bounded RSS/heap, event-loop, uptime, memory and thermal evidence, plus a fresh privacy-bounded field-diagnostics capture with explicit instrumentation coverage.",
       "physicalEvidenceRequired": true
     },
     {
       "id": "G3-FAULT",
       "title": "Fault injection and degraded modes",
-      "passCondition": "Sensor loss/staleness, reconnect, provider loss, storage/evidence degradation, WebGL loss and restart scenarios fail safely and preserve warning-only authority.",
+      "passCondition": "Applicable HIL scenarios exercise sensor loss/staleness, reconnect, provider loss, storage/evidence degradation, renderer loss, restart, update and power-fault behavior while preserving truthful degraded states and warning-only authority.",
       "physicalEvidenceRequired": true
     },
     {
       "id": "G3-ROLLBACK",
       "title": "Update rollback and recovery",
-      "passCondition": "Signed update rejection, incompatible release rejection, failed-install recovery and rollback are exercised against the target release chain.",
+      "passCondition": "Signed update rejection, incompatible release rejection, failed-install recovery, power interruption and rollback are exercised against the selected physical target release chain with retained evidence bindings.",
       "physicalEvidenceRequired": true
     },
     {
       "id": "G3-CLOSED-TRACK",
       "title": "Controlled closed-track execution",
-      "passCondition": "Approved scenarios are executed in a controlled closed-track environment with test operator, vehicle, route, weather, sensor state and result evidence recorded.",
+      "passCondition": "Separately approved scenarios are executed only in a controlled facility within approved bounds, with frozen software/configuration/calibration identity, synchronized evidence, operator and independent observer records, and no public-road exposure.",
       "physicalEvidenceRequired": true
     },
     {
       "id": "G3-REVIEW",
       "title": "Independent acceptance review",
-      "passCondition": "Safety/cyber/engineering reviewers approve the evidence package for the defined closed-track scope only. Public-road and homologation approval remain separate decisions.",
+      "passCondition": "Independent functional-safety/SOTIF, cybersecurity, vehicle-computer/harness, driver-HMI/human-factors and evidence-integrity reviewers complete the submitted evidence review for the defined controlled-track scope; public-road and homologation approval remain separate decisions.",
       "physicalEvidenceRequired": true
     }
   ],
@@ -76,6 +84,8 @@
     "structural HMI human-factors checks",
     "browser HMI performance regression",
     "SIL scenario replay",
-    "security and supply-chain gates"
+    "L2 deterministic service fault preflight",
+    "security and supply-chain gates",
+    "Gate-3 evidence-bookkeeping honesty checks"
   ]
 }
