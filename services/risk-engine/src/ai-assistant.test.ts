@@ -8,6 +8,19 @@ describe('KINGMAST assistant router',()=>{
     expect(plan.tools).toContain('road.active-hazards');
     expect(plan.advisoryOnly).toBe(true);
   });
+  it('routes driver-assist status questions through read-only vehicle health',()=>{
+    const plan=planAssistantRequest('DMS và camera 360 hiện thế nào?');
+    expect(plan.intent).toBe('vehicle-status');
+    expect(plan.tools).toEqual(['vehicle.health']);
+    expect(plan.responseHint).toContain('driver-assistance runtime health');
+    expect(plan.requiresParked).toBe(false);
+  });
+  it('routes lane-warning explanations to traceable read-only evidence',()=>{
+    const plan=planAssistantRequest('Vì sao lệch làn?');
+    expect(plan.intent).toBe('explain-alert');
+    expect(plan.tools).toContain('alerts.explain');
+    expect(plan.tools).toContain('vehicle.health');
+  });
   it('keeps settings deep interaction parked-only',()=>{
     expect(planAssistantRequest('Mở cài đặt').requiresParked).toBe(true);
   });
