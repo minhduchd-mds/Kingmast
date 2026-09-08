@@ -1,0 +1,181 @@
+name: Target Hardware Capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: Continuous soak duration on the physical target
+        required: true
+        type: choice
+        default: '7200'
+        options:
+          - '7200'
+          - '14400'
+          - '21600'
+          - '43200'
+      hardware_target:
+        description: Bounded target model label, not a serial number
+        required: true
+        type: string
+      hardware_instance_sha256:
+        description: SHA-256 fingerprint of the local hardware instance identifier
+        required: true
+        type: string
+      firmware_revision:
+        description: Firmware revision label
+        required: true
+        type: string
+      configuration_revision:
+        description: Configuration revision label
+        required: true
+        type: string
+      calibration_revision:
+        description: Calibration revision label
+        required: true
+        type: string
+      require_thermal_telemetry:
+        description: Require readable Linux thermal-zone telemetry
+        required: true
+        type: choice
+        default: '1'
+        options:
+          - '1'
+          - '0'
+      max_temp_c:
+        description: Maximum aggregate thermal-zone temperature budget in Celsius
+        required: true
+        type: string
+        default: '85'
+      min_free_memory_mib:
+        description: Minimum observed free memory budget in MiB
+        required: true
+        type: string
+        default: '256'
+      acknowledge_evidence_only:
+        description: I understand this capture is evidence only and does not qualify hardware or authorize road use
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingmast-target-hardware-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    if: ${{ inputs.acknowledge_evidence_only == true }}
+    runs-on: [self-hosted, linux, kingmast-target]
+    environment: target-hardware-evidence
+    timeout-minutes: 750
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 10.34.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Validate capture inputs
+        env:
+          KINGMAST_INPUT_DURATION: ${{ inputs.duration_seconds }}
+          KINGMAST_INPUT_HARDWARE_TARGET: ${{ inputs.hardware_target }}
+          KINGMAST_INPUT_HARDWARE_INSTANCE_SHA256: ${{ inputs.hardware_instance_sha256 }}
+          KINGMAST_INPUT_FIRMWARE_REVISION: ${{ inputs.firmware_revision }}
+          KINGMAST_INPUT_CONFIGURATION_REVISION: ${{ inputs.configuration_revision }}
+          KINGMAST_INPUT_CALIBRATION_REVISION: ${{ inputs.calibration_revision }}
+          KINGMAST_INPUT_MAX_TEMP_C: ${{ inputs.max_temp_c }}
+          KINGMAST_INPUT_MIN_FREE_MEMORY_MIB: ${{ inputs.min_free_memory_mib }}
+        run: |
+          node <<'NODE'
+          const label=/^[A-Za-z0-9][A-Za-z0-9._:+/@-]{0,95}$/;
+          const sha=/^[a-f0-9]{64}$/i;
+          const duration=Number(process.env.KINGMAST_INPUT_DURATION);
+          const maxTemp=Number(process.env.KINGMAST_INPUT_MAX_TEMP_C);
+          const minFree=Number(process.env.KINGMAST_INPUT_MIN_FREE_MEMORY_MIB);
+          const labels=['KINGMAST_INPUT_HARDWARE_TARGET','KINGMAST_INPUT_FIRMWARE_REVISION','KINGMAST_INPUT_CONFIGURATION_REVISION','KINGMAST_INPUT_CALIBRATION_REVISION'];
+          if(![7200,14400,21600,43200].includes(duration))throw new Error('unsupported target soak duration');
+          if(!sha.test(process.env.KINGMAST_INPUT_HARDWARE_INSTANCE_SHA256??''))throw new Error('hardware instance must be a SHA-256 fingerprint');
+          for(const name of labels)if(!label.test(process.env[name]??''))throw new Error(`${name} is not a bounded label`);
+          if(!Number.isFinite(maxTemp)||maxTemp<40||maxTemp>150)throw new Error('max temperature must be 40..150 C');
+          if(!Number.isFinite(minFree)||minFree<0||minFree>65536)throw new Error('minimum free memory must be 0..65536 MiB');
+          NODE
+      - name: Install reproducibly
+        run: pnpm install --frozen-lockfile
+      - name: Repository and target safety gates
+        run: |
+          pnpm security:secrets
+          pnpm safety:boundary
+          pnpm qualification:target-soak
+      - name: Execute physical target soak capture
+        env:
+          KINGMAST_PHYSICAL_VEHICLE_COMPUTER_TEST: '1'
+          KINGMAST_HOST_SOAK_SECONDS: ${{ inputs.duration_seconds }}
+          KINGMAST_PRODUCT_VERSION: 0.0.6
+          KINGMAST_BUILD_COMMIT: ${{ github.sha }}
+          KINGMAST_BUILD_ID: target-${{ github.run_id }}-${{ github.run_attempt }}
+          KINGMAST_HARDWARE_TARGET: ${{ inputs.hardware_target }}
+          KINGMAST_HARDWARE_INSTANCE_SHA256: ${{ inputs.hardware_instance_sha256 }}
+          KINGMAST_FIRMWARE_REVISION: ${{ inputs.firmware_revision }}
+          KINGMAST_CONFIGURATION_REVISION: ${{ inputs.configuration_revision }}
+          KINGMAST_CALIBRATION_REVISION: ${{ inputs.calibration_revision }}
+          KINGMAST_REQUIRE_THERMAL_TELEMETRY: ${{ inputs.require_thermal_telemetry }}
+          KINGMAST_HOST_SOAK_MAX_TEMP_C: ${{ inputs.max_temp_c }}
+          KINGMAST_HOST_SOAK_MIN_FREE_MEMORY_MIB: ${{ inputs.min_free_memory_mib }}
+        run: pnpm performance:host-soak > /tmp/kingmast.target-host-soak.json
+      - name: Validate physical capture
+        run: |
+          node <<'NODE'
+          const r=require('/tmp/kingmast.target-host-soak.json');
+          if(r.schema!=='kingmast-host-soak-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='physical-target-host-soak-capture-only-not-qualification'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==true||r.physicalPreflight?.passed!==true||r.classification?.passed!==true||r.memory?.passed!==true||r.eventLoop?.passed!==true||r.runtimeEnvelope?.passed!==true||r.allPassed!==true||r.workload?.durationSeconds<7200)process.exit(1);
+          console.log(`KINGMAST physical target soak evidence passed ${r.workload.durationSeconds}s; hardware qualification remains false.`);
+          NODE
+      - name: Generate bounded capture manifest
+        env:
+          KINGMAST_RUN_ID: ${{ github.run_id }}
+          KINGMAST_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          node <<'NODE'
+          const {createHash}=require('node:crypto');
+          const {readFileSync,writeFileSync}=require('node:fs');
+          const raw=readFileSync('/tmp/kingmast.target-host-soak.json');
+          const r=JSON.parse(raw.toString('utf8'));
+          const manifest={
+            schema:'kingmast-target-soak-artifact-manifest/v1',
+            generatedAt:new Date().toISOString(),
+            controlAuthority:'none',
+            sourceCommit:process.env.GITHUB_SHA,
+            workflowRunId:process.env.KINGMAST_RUN_ID,
+            workflowRunAttempt:process.env.KINGMAST_RUN_ATTEMPT,
+            hostSoakReportSha256:createHash('sha256').update(raw).digest('hex'),
+            physicalVehicleComputerTest:true,
+            targetHardwareQualified:false,
+            identity:r.physicalPreflight.identity,
+            capturedDurationSeconds:r.workload.durationSeconds,
+            classificationPassed:r.classification.passed,
+            memoryPassed:r.memory.passed,
+            eventLoopPassed:r.eventLoop.passed,
+            runtimeEnvelopePassed:r.runtimeEnvelope.passed,
+            thermalTelemetryRequired:r.physicalPreflight.requireThermalTelemetry,
+            thermalAvailable:r.runtimeEnvelope.thermal.available,
+            temperaturePassed:r.runtimeEnvelope.thermal.temperaturePassed,
+            freeMemoryPassed:r.runtimeEnvelope.memory.passed,
+            reviewStatus:'pending-independent-review',
+            privacy:{rawHardwareSerialIncluded:false,hostnameIncluded:false,networkAddressesIncluded:false,processArgumentsIncluded:false,environmentIncluded:false,preciseCoordinatesIncluded:false,rawCameraFramesIncluded:false,secretsIncluded:false},
+          };
+          writeFileSync('/tmp/kingmast.target-host-soak-manifest.json',JSON.stringify(manifest,null,2)+'\n');
+          NODE
+      - name: Upload target evidence package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-target-hardware-evidence-${{ github.run_id }}
+          path: |
+            /tmp/kingmast.target-host-soak.json
+            /tmp/kingmast.target-host-soak-manifest.json
+          if-no-files-found: error
+          retention-days: 30
