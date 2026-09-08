@@ -17,13 +17,18 @@
     "realtime:recovery-evidence": "pnpm --filter @kingmast/risk-engine exec tsx src/realtime-recovery-evidence-cli.ts",
     "realtime:integration-evidence": "pnpm --filter @kingmast/risk-engine exec tsx src/realtime-integration-evidence-cli.ts",
     "realtime:policy": "node scripts/realtime-resilience-policy-check.mjs",
+    "runtime:health-evidence": "pnpm --silent --filter @kingmast/risk-engine exec tsx src/runtime-health-evidence-cli.ts",
     "research:safety-check": "node autonomy-lab/safety-research/validate-safety-research.mjs",
     "research:safety-gaps": "node autonomy-lab/safety-research/research-gap-report.mjs",
     "sim:safety-independent": "node autonomy-lab/safety-sim/run-independent-safety-sim.mjs",
     "sim:safety-sweep": "node autonomy-lab/safety-sim/run-parameter-sweep.mjs",
+    "sim:safety-campaign": "node autonomy-lab/safety-sim/generate-scenario-campaign.mjs",
     "sim:asam-bridge": "node autonomy-lab/adapters/export-asam-bridge.mjs",
+    "sim:digital-twin-contract": "node autonomy-lab/digital-twin/validate-external-simulator-contract.mjs",
+    "sim:digital-twin-compare": "node autonomy-lab/digital-twin/compare-simulator-results.mjs",
     "sim:physical-traceability": "node autonomy-lab/validation/validate-virtual-to-physical-map.mjs",
     "sim:vn-track-pack": "node autonomy-lab/validation/validate-vietnam-track-pack.mjs",
+    "hil:virtual-plan": "node autonomy-lab/hil/validate-virtual-hil-plan.mjs",
     "hmi:design-system": "pnpm --filter @kingmast/hmi design-system:check",
     "toolchain:hmi-policy": "node scripts/hmi-toolchain-policy-check.mjs",
     "qualification:release": "node scripts/release-qualification-check.mjs",
@@ -62,16 +67,6 @@
     "evidence:hmi-human-factors": "pnpm --filter @kingmast/hmi exec node scripts/human-factors-evidence.mjs",
     "vercel:policy": "node scripts/vercel-deploy-policy-check.mjs"
   },
-  "pnpm": {
-    "overrides": {
-      "postcss": "8.5.23"
-    },
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
-  "devDependencies": {
-    "concurrently": "^10.0.5",
-    "typescript": "^7.0.2"
-  }
+  "pnpm": {"overrides":{"postcss":"8.5.23"},"onlyBuiltDependencies":["esbuild"]},
+  "devDependencies": {"concurrently":"^10.0.5","typescript":"^7.0.2"}
 }

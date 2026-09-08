@@ -1,0 +1,19 @@
+{
+  "schema": "kingmast-external-simulator-execution-contract/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "qualificationClaim": "external-simulator-contract-only-not-physical-validation",
+  "canonicalScenarioSource": "autonomy-lab/safety-sim/scenario-library.json",
+  "standardTargets": {"openDrive":"1.9.0","openScenarioXml":"1.4.0"},
+  "engines": [
+    {"id":"esmini","project":"esmini/esmini","executionMode":"external-runner","versionCapturedAtRun":true,"bundledInCi":false},
+    {"id":"carla","project":"carla-simulator/carla","executionMode":"external-runner","versionCapturedAtRun":true,"bundledInCi":false}
+  ],
+  "requiredResultFields": ["scenarioId","outcome","collision","minTtcS","maxLateralErrorM","warningLatencyMs"],
+  "parityPolicy": {"outcomeMustMatch":true,"collisionMustMatch":true,"warningLatencyToleranceMs":250,"minTtcToleranceS":0.5,"maxLateralErrorToleranceM":0.75,"minimumCommonScenarios":8},
+  "evidencePolicy": {"externalExecutionRequiredForRealEvidence":true,"engineVersionRequired":true,"scenarioArtifactSha256Required":true,"resultArtifactSha256Required":true,"fixtureResultsMayClaimExternalExecution":false,"automaticHilPass":false,"automaticClosedTrackPass":false,"automaticProductionQualification":false},
+  "physicalHilExecuted": false,
+  "closedTrackExecuted": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false
+}

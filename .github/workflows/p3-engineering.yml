@@ -1,0 +1,76 @@
+name: P3 Engineering Parallel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'autonomy-lab/digital-twin/**'
+      - 'autonomy-lab/hil/**'
+      - 'autonomy-lab/safety-sim/**'
+      - 'services/risk-engine/src/runtime-health-supervisor*'
+      - 'services/risk-engine/src/runtime-health-evidence-cli.ts'
+      - 'package.json'
+      - '.github/workflows/p3-engineering.yml'
+  pull_request:
+    paths:
+      - 'autonomy-lab/digital-twin/**'
+      - 'autonomy-lab/hil/**'
+      - 'autonomy-lab/safety-sim/**'
+      - 'services/risk-engine/src/runtime-health-supervisor*'
+      - 'services/risk-engine/src/runtime-health-evidence-cli.ts'
+      - 'package.json'
+      - '.github/workflows/p3-engineering.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingmast-p3-engineering-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  p3-engineering:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 10.34.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install reproducibly
+        run: pnpm install --frozen-lockfile
+      - name: Generate 500+ case safety campaign
+        run: |
+          node autonomy-lab/safety-sim/generate-scenario-campaign.mjs --json --ci > "$RUNNER_TEMP/kingmast.scenario-campaign.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.scenario-campaign.json'); if(r.schema!=='kingmast-safety-scenario-campaign/v1'||r.controlAuthority!=='none'||r.campaignCaseCount<500||r.externalSimulatorExecuted!==false||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false||r.publicRoadApproved!==false) process.exit(1); console.log('KINGMAST planned safety campaign '+r.campaignCaseCount+' cases across '+r.profileCount+' environment profiles; execution remains pending.');"
+      - name: Digital-twin external simulator contract
+        run: node autonomy-lab/digital-twin/validate-external-simulator-contract.mjs
+      - name: Cross-simulator comparator fixture self-test
+        run: |
+          node autonomy-lab/digital-twin/compare-simulator-results.mjs --fixtures --json --ci > "$RUNNER_TEMP/kingmast.cross-simulator-fixture.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.cross-simulator-fixture.json'); if(r.schema!=='kingmast-cross-simulator-parity-report/v1'||r.controlAuthority!=='none'||r.fixtureMode!==true||r.externalSimulatorEvidence!==false||r.commonScenarioCount<8||r.failed!==0||r.allPassed!==true||r.physicalHilExecuted!==false||r.closedTrackExecuted!==false) process.exit(1); console.log('KINGMAST cross-simulator comparator self-test passed '+r.passed+'/'+r.commonScenarioCount+' fixture cases; no external simulator claim.');"
+      - name: Virtual HIL stimulus plan
+        run: node autonomy-lab/hil/validate-virtual-hil-plan.mjs
+      - name: Runtime health supervisor unit tests
+        run: pnpm --filter @kingmast/risk-engine exec vitest run src/runtime-health-supervisor.test.ts
+      - name: Runtime health supervisor evidence
+        run: |
+          pnpm --silent runtime:health-evidence > "$RUNNER_TEMP/kingmast.runtime-health.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.runtime-health.json'); if(r.schema!=='kingmast-runtime-health-evidence/v1'||r.controlAuthority!=='none'||r.automaticActuation!==false||r.canWriteAuthority!==false||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.total<5||r.failed!==0||r.allPassed!==true) process.exit(1); console.log('KINGMAST runtime health supervisor passed '+r.passed+'/'+r.total+' deterministic states with no actuation authority.');"
+      - name: Upload P3 engineering software evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-p3-engineering-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/kingmast.scenario-campaign.json
+            ${{ runner.temp }}/kingmast.cross-simulator-fixture.json
+            ${{ runner.temp }}/kingmast.runtime-health.json
+          if-no-files-found: error
+          retention-days: 14

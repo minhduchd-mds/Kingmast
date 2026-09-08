@@ -1,0 +1,26 @@
+{
+  "schema":"kingmast-virtual-hil-stimulus-plan/v1",
+  "version":"0.0.6",
+  "controlAuthority":"none",
+  "qualificationClaim":"virtual-hil-stimulus-planning-only-not-physical-hil",
+  "canWriteAuthority":false,
+  "physicalHilExecuted":false,
+  "physicalHilQualified":false,
+  "targetHardwareQualified":false,
+  "publicRoadApproved":false,
+  "scenarios":[
+    {"id":"HIL-001","stimulus":"front-radar freeze then stale age ramp","channels":["radar-front-rx"],"expectedObservation":"stale radar rejected or degraded","canTx":false},
+    {"id":"HIL-002","stimulus":"duplicate and reordered sequence plus future timestamp","channels":["edge-packet-rx"],"expectedObservation":"replay or clock input rejected","canTx":false},
+    {"id":"HIL-003","stimulus":"DMS observation dropout and temporal discontinuity","channels":["cabin-observation-rx"],"expectedObservation":"driver observation degrades without fabricated state","canTx":false},
+    {"id":"HIL-004","stimulus":"surround frame skew and calibration error injection","channels":["camera-metadata-rx"],"expectedObservation":"surround visualization degrades","canTx":false},
+    {"id":"HIL-005","stimulus":"device and provider identity tamper plus revocation","channels":["authenticated-input-rx"],"expectedObservation":"untrusted input rejected","canTx":false},
+    {"id":"HIL-006","stimulus":"invalid update signature and unhealthy boot state","channels":["update-package-input"],"expectedObservation":"update rejected or rollback path requested","canTx":false},
+    {"id":"HIL-007","stimulus":"power interruption at bounded update lifecycle phases","channels":["power-fixture-control"],"expectedObservation":"known-good recovery evidence captured","canTx":false},
+    {"id":"HIL-008","stimulus":"read-only CAN receive loss and recovery","channels":["can-rx"],"expectedObservation":"vehicle-input confidence degrades and recovers","canTx":false},
+    {"id":"HIL-009","stimulus":"GNSS jump loss poor accuracy and recovery","channels":["gnss-rx"],"expectedObservation":"position context degrades then recovers","canTx":false},
+    {"id":"HIL-010","stimulus":"contradictory synchronized radar and camera observations","channels":["radar-front-rx","camera-metadata-rx"],"expectedObservation":"fusion uncertainty degrades confidence","canTx":false},
+    {"id":"HIL-011","stimulus":"process restart reconnect and bounded soak perturbation","channels":["service-heartbeat","realtime-session"],"expectedObservation":"restart remains bounded and observable","canTx":false},
+    {"id":"HIL-012","stimulus":"physical authority-boundary inspection with TX disabled","channels":["can-rx","bus-analyzer"],"expectedObservation":"zero vehicle-control transmit authority","canTx":false}
+  ],
+  "promotionRule":"virtual stimulus plan -> bench configuration review -> physical HIL execution -> evidence package -> independent review; virtual planning cannot change physical registry status"
+}
