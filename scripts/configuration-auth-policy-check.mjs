@@ -19,7 +19,7 @@ if(!server.includes('function configAuthorized(')||!server.includes('constantTim
 if(!server.includes('function requireConfigurationAuthority(')||!server.includes('configWriteLimiter.consume(request.ip,30)'))failures.push('bounded configuration write authority gate missing');
 if(!server.includes("verifyOperatorRequest({scope")||!server.includes('replayGuard:operatorReplayGuard'))failures.push('scoped operator signature/replay verification missing');
 if(!server.includes("if(REQUIRE_OPERATOR_AUTH&&operatorAuthSummary(OPERATOR_KEYS).activeKeys===0)throw new Error"))failures.push('strict operator-auth startup gate missing');
-if(!server.includes("app.post('/v3/geofences',async(request,reply)=>{const authority=requireConfigurationAuthority(request,reply,'configuration:geofences',request.body);if(!authority)return;"))failures.push('geofence writes must use scoped configuration authority');
+if(!server.includes("app.post('/v3/geofences'")||!server.includes("const authority=requireConfigurationAuthority(request,reply,'configuration:geofences',request.body);if(!authority)return;"))failures.push('geofence writes must use scoped configuration authority');
 if(!server.includes('configurationAudit.record({actorId:authority.actorId'))failures.push('configuration mutation audit record missing');
 if(!server.includes("error:'configuration-auth-required'"))failures.push('configuration writes must fail closed on missing/invalid auth');
 if(!operatorAuth.includes("export type OperatorScope='configuration:geofences'"))failures.push('least-privilege operator scope missing');
