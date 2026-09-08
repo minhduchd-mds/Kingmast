@@ -1,0 +1,48 @@
+{
+  "schema": "kingmast-external-simulator-runtime-pin/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "qualificationClaim": "external-simulator-supply-chain-pin-only-not-safety-or-physical-validation",
+  "simulator": "esmini",
+  "version": "3.8.1",
+  "tag": "v3.8.1",
+  "sourceRepository": "esmini/esmini",
+  "sourceCommit": "19d26b68f7f473de4e55046a794b5fd2f91c58c8",
+  "linuxAsset": {
+    "name": "esmini-bin_Linux.zip",
+    "url": "https://github.com/esmini/esmini/releases/download/v3.8.1/esmini-bin_Linux.zip",
+    "sha256": "05e6c9bb0f3156cef6f193c126b5ae340d42256da9c4a9eb7436d3b99dee9654"
+  },
+  "runtimeCompatibilityProfile": {
+    "openScenarioXml": "1.4",
+    "openDrive": "1.8",
+    "reason": "The pinned esmini source includes OpenSCENARIO XML 1.4 schema support and OpenDRIVE schema tooling through 1.8; the external runtime lane uses that bounded compatibility profile."
+  },
+  "canonicalResearchTarget": {
+    "openScenarioXml": "1.4.0",
+    "openDrive": "1.9.0",
+    "note": "OpenDRIVE 1.9.0 remains the repository interoperability target; the pinned esmini execution lane intentionally downshifts only the generated runtime-compatibility road to 1.8."
+  },
+  "executionPolicy": {
+    "verifyAssetSha256BeforeExecution": true,
+    "headless": true,
+    "fixedTimestepSeconds": 0.02,
+    "disableControllers": true,
+    "networkDuringScenarioExecution": false,
+    "automaticProductionPromotion": false,
+    "automaticPhysicalPass": false
+  },
+  "externalSimulatorExecuted": false,
+  "externalSimulatorExecutionIsPhysicalEvidence": false,
+  "asamConformanceClaimed": false,
+  "safetySemanticsValidated": false,
+  "physicalHilExecuted": false,
+  "closedTrackExecuted": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "notes": [
+    "This pin records the exact external simulator source/runtime supply-chain input used by the research workflow.",
+    "A successful esmini parse/run is runtime-compatibility evidence only and is not an ASAM conformance certificate or safety result.",
+    "No external simulator result can authorize public-road use or vehicle actuation."
+  ]
+}
