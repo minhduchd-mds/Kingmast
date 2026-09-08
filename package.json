@@ -23,6 +23,7 @@
     "qualification:gate3": "node scripts/gate3-acceptance-policy-check.mjs",
     "qualification:target-soak": "node scripts/target-soak-evidence-policy-check.mjs",
     "qualification:closed-track": "node scripts/closed-track-evidence-check.mjs",
+    "qualification:closed-track-package": "node scripts/closed-track-physical-capture-package.mjs",
     "hil:evidence": "node scripts/hil-evidence-check.mjs",
     "hil:execution-plan": "node scripts/hil-execution-manifest-check.mjs",
     "hil:package-check": "node scripts/hil-evidence-package-check.mjs",
