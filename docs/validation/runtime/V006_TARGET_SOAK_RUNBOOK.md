@@ -24,7 +24,7 @@ For a production-like target, configure the protected environment secrets used o
 - `KINGMAST_TARGET_VIEWER_TOKEN` — used to bootstrap the short-lived viewer session required by `/v3/health/details`;
 - `KINGMAST_TARGET_EDGE_TOKEN` — used when available to read provider-identity/replay diagnostics.
 
-The helper `scripts/capture-target-field-runtime.mjs` refuses non-loopback hosts, does not embed credentials in URLs, bounds each response to 64 KiB, strips device/provider identifiers from the generated runtime source, and writes the source with mode `0600`.
+The helper `scripts/capture-target-field-runtime.mjs` refuses non-loopback hosts, does not embed credentials in URLs, bounds each response and its emitted report to 64 KiB, strips device/provider identifiers from the generated runtime source, and emits the bounded JSON only to stdout. The guarded workflow redirects that stdout into GitHub Actions' job-scoped `runner.temp` directory instead of using a predictable global `/tmp` filename.
 
 Provider authentication rejection totals are not currently exposed by the service diagnostics endpoint. The field report therefore marks `providerAuthRejected=false` in its coverage block; a zero value for that uncovered counter is **unavailable evidence**, not proof that no authentication rejection occurred. Replay/capacity and provider-status coverage are marked independently based on the endpoints that were actually reachable.
 
@@ -54,14 +54,16 @@ The runner accepts up to 43,200 seconds (12 hours). Physical mode fails prefligh
 
 ## Manual field-diagnostics capture
 
-With the risk-engine service running on loopback, capture a bounded runtime source:
+With the risk-engine service running on loopback, capture a bounded runtime source into a private local evidence directory:
 
 ```bash
 export KINGMAST_TARGET_DIAGNOSTICS_URL=http://127.0.0.1:4000
 export KINGMAST_TARGET_VIEWER_TOKEN=<runtime-secret-if-required>
 export KINGMAST_TARGET_EDGE_TOKEN=<runtime-secret-if-required>
-export KINGMAST_TARGET_FIELD_RUNTIME_PATH=/tmp/kingmast.target-field-runtime.json
-node scripts/capture-target-field-runtime.mjs
+mkdir -p ./kingmast-evidence
+chmod 700 ./kingmast-evidence
+node scripts/capture-target-field-runtime.mjs > ./kingmast-evidence/target-field-runtime.json
+chmod 600 ./kingmast-evidence/target-field-runtime.json
 ```
 
 Then generate the physical field report with the same build/hardware/firmware/configuration/calibration identity used for the soak:
@@ -69,8 +71,9 @@ Then generate the physical field report with the same build/hardware/firmware/co
 ```bash
 export KINGMAST_PHYSICAL_VEHICLE_COMPUTER_TEST=1
 export KINGMAST_REQUIRE_PHYSICAL_FIELD_CAPTURE=1
-export KINGMAST_FIELD_DIAGNOSTICS_INPUT_JSON="$(cat /tmp/kingmast.target-field-runtime.json)"
-pnpm --silent diagnostics:field-evidence > target-field-diagnostics.json
+export KINGMAST_FIELD_DIAGNOSTICS_INPUT_JSON="$(cat ./kingmast-evidence/target-field-runtime.json)"
+pnpm --silent diagnostics:field-evidence > ./kingmast-evidence/target-field-diagnostics.json
+chmod 600 ./kingmast-evidence/target-field-diagnostics.json
 ```
 
 A physical report is `physicalCaptureReady=true` only when identity is complete and fresh core runtime coverage includes sensor ages plus the edge rejected-packet counter.
