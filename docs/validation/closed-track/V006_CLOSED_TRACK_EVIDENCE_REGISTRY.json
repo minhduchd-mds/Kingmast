@@ -1,0 +1,36 @@
+{
+  "schema": "kingmast-closed-track-evidence-registry/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "blocked-pending-physical-prerequisites",
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "targetHardwareQualified": false,
+  "prerequisites": {
+    "targetSoakReviewed": false,
+    "requiredHilReviewed": false,
+    "oddScenarioBoundsApproved": false,
+    "prototypeElectricalHarnessReviewed": false,
+    "physicalReadOnlyCanVerified": false,
+    "testEmergencyProcedureApproved": false,
+    "independentObserverAssigned": false,
+    "synchronizedLoggingReady": false,
+    "buildConfigurationCalibrationFrozen": false,
+    "testFacilityApprovalRecorded": false
+  },
+  "scenarios": [
+    {"id":"CT-001","title":"Dense motorcycle cut-in from either side","status":"pending","traceability":["HZ-001","SG-002"],"evidence":null},
+    {"id":"CT-002","title":"Weak or faded lane markings","status":"pending","traceability":["HZ-008","SG-002"],"evidence":null},
+    {"id":"CT-003","title":"Roadworks with temporary lane shift","status":"pending","traceability":["HZ-008","SG-002"],"evidence":null},
+    {"id":"CT-004","title":"Reduced-visibility rain and spray surrogate","status":"pending","traceability":["HZ-008","SG-002"],"evidence":null},
+    {"id":"CT-005","title":"Urban GNSS multipath and recovery surrogate","status":"pending","traceability":["HZ-003","SG-002"],"evidence":null},
+    {"id":"CT-006","title":"Large-vehicle occlusion of vulnerable-road-user surrogate","status":"pending","traceability":["HZ-001","HZ-008","SG-002"],"evidence":null},
+    {"id":"CT-007","title":"Glare and tunnel-entry exposure transition","status":"pending","traceability":["HZ-008","SG-002"],"evidence":null},
+    {"id":"CT-008","title":"Blind-spot motorcycle surrogate with independent front hazard","status":"pending","traceability":["HZ-001","HZ-008","SG-002"],"evidence":null}
+  ],
+  "notes": [
+    "All scenarios remain blocked until the physical Gate-3 prerequisites are independently reviewed.",
+    "The registry records warning-only observation evidence and never grants steering, braking, throttle, torque, gear or CAN-write authority.",
+    "No public-road exposure is permitted by this registry."
+  ]
+}
