@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { EdgeDiagnostics, RealtimeMessage, TelemetryFrame } from '@kingmast/contracts';
+import { RealtimeLinkAccumulator,type RealtimeLinkSnapshot } from '@kingmast/contracts/realtime-health';
 
 export type RealtimeState='disabled'|'connecting'|'live'|'stale'|'offline';
 export type RealtimeQuality='excellent'|'good'|'degraded'|'none';
@@ -11,6 +12,10 @@ export interface KingmastTelemetryEventDetail {
   frame: TelemetryFrame;
   receivedAtMs: number;
   diagnostics: EdgeDiagnostics | null;
+}
+
+export interface KingmastRealtimeHealthEventDetail {
+  transport:RealtimeLinkSnapshot;
 }
 
 function streamUrl():string|null{
@@ -35,6 +40,9 @@ async function establishViewerSession(signal:AbortSignal):Promise<ViewerSessionR
 function publishTelemetryEvent(detail:KingmastTelemetryEventDetail){
   window.dispatchEvent(new CustomEvent<KingmastTelemetryEventDetail>('kingmast:telemetry',{detail}));
 }
+function publishRealtimeHealthEvent(transport:RealtimeLinkSnapshot){
+  window.dispatchEvent(new CustomEvent<KingmastRealtimeHealthEventDetail>('kingmast:realtime-health',{detail:{transport}}));
+}
 
 export function useRealtimeTelemetry(enabled=true){
   const targetUrl=streamUrl();
@@ -43,28 +51,28 @@ export function useRealtimeTelemetry(enabled=true){
   const[quality,setQuality]=useState<RealtimeQuality>('none');
   const[lastReceivedAt,setLastReceivedAt]=useState<number|null>(null);
   const[diagnostics,setDiagnostics]=useState<EdgeDiagnostics|null>(null);
-  const retryRef=useRef<number|null>(null);
-  const telemetryAtRef=useRef<number|null>(null);
-  const heartbeatAtRef=useRef<number|null>(null);
-  const sequenceRef=useRef(-1);
-  const sessionRef=useRef('');
+  const[transport,setTransport]=useState<RealtimeLinkSnapshot>(()=>new RealtimeLinkAccumulator().snapshot());
 
   useEffect(()=>{
     if(!enabled||!targetUrl){setState('disabled');setQuality('none');return;}
-    let socket:WebSocket|null=null;let disposed=false;let connecting=false;let reconnectMs=800;let sessionUnavailable=false;
+    let socket:WebSocket|null=null;let disposed=false;let connecting=false;let reconnectMs=800;let sessionUnavailable=false;let retryTimer:number|null=null;
+    let telemetryAt:number|null=null;let heartbeatAt:number|null=null;
     const sessionAbort=new AbortController();
+    const link=new RealtimeLinkAccumulator();
+    const publishTransport=()=>{const snapshot=link.snapshot();setTransport(snapshot);publishRealtimeHealthEvent(snapshot);};
+    publishTransport();
 
     const scheduleReconnect=()=>{
-      if(disposed||sessionUnavailable||retryRef.current!==null)return;
+      if(disposed||sessionUnavailable||retryTimer!==null)return;
       const jitter=.8+Math.random()*.4;
-      retryRef.current=window.setTimeout(()=>{retryRef.current=null;void connect();},Math.round(reconnectMs*jitter));
+      retryTimer=window.setTimeout(()=>{retryTimer=null;void connect();},Math.round(reconnectMs*jitter));
       reconnectMs=Math.min(12_000,Math.round(reconnectMs*1.8));
     };
     const connect=async()=>{
       if(disposed||sessionUnavailable||connecting)return;
       if(!navigator.onLine){setState('offline');setQuality('none');return;}
       if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;
-      connecting=true;setState('connecting');
+      connecting=true;setState('connecting');link.recordConnectAttempt();publishTransport();
       try{
         const sessionResult=await establishViewerSession(sessionAbort.signal);
         if(disposed)return;
@@ -75,24 +83,24 @@ export function useRealtimeTelemetry(enabled=true){
           setState('offline');setQuality('none');scheduleReconnect();return;
         }
         socket=new WebSocket(targetUrl);
-        socket.onopen=()=>{reconnectMs=800;heartbeatAtRef.current=Date.now();};
+        socket.onopen=()=>{reconnectMs=800;heartbeatAt=Date.now();link.recordConnected();publishTransport();};
         socket.onmessage=(event)=>{
           try{
             const message=JSON.parse(String(event.data)) as RealtimeMessage;
-            const receivedNow=Date.now();heartbeatAtRef.current=receivedNow;
+            const receivedNow=Date.now();heartbeatAt=receivedNow;
             if(message.type==='heartbeat')return;
-            const session=message.diagnostics?.deviceId&&message.diagnostics.bootId?`${message.diagnostics.deviceId}:${message.diagnostics.bootId}`:message.source;
-            if(sessionRef.current===session&&message.frame.sequence<sequenceRef.current)return;
-            if(sessionRef.current!==session){sessionRef.current=session;sequenceRef.current=-1;}
-            sequenceRef.current=Math.max(sequenceRef.current,message.frame.sequence);
-            telemetryAtRef.current=receivedNow;
             const nextDiagnostics=message.diagnostics??null;
+            const session=nextDiagnostics?.deviceId&&nextDiagnostics.bootId?`${nextDiagnostics.deviceId}:${nextDiagnostics.bootId}`:message.source;
+            const observation=link.observeTelemetry({serverEnvelopeAtMs:message.receivedAtMs,ingressAtMs:nextDiagnostics?.lastIngressAtMs??null,clientAtMs:receivedNow,session,sequence:message.frame.sequence});
+            publishTransport();
+            if(!observation.accepted)return;
+            telemetryAt=receivedNow;
             setFrame(message.frame);setLastReceivedAt(message.receivedAtMs);setDiagnostics(nextDiagnostics);setState('live');setQuality('excellent');
             publishTelemetryEvent({frame:message.frame,receivedAtMs:message.receivedAtMs,diagnostics:nextDiagnostics});
-          }catch{/* malformed edge messages are ignored */}
+          }catch{link.recordMalformed();publishTransport();}
         };
         socket.onerror=()=>{setState('offline');setQuality('none');};
-        socket.onclose=()=>{socket=null;if(disposed)return;setState('offline');setQuality('none');scheduleReconnect();};
+        socket.onclose=()=>{socket=null;if(disposed)return;link.recordDisconnect();publishTransport();setState('offline');setQuality('none');scheduleReconnect();};
       }catch(error){
         if(!disposed&&(error as Error).name!=='AbortError'){setState('offline');setQuality('none');scheduleReconnect();}
       }finally{connecting=false;}
@@ -105,15 +113,15 @@ export function useRealtimeTelemetry(enabled=true){
 
     const freshnessTimer=window.setInterval(()=>{
       if(sessionUnavailable)return;
-      const now=Date.now();const telemetryAge=telemetryAtRef.current===null?Number.POSITIVE_INFINITY:now-telemetryAtRef.current;const heartbeatAge=heartbeatAtRef.current===null?Number.POSITIVE_INFINITY:now-heartbeatAtRef.current;
+      const now=Date.now();const telemetryAge=telemetryAt===null?Number.POSITIVE_INFINITY:now-telemetryAt;const heartbeatAge=heartbeatAt===null?Number.POSITIVE_INFINITY:now-heartbeatAt;
       if(heartbeatAge>5_000){setState('offline');setQuality('none');return;}
       if(telemetryAge>2_500){setState('stale');setQuality('degraded');return;}
       if(telemetryAge>1_200){setState('live');setQuality('good');return;}
       if(telemetryAge<Number.POSITIVE_INFINITY){setState('live');setQuality('excellent');}
     },500);
 
-    return()=>{disposed=true;sessionAbort.abort();if(retryRef.current!==null){window.clearTimeout(retryRef.current);retryRef.current=null;}window.clearInterval(freshnessTimer);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);socket?.close();};
+    return()=>{disposed=true;sessionAbort.abort();if(retryTimer!==null)window.clearTimeout(retryTimer);window.clearInterval(freshnessTimer);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);socket?.close();};
   },[enabled,targetUrl]);
 
-  return{frame,state,quality,lastReceivedAt,diagnostics,url:targetUrl};
+  return{frame,state,quality,lastReceivedAt,diagnostics,transport,url:targetUrl};
 }

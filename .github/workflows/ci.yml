@@ -60,6 +60,10 @@ jobs:
         run: pnpm evidence:validate
       - name: Expert and OEM clean-room traceability
         run: pnpm evidence:oem-traceability
+      - name: HMI design-system contract
+        run: pnpm hmi:design-system
+      - name: HMI Next 16 and TypeScript 7 policy
+        run: pnpm toolchain:hmi-policy
       - name: Vercel deployment policy
         run: pnpm vercel:policy
       - name: Python syntax
@@ -90,6 +94,16 @@ jobs:
         run: |
           pnpm --filter @kingmast/risk-engine exec tsx src/host-soak-evidence-cli.ts > /tmp/kingmast.host-soak.json
           node -e "const r=require('/tmp/kingmast.host-soak.json'); if(r.schema!=='kingmast-host-soak-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-host-soak-regression-only-not-target-hardware'||r.targetHardwareQualified!==false||r.physicalVehicleComputerTest!==false||r.classification?.passed!==true||r.memory?.passed!==true||r.eventLoop?.passed!==true||r.allPassed!==true||r.workload?.operations<1) process.exit(1); console.log('KINGMAST host soak regression passed '+r.workload.operations+' risk operations in '+r.workload.durationSeconds+' s; RSS growth '+r.memory.rssGrowthMiB+' MiB.');"
+      - name: Realtime reconnect and HMI transport evidence
+        run: |
+          pnpm --filter @kingmast/risk-engine exec tsx src/realtime-recovery-evidence-cli.ts > /tmp/kingmast.realtime-recovery.json
+          node -e "const r=require('/tmp/kingmast.realtime-recovery.json'); if(r.schema!=='kingmast-realtime-recovery-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='deterministic-software-recovery-only-not-physical-hil'||r.physicalControllerTest!==false||r.targetHardwareQualified!==false||r.browserNetworkMeasured!==false||r.allPassed!==true) process.exit(1); console.log('KINGMAST realtime recovery evidence passed with '+r.snapshot.reconnects+' reconnect and '+r.snapshot.sequenceRegressions+' rejected sequence regression.');"
+      - name: Realtime edge-to-stream loopback integration evidence
+        run: |
+          pnpm --filter @kingmast/risk-engine exec tsx src/realtime-integration-evidence-cli.ts > /tmp/kingmast.realtime-loopback.json
+          node -e "const r=require('/tmp/kingmast.realtime-loopback.json'); if(r.schema!=='kingmast-realtime-loopback-integration-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='ci-loopback-process-integration-only-not-target-hardware'||r.physicalControllerTest!==false||r.targetHardwareQualified!==false||r.browserRenderMeasured!==false||r.allPassed!==true||r.snapshot?.reconnects!==1||r.snapshot?.sessionChanges!==1) process.exit(1); console.log('KINGMAST realtime loopback integration passed; restart ready '+r.restartReadyMs+' ms, post-restart transport '+r.postRestartServerToClientMs+' ms.');"
+      - name: Realtime resilience policy
+        run: pnpm realtime:policy
       - name: HIL evidence registry honesty gate
         run: pnpm hil:evidence
       - name: HIL physical evidence package template gate
@@ -107,14 +121,14 @@ jobs:
           node -e "const p=require('/tmp/kingmast.provenance.json'); const names=new Set(p.materials.map(x=>x.name)); if(p.schema!=='kingmast-build-provenance/v1'||p.subject.commit!==process.env.GITHUB_SHA||p.assertions.actuatorAuthority!=='none'||!names.has('cyclonedx-sbom')||!names.has('services/risk-engine/dist')||!names.has('apps/hmi/.next/BUILD_ID')) process.exit(1); console.log('KINGMAST build provenance validated for '+p.subject.commit);"
       - name: Generate engineering evidence anchor
         env:
-          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
         run: |
           node scripts/generate-evidence-anchor.mjs > /tmp/kingmast.evidence-anchor.json
-          node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<9||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
+          node -e "const a=require('/tmp/kingmast.evidence-anchor.json'); if(a.schema!=='kingmast-evidence-anchor/v1'||a.sourceCommit!==process.env.GITHUB_SHA||a.actuatorAuthority!=='none'||a.externallySigned!==false||a.externalTimestampAuthority!=='none'||a.materials.length<11||!/^[a-f0-9]{64}$/.test(a.rootSha256)) process.exit(1); console.log('KINGMAST evidence anchor '+a.rootSha256+' binds '+a.materials.length+' materials.');"
       - name: Verify engineering evidence anchor
         env:
           KINGMAST_EVIDENCE_ANCHOR_PATH: /tmp/kingmast.evidence-anchor.json
-          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
+          KINGMAST_EVIDENCE_PATHS: /tmp/kingmast.cdx.json,/tmp/kingmast.provenance.json,/tmp/kingmast.hmi-human-factors.json,/tmp/kingmast.sil-replay.json,/tmp/kingmast.risk-performance.json,/tmp/kingmast.host-soak.json,/tmp/kingmast.realtime-recovery.json,/tmp/kingmast.realtime-loopback.json,docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json,docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json,docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json
         run: pnpm evidence:anchor-verify
       - name: Install Chromium for HMI verification
         run: pnpm --filter @kingmast/hmi exec playwright install --with-deps chromium
@@ -131,6 +145,8 @@ jobs:
             /tmp/kingmast.sil-replay.json
             /tmp/kingmast.risk-performance.json
             /tmp/kingmast.host-soak.json
+            /tmp/kingmast.realtime-recovery.json
+            /tmp/kingmast.realtime-loopback.json
             /tmp/kingmast.evidence-anchor.json
             docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json
             docs/validation/hil/V006_BOOT_SECURITY_EVIDENCE_REGISTRY.json
