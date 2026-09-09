@@ -9,6 +9,8 @@ export type SpeedLimitSource = 'map' | 'sign-vision' | 'authorized-provider' | '
 export type SpeedCompliance = 'unknown' | 'within-limit' | 'near-limit' | 'over-limit';
 export type TrafficCameraKind = 'traffic-monitoring' | 'speed-enforcement' | 'red-light' | 'average-speed' | 'unknown';
 export type TrafficCameraSource = 'osm' | 'authorized-provider' | 'runtime-provider';
+export type NavigationRoutingProvider = 'osrm' | 'google-routes' | 'mapbox';
+export type NavigationTrafficSource = 'none' | 'google-live' | 'mapbox-live';
 
 export interface GeoPoint { lat:number; lng:number; }
 export interface VehicleSample { timestampMs:number; egoSpeedMps:number; targetSpeedMps:number; rangeM:number; confidence:number; canHealthy:boolean; radarHealthy:boolean; cameraHealthy:boolean; }
@@ -47,7 +49,8 @@ export interface SpeedLimitContext { currentKmh:number|null; source:SpeedLimitSo
 export interface TrafficCamera { id:string; position:GeoPoint; kind:TrafficCameraKind; operator:string|null; ref:string|null; directionDeg:number|null; speedLimitKmh:number|null; viewerUrl:string|null; source:TrafficCameraSource; publicData:boolean; distanceM:number; }
 export interface RoadContext { position:GeoPoint; speedLimit:SpeedLimitContext; compliance:SpeedCompliance; cameras:TrafficCamera[]; fetchedAtMs:number; coverage:'provider-backed'|'partial-public-map'|'unavailable'; notes:string[]; }
 export interface NavigationStep { instruction:string; distanceM:number; durationS:number; location:GeoPoint; roadName:string|null; }
-export interface NavigationRoute { provider:'osrm'; origin:GeoPoint; destination:GeoPoint; distanceM:number; durationS:number; geometry:GeoPoint[]; steps:NavigationStep[]; fetchedAtMs:number; }
+export interface NavigationTrafficContext { aware:boolean; source:NavigationTrafficSource; delayS:number|null; observedAtMs:number|null; }
+export interface NavigationRoute { provider:NavigationRoutingProvider; origin:GeoPoint; destination:GeoPoint; distanceM:number; durationS:number; geometry:GeoPoint[]; steps:NavigationStep[]; fetchedAtMs:number; traffic?:NavigationTrafficContext; }
 export interface NavigationPlace { id:string; name:string; subtitle:string|null; position:GeoPoint; source:'geocoder'; }
 
 export interface EvProfile { batteryPct:number; usableBatteryKwh:number; rangeKm:number; consumptionWhPerKm:number; reservePct:number; }
