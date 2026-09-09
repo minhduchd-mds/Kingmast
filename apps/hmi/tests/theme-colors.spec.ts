@@ -30,6 +30,21 @@ async function openReturningHmi(page:Page,appearance:'auto'|'day'|'night',daytim
   await expect(page.getByTestId('driver-action-dock')).toBeVisible();
 }
 
+async function dispatchMovingTelemetry(page:Page){
+  await page.evaluate(()=>{
+    const now=Date.now();
+    const frame={
+      sequence:1,
+      vehicle:{lat:21.0285,lng:105.8542,speedKmh:36,headingDeg:0,accuracyM:2,timestampMs:now,source:'gnss' as const},
+      sensors:{radarFront:'ok' as const,radarRear:'ok' as const,camera:'ok' as const,can:'ok' as const,gnssImu:'ok' as const,ecu:'ok' as const},
+      objects:[],
+      alerts:[],
+      assist:null,
+    };
+    window.dispatchEvent(new CustomEvent('kingmast:telemetry',{detail:{frame,receivedAtMs:now,diagnostics:null}}));
+  });
+}
+
 async function expectReadableDayDrivingCopy(page:Page){
   const selectors=[
     '.clockLabel',
@@ -62,7 +77,7 @@ async function expectReadableDayDrivingCopy(page:Page){
 }
 
 test.describe('KINGMAST appearance material regression',()=>{
-  test('Auto daytime keeps cockpit, dock and driver-assist rail in one light material family',async({page})=>{
+  test('Auto daytime keeps cockpit, dock and moving assist rail in one light material family',async({page})=>{
     await openReturningHmi(page,'auto',true);
     await expect(page.locator('.kingmastExperience')).toHaveClass(/ambient-day/);
     await expect(page.locator('main.appShell')).toHaveClass(/theme-auto/);
@@ -73,8 +88,11 @@ test.describe('KINGMAST appearance material regression',()=>{
     const dockBackground=await page.getByTestId('driver-action-dock').evaluate((node)=>getComputedStyle(node).backgroundColor);
     expect(rgbAverage(dockBackground)).toBeGreaterThan(220);
 
+    await expect(page.getByTestId('driver-capability-rail')).toHaveCount(0);
+    await dispatchMovingTelemetry(page);
     const rail=page.getByTestId('driver-capability-rail');
     await expect(rail).toBeVisible();
+    await expect(rail).toHaveClass(/isQuiet/);
     const railBackground=await rail.evaluate((node)=>getComputedStyle(node).backgroundColor);
     expect(rgbAverage(railBackground)).toBeGreaterThan(220);
 
@@ -94,7 +112,11 @@ test.describe('KINGMAST appearance material regression',()=>{
     const dockBackground=await page.getByTestId('driver-action-dock').evaluate((node)=>getComputedStyle(node).backgroundColor);
     expect(rgbAverage(dockBackground)).toBeLessThan(80);
 
-    const railBackground=await page.getByTestId('driver-capability-rail').evaluate((node)=>getComputedStyle(node).backgroundColor);
+    await expect(page.getByTestId('driver-capability-rail')).toHaveCount(0);
+    await dispatchMovingTelemetry(page);
+    const rail=page.getByTestId('driver-capability-rail');
+    await expect(rail).toBeVisible();
+    const railBackground=await rail.evaluate((node)=>getComputedStyle(node).backgroundColor);
     expect(rgbAverage(railBackground)).toBeLessThan(80);
   });
 });

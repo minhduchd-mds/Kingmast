@@ -16,8 +16,8 @@ const uiTests=read('tests/ui.spec.ts');
 const checks=[
   {
     id:'HF-STRUCT-001',
-    requirement:'warning-only authority remains explicit',
-    passed:capabilityRail.includes('Warning-only · no vehicle control')&&capabilityRail.includes('Read-only assistant'),
+    requirement:'driver-assist capability rail remains status-only with no actuator surface',
+    passed:capabilityRail.includes('Read-only assistant')&&capabilityRail.includes('no actuator tools')&&!capabilityRail.includes('<button'),
     evidence:['components/DriverCapabilityRail.tsx'],
   },
   {
@@ -58,8 +58,8 @@ const checks=[
   },
   {
     id:'HF-STRUCT-008',
-    requirement:'moving capability presentation is attention-filtered',
-    passed:capabilityRail.includes('attentionRelevant')&&capabilityRail.includes('.slice(0,2)')&&capabilityRail.includes('Quiet monitoring'),
+    requirement:'capability rail is absent while parked and attention-filtered while moving',
+    passed:capabilityRail.includes('if(!moving)return null')&&!capabilityRail.includes('isExpanded')&&capabilityRail.includes('attentionRelevant')&&capabilityRail.includes('.slice(0,2)')&&capabilityRail.includes('Quiet monitoring'),
     evidence:['components/DriverCapabilityRail.tsx'],
   },
   {

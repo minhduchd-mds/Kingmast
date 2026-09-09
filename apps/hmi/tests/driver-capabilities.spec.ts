@@ -32,25 +32,18 @@ function dispatchRuntime(page:Page,dmsState:'attentive'|'distracted'='attentive'
 }
 
 test.describe('driver-facing assistance capability rail',()=>{
-  test('shows truthful staged status without creating control authority',async({page})=>{
+  test('does not render the expanded capability rail while parked',async({page})=>{
     await openReturningDriver(page,1366,768);
-    const rail=page.getByTestId('driver-capability-rail');
-    await expect(rail).toBeVisible();
-    await expect(rail).toHaveAttribute('data-runtime','awaiting');
-    await expect(rail).toHaveAttribute('data-quiet','false');
-    await expect(rail).toContainText('Warning-only · no vehicle control');
-    await expect(rail.locator('[data-capability="ldw"]')).toContainText('Software ready');
-    await expect(rail.locator('[data-capability="dms"]')).toContainText('DMS');
-    await expect(rail.locator('[data-capability="assistant"]')).toContainText('Read-only assistant');
-    await expect(rail.locator('[data-capability="surround"]')).toContainText('Requires vehicle integration');
-    await expect(rail.locator('[data-capability="vehicle"]')).toContainText('Vehicle sensor health');
-    await expect(rail.getByRole('button')).toHaveCount(0);
+    await expect(page.getByTestId('driver-capability-rail')).toHaveCount(0);
+    await expect(page.locator('.driverCapabilityRail.isExpanded')).toHaveCount(0);
   });
 
   test('collapses normal secondary status while moving and keeps attention-relevant assist state',async({page})=>{
     await openReturningDriver(page,1366,768);
     await dispatchRuntime(page,'attentive');
     const rail=page.getByTestId('driver-capability-rail');
+    await expect(rail).toBeVisible();
+    await expect(rail).toHaveClass(/isQuiet/);
     await expect(rail).toHaveAttribute('data-runtime','connected');
     await expect(rail).toHaveAttribute('data-quiet','true');
     await expect(rail).toContainText('Quiet monitoring');
@@ -81,6 +74,7 @@ test.describe('driver-facing assistance capability rail',()=>{
 
   test('drops the secondary capability rail on short automotive displays',async({page})=>{
     await openReturningDriver(page,1280,480);
+    await dispatchRuntime(page,'attentive');
     await expect(page.getByTestId('driver-capability-rail')).toBeHidden();
     await expect(page.locator('.speedValue')).toBeVisible();
     await expect(page.locator('.speedLimitSign')).toBeVisible();

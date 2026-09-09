@@ -98,19 +98,20 @@ export default function DriverCapabilityRail(){
   },[]);
 
   const items=useMemo(()=>{
-    const all=DRIVER_CAPABILITIES
+    if(!moving||!runtime)return[];
+    return DRIVER_CAPABILITIES
       .map((item)=>({...item,capability:KINGMAST_CAPABILITIES.find((capability)=>capability.key===item.key)}))
-      .filter((item)=>item.capability!==undefined);
-    if(!moving)return all;
-    if(!runtime)return [];
-    return all.filter((item)=>attentionRelevant(item.key,runtime,sensors)).slice(0,2);
+      .filter((item)=>item.capability!==undefined&&attentionRelevant(item.key,runtime,sensors))
+      .slice(0,2);
   },[moving,runtime,sensors]);
 
-  const introCopy=moving
-    ?runtime?'Quiet monitoring · only attention-relevant status is shown.':'Assist status awaiting fresh telemetry.'
-    :'Warning-only · no vehicle control';
+  if(!moving)return null;
 
-  return <aside className={`driverCapabilityRail ${moving?'isQuiet':'isExpanded'}`} aria-label="Driver assistance capability status" data-testid="driver-capability-rail" data-runtime={runtime?'connected':'awaiting'} data-quiet={moving?'true':'false'}>
+  const introCopy=runtime
+    ?'Quiet monitoring · only attention-relevant status is shown.'
+    :'Assist status awaiting fresh telemetry.';
+
+  return <aside className="driverCapabilityRail isQuiet" aria-label="Driver assistance capability status" data-testid="driver-capability-rail" data-runtime={runtime?'connected':'awaiting'} data-quiet="true">
     <div className="driverCapabilityIntro">
       <strong>Driver assist</strong>
       <span>{introCopy}</span>
