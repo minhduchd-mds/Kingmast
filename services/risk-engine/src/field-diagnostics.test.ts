@@ -2,14 +2,14 @@ import { describe,expect,it } from 'vitest';
 import { buildFieldDiagnosticsReport,fieldDiagnosticIdentityFromEnv } from './field-diagnostics.js';
 
 const completeIdentity={
-  productVersion:'0.0.6',
+  productVersion:'0.0.7',
   buildCommit:'6f86ec9055af9be631143890b4cc4003d1e96dce',
   buildId:'build-34196791582',
   hardwareTarget:'raspberry-pi-5',
   hardwareInstanceHash:'a'.repeat(64),
-  firmwareRevision:'esp32-v006-17',
-  configurationRevision:'cfg-v006-04',
-  calibrationRevision:'cal-v006-03',
+  firmwareRevision:'esp32-v007-17',
+  configurationRevision:'cfg-v007-04',
+  calibrationRevision:'cal-v007-03',
 };
 
 const physicalRuntime={
@@ -19,9 +19,10 @@ const physicalRuntime={
 };
 
 describe('field diagnostics evidence',()=>{
-  it('builds a privacy-bounded software-only report by default',()=>{
+  it('builds a privacy-bounded software-only report using the active package version by default',()=>{
     const report=buildFieldDiagnosticsReport({identity:fieldDiagnosticIdentityFromEnv({})});
     expect(report.schema).toBe('kingmast-field-diagnostics-report/v1');
+    expect(report.productVersion).toBe('0.0.7');
     expect(report.controlAuthority).toBe('none');
     expect(report.targetHardwareQualified).toBe(false);
     expect(report.physicalVehicleComputerTest).toBe(false);
