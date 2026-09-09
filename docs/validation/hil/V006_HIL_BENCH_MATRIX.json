@@ -1,0 +1,47 @@
+{
+  "schema": "kingmast-hil-bench-matrix/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "preparation-only-no-physical-hil",
+  "physicalHilExecuted": false,
+  "automaticQualification": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "commonEntryCriteria": [
+    "reviewed bench/harness mapping",
+    "provisioned required devices",
+    "approved-or-test-bounded calibration state",
+    "exact source commit/build frozen",
+    "synchronized logging ready",
+    "operator and independent reviewer assigned",
+    "isolated approved bench only",
+    "no CAN-write or actuation path"
+  ],
+  "abortConditions": [
+    "unexpected KINGMAST transmit activity",
+    "loss of electrical isolation",
+    "loss of synchronized logging",
+    "stimulus leaves approved envelope",
+    "unsafe temperature or instrumentation fault"
+  ],
+  "scenarios": [
+    {"id":"HIL-001","requiredRoles":["bench-controller","front-radar","time-sync"],"requiredProvisionTargets":["vehicle-computer-aarch64","front-radar"],"requiredCalibration":["front-radar"],"stimulus":"stale/frozen radar observation","expectedBoundary":"reject/degrade stale range"},
+    {"id":"HIL-002","requiredRoles":["bench-controller","time-sync"],"requiredProvisionTargets":["vehicle-computer-aarch64"],"requiredCalibration":[],"stimulus":"duplicate/reordered/clock-invalid packets","expectedBoundary":"reject invalid temporal input"},
+    {"id":"HIL-003","requiredRoles":["bench-controller","dms","time-sync"],"requiredProvisionTargets":["vehicle-computer-aarch64","dms-camera"],"requiredCalibration":["dms-camera"],"stimulus":"DMS metadata discontinuity","expectedBoundary":"degrade DMS availability"},
+    {"id":"HIL-004","requiredRoles":["bench-controller","surround-camera","time-sync","bench-display"],"requiredProvisionTargets":["vehicle-computer-aarch64","surround-camera-set","display-primary"],"requiredCalibration":["surround-camera-set"],"stimulus":"surround sync/calibration degradation","expectedBoundary":"degrade surround health/visualization"},
+    {"id":"HIL-005","requiredRoles":["bench-controller"],"requiredProvisionTargets":["vehicle-computer-aarch64"],"requiredCalibration":[],"stimulus":"tampered or revoked device identity","expectedBoundary":"reject untrusted device input"},
+    {"id":"HIL-006","requiredRoles":["bench-controller","bench-power"],"requiredProvisionTargets":["vehicle-computer-aarch64"],"requiredCalibration":[],"stimulus":"invalid update plus unhealthy boot","expectedBoundary":"reject update and follow reviewed recovery path"},
+    {"id":"HIL-007","requiredRoles":["bench-controller","bench-power"],"requiredProvisionTargets":["vehicle-computer-aarch64"],"requiredCalibration":[],"stimulus":"controlled isolated-bench update power interruption","expectedBoundary":"recover known-good state or record fail"},
+    {"id":"HIL-008","requiredRoles":["bench-controller","read-only-can","bus-analyzer"],"requiredProvisionTargets":["vehicle-computer-aarch64","read-only-can-interface"],"requiredCalibration":[],"stimulus":"remove CAN receive observations","expectedBoundary":"degrade CAN-dependent confidence; no transmit"},
+    {"id":"HIL-009","requiredRoles":["bench-controller","gnss-imu","time-sync"],"requiredProvisionTargets":["vehicle-computer-aarch64","gnss-imu"],"requiredCalibration":["gnss-imu"],"stimulus":"GNSS jump/loss/recovery","expectedBoundary":"degrade and recover only after quality returns"},
+    {"id":"HIL-010","requiredRoles":["bench-controller","front-radar","surround-camera","time-sync"],"requiredProvisionTargets":["vehicle-computer-aarch64","front-radar","surround-camera-set"],"requiredCalibration":["front-radar","surround-camera-set"],"stimulus":"contradictory radar/camera observations","expectedBoundary":"expose fusion uncertainty/degradation"},
+    {"id":"HIL-011","requiredRoles":["bench-controller","time-sync"],"requiredProvisionTargets":["vehicle-computer-aarch64"],"requiredCalibration":[],"stimulus":"restart service during bounded soak","expectedBoundary":"bounded reconnect/recovery evidence"},
+    {"id":"HIL-012","requiredRoles":["bench-controller","read-only-can","bus-analyzer"],"requiredProvisionTargets":["vehicle-computer-aarch64","read-only-can-interface"],"requiredCalibration":[],"stimulus":"receive-only workload with bus observation","expectedBoundary":"independent evidence of no KINGMAST transmit"}
+  ],
+  "resultPolicy": {
+    "initialResult": "captured-awaiting-independent-review",
+    "independentReviewRequired": true,
+    "automaticRegistryMutation": false,
+    "ciOrSimulationCannotSatisfyPhysicalEvidence": true
+  }
+}

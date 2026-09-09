@@ -1,0 +1,57 @@
+{
+  "schema": "kingmast-calibration-capture-template/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "template-only-no-physical-calibration",
+  "physicalCalibrationExecuted": false,
+  "automaticPromotion": false,
+  "productionThresholdMutation": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "sensors": ["front-radar","surround-camera-set","dms-camera","gnss-imu"],
+  "captures": [],
+  "captureTemplate": {
+    "sensorId": null,
+    "hardwareInstanceSha256": null,
+    "firmwareRevision": null,
+    "configurationRevision": null,
+    "mountingOrHarnessRevision": null,
+    "sourceSoftwareCommit": null,
+    "calibrationProcedureRef": null,
+    "calibrationRevision": null,
+    "calibrationArtifactSha256": null,
+    "timeSyncRef": null,
+    "startedAt": null,
+    "finishedAt": null,
+    "operator": null,
+    "reviewer": null,
+    "measurementRefs": [],
+    "resultDisposition": "pending-physical-capture"
+  },
+  "measurementRefTemplate": {"ref":null,"sha256":null,"kind":null},
+  "reviewPolicy": {
+    "independentReviewRequired": true,
+    "reviewerMustDifferFromOperator": true,
+    "sourceCommitBindingRequired": true,
+    "firmwareRevisionMatchRequired": true,
+    "configurationRevisionMatchRequired": true,
+    "sha256EvidenceBindingRequired": true,
+    "automaticPromotion": false,
+    "productionThresholdMutation": false
+  },
+  "invalidationTriggers": [
+    "hardware-replacement",
+    "mounting-position-or-harness-change",
+    "sensor-firmware-change",
+    "configuration-geometry-change",
+    "calibration-input-change",
+    "clock-or-time-synchronization-loss",
+    "physical-impact-or-maintenance-event",
+    "independent-review-revocation"
+  ],
+  "notes": [
+    "The committed baseline contains no physical calibration result and no approved calibration values.",
+    "Calibration evidence must come from controlled physical work with synchronized measurements and independent review.",
+    "Simulation and CI cannot approve calibration or change production thresholds."
+  ]
+}

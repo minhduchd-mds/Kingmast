@@ -1,0 +1,49 @@
+{
+  "schema": "kingmast-harness-mapping-template/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "template-only-vehicle-pinout-unset",
+  "vehicleSpecificPinoutValidated": false,
+  "automaticApproval": false,
+  "canTxPathPresent": false,
+  "writableBusApi": false,
+  "actuationAuthority": false,
+  "sourcePolicy": {
+    "authorizedElectricalDocumentationRequired": true,
+    "reviewedAdapterDocumentationAllowed": true,
+    "guessingProhibited": true,
+    "wireColorInferenceProhibited": true,
+    "unreviewedCommunityPinoutProhibited": true
+  },
+  "interfaces": [
+    {"id":"PWR","direction":"power-in","vehicleConnectorRef":null,"vehiclePin":null,"wireColor":null,"electricalSpecRef":null,"reviewed":false,"requirements":["reviewed protection/current limiting","documented grounding","vehicle-specific rating from authorized documentation"]},
+    {"id":"CAN-RX","direction":"rx-only","vehicleConnectorRef":null,"vehiclePin":null,"wireColor":null,"electricalSpecRef":null,"reviewed":false,"txPathPresent":false,"requirements":["TX path absent or physically disabled","independent bus analyzer verifies no KINGMAST transmit","vehicle-specific mapping from authorized documentation"]},
+    {"id":"RADAR-RX","direction":"rx-only","vehicleConnectorRef":null,"vehiclePin":null,"wireColor":null,"electricalSpecRef":null,"reviewed":false,"requirements":["bounded observation protocol","freshness/sequence timestamps"]},
+    {"id":"CAM-RX","direction":"rx-only","vehicleConnectorRef":null,"vehiclePin":null,"wireColor":null,"electricalSpecRef":null,"reviewed":false,"requirements":["time synchronization","calibration revision binding"]},
+    {"id":"DMS-RX","direction":"rx-only","vehicleConnectorRef":null,"vehiclePin":null,"wireColor":null,"electricalSpecRef":null,"reviewed":false,"requirements":["time synchronization","no raw cabin video in repository evidence"]},
+    {"id":"GNSS-RX","direction":"rx-only","vehicleConnectorRef":null,"vehiclePin":null,"wireColor":null,"electricalSpecRef":null,"reviewed":false,"requirements":["quality/time metadata","jump-loss-recovery stimulus support"]},
+    {"id":"TIME-REF","direction":"reference-in","vehicleConnectorRef":null,"vehiclePin":null,"wireColor":null,"electricalSpecRef":null,"reviewed":false,"requirements":["documented time source","bounded synchronization uncertainty"]}
+  ],
+  "mappingEvidence": {
+    "vehiclePlatform": null,
+    "authorizedSourceRef": null,
+    "sourceRevision": null,
+    "mappingArtifactSha256": null,
+    "reviewer": null,
+    "reviewedAt": null,
+    "disposition": "pending"
+  },
+  "promotionRule": {
+    "allInterfacesReviewedRequired": true,
+    "independentHarnessReviewRequired": true,
+    "sha256MappingArtifactRequired": true,
+    "automaticPromotion": false,
+    "targetHardwareQualified": false,
+    "publicRoadApproved": false
+  },
+  "notes": [
+    "This template intentionally contains no vehicle connector pin positions, wire colors, fuse values or vendor-specific electrical limits.",
+    "Populate only from authorized vehicle electrical documentation or reviewed adapter/harness documentation.",
+    "KINGMAST remains warning-only SAE Level 0 with no steering, braking, throttle, gear, torque, drivetrain or CAN-write authority."
+  ]
+}

@@ -1,0 +1,64 @@
+name: Physical Provisioning Preparation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/validation/hardware/V006_HARNESS_MAPPING_TEMPLATE.json'
+      - 'docs/validation/hardware/V006_DEVICE_PROVISIONING_TEMPLATE.json'
+      - 'docs/validation/sensors/V006_CALIBRATION_CAPTURE_TEMPLATE.json'
+      - 'docs/validation/hil/V006_HIL_BENCH_MATRIX.json'
+      - 'docs/validation/hardware/V006_PHYSICAL_BENCH_EXECUTION_PACK.json'
+      - 'docs/validation/sensors/V006_SENSOR_CALIBRATION_LIFECYCLE.json'
+      - 'docs/validation/hil/V006_HIL_EXECUTION_MANIFEST.json'
+      - 'scripts/physical-provisioning-pack-check.mjs'
+      - '.github/workflows/physical-provisioning-preparation.yml'
+  pull_request:
+    paths:
+      - 'docs/validation/hardware/V006_HARNESS_MAPPING_TEMPLATE.json'
+      - 'docs/validation/hardware/V006_DEVICE_PROVISIONING_TEMPLATE.json'
+      - 'docs/validation/sensors/V006_CALIBRATION_CAPTURE_TEMPLATE.json'
+      - 'docs/validation/hil/V006_HIL_BENCH_MATRIX.json'
+      - 'docs/validation/hardware/V006_PHYSICAL_BENCH_EXECUTION_PACK.json'
+      - 'docs/validation/sensors/V006_SENSOR_CALIBRATION_LIFECYCLE.json'
+      - 'docs/validation/hil/V006_HIL_EXECUTION_MANIFEST.json'
+      - 'scripts/physical-provisioning-pack-check.mjs'
+      - '.github/workflows/physical-provisioning-preparation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingmast-physical-provisioning-preparation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provisioning-preparation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+      - name: Validate harness, provisioning, calibration and HIL bench contracts
+        run: node scripts/physical-provisioning-pack-check.mjs
+      - name: Generate fail-closed physical provisioning readiness report
+        run: |
+          node scripts/physical-provisioning-pack-check.mjs --json > "$RUNNER_TEMP/kingmast.physical-provisioning-readiness.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.physical-provisioning-readiness.json'); if(r.schema!=='kingmast-physical-provisioning-readiness-report/v1'||r.controlAuthority!=='none'||r.softwarePreparationScorePercent!==100||r.vehicleHarnessMappingCompletionPercent!==0||r.physicalProvisioningCompletionPercent!==0||r.physicalCalibrationCompletionPercent!==0||r.physicalHilExecutionCompletionPercent!==0||r.harnessInterfaces!==7||r.provisionTargets!==7||r.calibrationGroups!==4||r.hilScenarios!==12||r.canTxPathPresent!==false||r.physicalProvisioningExecuted!==false||r.physicalCalibrationExecuted!==false||r.physicalHilExecuted!==false||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.failures.length!==0) process.exit(1); console.log('KINGMAST physical provisioning preparation: software 100%; harness/provisioning/calibration/HIL physical execution all 0%.');"
+      - name: Upload provisioning/calibration preparation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-physical-provisioning-preparation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/kingmast.physical-provisioning-readiness.json
+            docs/validation/hardware/V006_HARNESS_MAPPING_TEMPLATE.json
+            docs/validation/hardware/V006_DEVICE_PROVISIONING_TEMPLATE.json
+            docs/validation/sensors/V006_CALIBRATION_CAPTURE_TEMPLATE.json
+            docs/validation/hil/V006_HIL_BENCH_MATRIX.json
+          if-no-files-found: error
+          retention-days: 14

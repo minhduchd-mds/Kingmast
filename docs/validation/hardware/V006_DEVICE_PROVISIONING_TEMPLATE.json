@@ -1,0 +1,63 @@
+{
+  "schema": "kingmast-device-provisioning-template/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "template-only-unprovisioned",
+  "physicalProvisioningExecuted": false,
+  "automaticApproval": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "privacy": {
+    "rawSerialStorageProhibited": true,
+    "secretsProhibited": true,
+    "preciseCoordinatesProhibited": true,
+    "rawCabinVideoProhibited": true,
+    "rawCameraFramesProhibited": true
+  },
+  "requiredFields": [
+    "hardwareInstanceSha256",
+    "firmwareRevision",
+    "configurationRevision",
+    "harnessRevision",
+    "sourceSoftwareCommit",
+    "evidenceRefs",
+    "independentReview"
+  ],
+  "devices": [
+    {"id":"vehicle-computer-aarch64","category":"vehicle-computer"},
+    {"id":"display-primary","category":"display"},
+    {"id":"front-radar","category":"sensor"},
+    {"id":"surround-camera-set","category":"sensor"},
+    {"id":"dms-camera","category":"sensor"},
+    {"id":"gnss-imu","category":"sensor"},
+    {"id":"read-only-can-interface","category":"interface"}
+  ],
+  "records": [],
+  "captureTemplate": {
+    "deviceId": null,
+    "hardwareInstanceSha256": null,
+    "firmwareRevision": null,
+    "configurationRevision": null,
+    "harnessRevision": null,
+    "sourceSoftwareCommit": null,
+    "capturedAt": null,
+    "operator": null,
+    "evidenceRefs": [],
+    "independentReview": null,
+    "status": "unprovisioned"
+  },
+  "promotionRule": {
+    "sourceCommitBindingRequired": true,
+    "sha256HardwareIdentityRequired": true,
+    "sha256EvidenceBindingRequired": true,
+    "independentReviewRequired": true,
+    "reviewerMustDifferFromOperator": true,
+    "registryMutationByAutomation": false,
+    "automaticQualification": false
+  },
+  "notes": [
+    "Raw serial numbers and secrets are not stored in repository evidence; use bounded hashed hardware-instance identities.",
+    "A software build, CI run or simulator result cannot provision or qualify a physical device.",
+    "Provisioned hardware remains subject to independent review and downstream calibration/HIL evidence."
+  ]
+}

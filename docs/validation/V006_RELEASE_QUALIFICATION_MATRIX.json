@@ -10,18 +10,64 @@
   "toolchain": {
     "nodeMajor": 22,
     "pnpm": "10.34.0",
-    "hmi": {"next": "^16.3.4", "react": "^19.2.8", "typescript": "^7.0.2"},
-    "riskEngine": {"fastify": "^5.6.0", "zod": "^4.1.5", "typescript": "^5.9.2"}
+    "hmi": {
+      "next": "^16.3.4",
+      "react": "^19.2.8",
+      "typescript": "^7.0.2"
+    },
+    "riskEngine": {
+      "fastify": "^5.6.0",
+      "zod": "^4.1.5",
+      "typescript": "^5.9.2"
+    }
   },
   "displayClasses": [
-    {"id":"vehicle-primary-1366x768","width":1366,"height":768,"status":"ci-ui-regression-covered","evidence":["apps/hmi/tests/ui.spec.ts","apps/hmi/tests/surround-visualization.spec.ts","apps/hmi/tests/performance-evidence.spec.ts"]},
-    {"id":"vehicle-wide-1920x720","width":1920,"height":720,"status":"ci-ui-regression-covered","evidence":["apps/hmi/tests/surround-visualization.spec.ts"]},
-    {"id":"vehicle-compact-1280x480","width":1280,"height":480,"status":"ci-ui-regression-covered","evidence":["apps/hmi/tests/surround-visualization.spec.ts"]}
+    {
+      "id": "vehicle-primary-1366x768",
+      "width": 1366,
+      "height": 768,
+      "status": "ci-ui-regression-covered",
+      "evidence": [
+        "apps/hmi/tests/ui.spec.ts",
+        "apps/hmi/tests/surround-visualization.spec.ts",
+        "apps/hmi/tests/performance-evidence.spec.ts"
+      ]
+    },
+    {
+      "id": "vehicle-wide-1920x720",
+      "width": 1920,
+      "height": 720,
+      "status": "ci-ui-regression-covered",
+      "evidence": [
+        "apps/hmi/tests/surround-visualization.spec.ts"
+      ]
+    },
+    {
+      "id": "vehicle-compact-1280x480",
+      "width": 1280,
+      "height": 480,
+      "status": "ci-ui-regression-covered",
+      "evidence": [
+        "apps/hmi/tests/surround-visualization.spec.ts"
+      ]
+    }
   ],
   "vehicleComputerTargets": [
-    {"id":"ci-linux-x64","status":"software-regression-only","targetHardwareEvidenceRequired":true},
-    {"id":"vehicle-computer-aarch64","status":"planned-target-class","targetHardwareEvidenceRequired":true},
-    {"id":"production-vehicle-computer","status":"not-qualified","targetHardwareEvidenceRequired":true}
+    {
+      "id": "ci-linux-x64",
+      "status": "software-regression-only",
+      "targetHardwareEvidenceRequired": true
+    },
+    {
+      "id": "vehicle-computer-aarch64",
+      "status": "planned-target-class",
+      "targetHardwareEvidenceRequired": true
+    },
+    {
+      "id": "production-vehicle-computer",
+      "status": "not-qualified",
+      "targetHardwareEvidenceRequired": true
+    }
   ],
   "compatibility": {
     "edgeProtocolVersion": 1,
@@ -33,6 +79,10 @@
     "qualificationReadinessDashboard": "docs/validation/QUALIFICATION_READINESS_DASHBOARD_V006.md",
     "physicalBenchExecutionPack": "docs/validation/hardware/V006_PHYSICAL_BENCH_EXECUTION_PACK.json",
     "physicalBenchRunbook": "docs/validation/hardware/V006_PHYSICAL_BENCH_RUNBOOK.md",
+    "harnessMappingTemplate": "docs/validation/hardware/V006_HARNESS_MAPPING_TEMPLATE.json",
+    "deviceProvisioningTemplate": "docs/validation/hardware/V006_DEVICE_PROVISIONING_TEMPLATE.json",
+    "calibrationCaptureTemplate": "docs/validation/sensors/V006_CALIBRATION_CAPTURE_TEMPLATE.json",
+    "hilBenchMatrix": "docs/validation/hil/V006_HIL_BENCH_MATRIX.json",
     "configurationRevisionPolicy": "explicit external revision required for target-hardware evidence",
     "calibrationRevisionPolicy": "explicit external revision required for target-hardware evidence",
     "rollbackEvidenceRequired": true

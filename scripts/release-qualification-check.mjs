@@ -41,7 +41,11 @@ for(const [label,path] of [
   ['sensor calibration lifecycle',matrix.compatibility?.sensorCalibrationLifecycle],
   ['qualification readiness dashboard',matrix.compatibility?.qualificationReadinessDashboard],
   ['physical bench execution pack',matrix.compatibility?.physicalBenchExecutionPack],
-  ['physical bench runbook',matrix.compatibility?.physicalBenchRunbook]
+  ['physical bench runbook',matrix.compatibility?.physicalBenchRunbook],
+  ['harness mapping template',matrix.compatibility?.harnessMappingTemplate],
+  ['device provisioning template',matrix.compatibility?.deviceProvisioningTemplate],
+  ['calibration capture template',matrix.compatibility?.calibrationCaptureTemplate],
+  ['HIL bench matrix',matrix.compatibility?.hilBenchMatrix]
 ])expect(`${label} exists`,existsSync(path??''));
 expect('configuration revision is required for target hardware',String(matrix.compatibility?.configurationRevisionPolicy??'').includes('explicit external revision required'));
 expect('calibration revision is required for target hardware',String(matrix.compatibility?.calibrationRevisionPolicy??'').includes('explicit external revision required'));
@@ -72,4 +76,4 @@ if(failures.length){
   console.error(`KINGMAST release qualification policy failed:\n${failures.map((item)=>`- ${item}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, physical bench/calibration/HIL preparation contracts present, no target-hardware/public-road qualification claim.`);
+console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, bench/harness/provisioning/calibration/HIL preparation contracts present, no target-hardware/public-road qualification claim.`);
