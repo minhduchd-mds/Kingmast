@@ -38,7 +38,7 @@ expect('external provider requires TLS except loopback',provider.includes("url.p
 expect('provider obtains grounded plan before answering',provider.includes('/v3/assistant/plan')&&provider.includes('fetchGroundedPlan(input)'));
 expect('provider sends no actuator tool surface',provider.includes("controlAuthority:'none'")&&!provider.includes('tools:[{')&&!provider.includes('functions:['));
 expect('provider uses deterministic fallback',provider.includes('deterministicAnswer')&&provider.includes("'offline-fallback'")&&provider.includes("'grounded-fallback'"));
-expect('device metadata is bounded and excludes raw identity fields',provider.includes('slice(0,16)')&&provider.includes('faults.slice(0,8)')&&!provider.includes('serialNumber')&&!provider.includes('rawVideo')&&!provider.includes('coordinates'));
+expect('device metadata is bounded and excludes raw identity fields',provider.includes('value.slice(0,16)')&&provider.includes('rawFaults.slice(0,8)')&&!provider.includes('serialNumber')&&!provider.includes('rawVideo')&&!provider.includes('coordinates'));
 expect('risk assistant allowlist remains read-only',riskAssistant.includes('ASSISTANT_TOOL_ALLOWLIST')&&!riskAssistant.match(/AssistantTool=.*brake|AssistantTool=.*steer|AssistantTool=.*throttle|AssistantTool=.*gear|AssistantTool=.*torque|AssistantTool=.*can\.write/i));
 expect('Vietnamese no-diacritic normalization exists',riskAssistant.includes("normalize('NFD')")&&riskAssistant.includes("replace(/đ/g,'d')"));
 
