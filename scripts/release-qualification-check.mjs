@@ -34,11 +34,15 @@ expect('risk Zod version matches package',dependencyMatches(risk.dependencies?.z
 expect('risk TypeScript version matches package',dependencyMatches(risk.devDependencies?.typescript,matrix.toolchain?.riskEngine?.typescript));
 expect('edge protocol remains v1',matrix.compatibility?.edgeProtocolVersion===1);
 expect('rollback evidence is required',matrix.compatibility?.rollbackEvidenceRequired===true);
-expect('firmware trust evidence exists',existsSync(matrix.compatibility?.firmwareTrustEvidence??''));
-expect('A/B recovery evidence exists',existsSync(matrix.compatibility?.abRecoveryModel??''));
-expect('hardware qualification matrix exists',existsSync(matrix.compatibility?.hardwareQualificationMatrix??''));
-expect('sensor calibration lifecycle exists',existsSync(matrix.compatibility?.sensorCalibrationLifecycle??''));
-expect('qualification readiness dashboard exists',existsSync(matrix.compatibility?.qualificationReadinessDashboard??''));
+for(const [label,path] of [
+  ['firmware trust evidence',matrix.compatibility?.firmwareTrustEvidence],
+  ['A/B recovery model',matrix.compatibility?.abRecoveryModel],
+  ['hardware qualification matrix',matrix.compatibility?.hardwareQualificationMatrix],
+  ['sensor calibration lifecycle',matrix.compatibility?.sensorCalibrationLifecycle],
+  ['qualification readiness dashboard',matrix.compatibility?.qualificationReadinessDashboard],
+  ['physical bench execution pack',matrix.compatibility?.physicalBenchExecutionPack],
+  ['physical bench runbook',matrix.compatibility?.physicalBenchRunbook]
+])expect(`${label} exists`,existsSync(path??''));
 expect('configuration revision is required for target hardware',String(matrix.compatibility?.configurationRevisionPolicy??'').includes('explicit external revision required'));
 expect('calibration revision is required for target hardware',String(matrix.compatibility?.calibrationRevisionPolicy??'').includes('explicit external revision required'));
 expect('display classes are defined',Array.isArray(matrix.displayClasses)&&matrix.displayClasses.length>=3);
@@ -50,10 +54,22 @@ for(const display of matrix.displayClasses??[]){
 expect('vehicle-computer targets are explicit',Array.isArray(matrix.vehicleComputerTargets)&&matrix.vehicleComputerTargets.length>=3);
 for(const target of matrix.vehicleComputerTargets??[])expect(`target ${target.id} still requires physical evidence`,target.targetHardwareEvidenceRequired===true);
 const gate3=new Set(matrix.gate3RequiredEvidence??[]);
-for(const required of ['target vehicle-computer identity and OS image','firmware revision and signed-manifest evidence','configuration revision','sensor calibration revision','long-duration resource soak','fault injection and degraded-mode evidence','controlled closed-track test record','review approval with no public-road authorization implied'])expect(`Gate-3 requirement: ${required}`,gate3.has(required));
+for(const required of [
+  'target vehicle-computer identity and OS image',
+  'firmware revision and signed-manifest evidence',
+  'configuration revision',
+  'sensor calibration revision',
+  'physical bench and harness review',
+  'device provisioning identity and source-commit binding',
+  'physical sensor calibration capture and independent review',
+  'long-duration resource soak',
+  'fault injection and degraded-mode evidence',
+  'controlled closed-track test record',
+  'review approval with no public-road authorization implied'
+])expect(`Gate-3 requirement: ${required}`,gate3.has(required));
 
 if(failures.length){
   console.error(`KINGMAST release qualification policy failed:\n${failures.map((item)=>`- ${item}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, no target-hardware/public-road qualification claim.`);
+console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, physical bench/calibration/HIL preparation contracts present, no target-hardware/public-road qualification claim.`);

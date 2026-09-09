@@ -1,0 +1,107 @@
+{
+  "schema": "kingmast-physical-bench-execution-pack/v2",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "preparation-only-no-physical-execution",
+  "physicalBenchExecuted": false,
+  "automaticQualification": false,
+  "targetHardwareQualified": false,
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "roles": [
+    ["bench-controller", "compute"],
+    ["bench-display", "display"],
+    ["read-only-can", "interface"],
+    ["front-radar", "sensor-or-emulator"],
+    ["surround-camera", "sensor-or-emulator"],
+    ["dms", "sensor-or-emulator"],
+    ["gnss-imu", "sensor-or-emulator"],
+    ["time-sync", "instrumentation"],
+    ["bus-analyzer", "instrumentation"],
+    ["bench-power", "instrumentation"]
+  ],
+  "controls": {
+    "guessVehiclePinout": false,
+    "modifyVehicleConnectorWithoutReview": false,
+    "canTx": false,
+    "writableBusApi": false,
+    "actuationAuthority": false,
+    "rawSerialsInRepo": false,
+    "secretsInRepo": false,
+    "rawCabinVideoInRepo": false,
+    "rawCameraFramesInRepo": false,
+    "emergencyPowerIsolationRequired": true,
+    "independentHarnessReviewRequired": true
+  },
+  "harness": {
+    "vehicleSpecificPinoutValidated": false,
+    "canTxPathPresent": false,
+    "interfaces": [
+      {"id":"PWR","direction":"power-in","vehiclePin":null,"requirements":["reviewed protection/current limiting","documented grounding"]},
+      {"id":"CAN-RX","direction":"rx-only","vehiclePin":null,"requirements":["TX path absent or physically disabled","independent bus analyzer verifies no transmit"]},
+      {"id":"RADAR-RX","direction":"rx-only","vehiclePin":null,"requirements":["bounded observation protocol","freshness/sequence timestamps"]},
+      {"id":"CAM-RX","direction":"rx-only","vehiclePin":null,"requirements":["time synchronization","calibration revision binding"]},
+      {"id":"DMS-RX","direction":"rx-only","vehiclePin":null,"requirements":["time synchronization","no raw cabin video in repository evidence"]},
+      {"id":"GNSS-RX","direction":"rx-only","vehiclePin":null,"requirements":["quality/time metadata","jump-loss-recovery stimulus support"]},
+      {"id":"TIME-REF","direction":"reference-in","vehiclePin":null,"requirements":["documented time source","bounded synchronization uncertainty"]}
+    ]
+  },
+  "provisioning": {
+    "state": "unprovisioned",
+    "automaticApproval": false,
+    "rawSerialStorageProhibited": true,
+    "devices": ["vehicle-computer-aarch64","display-primary","front-radar","surround-camera-set","dms-camera","gnss-imu","read-only-can-interface"],
+    "identityFields": ["hardwareInstanceSha256","firmwareRevision","configurationRevision","harnessRevision","sourceSoftwareCommit","evidenceRefs","independentReview"],
+    "sourceCommitBindingRequired": true,
+    "sha256EvidenceBindingRequired": true,
+    "independentReviewRequired": true
+  },
+  "calibration": {
+    "status": "template-only-no-physical-calibration",
+    "automaticPromotion": false,
+    "productionThresholdMutation": false,
+    "sensors": ["front-radar","surround-camera-set","dms-camera","gnss-imu"],
+    "captureFields": ["sensorId","hardwareInstanceSha256","firmwareRevision","configurationRevision","mountingOrHarnessRevision","sourceSoftwareCommit","calibrationProcedureRef","calibrationRevision","calibrationArtifactSha256","timeSyncRef","startedAt","finishedAt","operator","reviewer","measurementRefs","resultDisposition"],
+    "reviewerMustDifferFromOperator": true,
+    "sha256BindingRequired": true,
+    "initialDisposition": "captured-awaiting-independent-review"
+  },
+  "hil": {
+    "status": "preparation-only-no-hil-execution",
+    "physicalHilExecuted": false,
+    "entry": ["bench/harness reviewed","build/firmware/config/calibration frozen","time-sync/logging ready","operator and independent reviewer assigned","isolated approved bench only","no actuation or CAN-write path"],
+    "abort": ["unexpected KINGMAST transmit activity","loss of electrical isolation","loss of synchronized logging","stimulus leaves approved envelope","unsafe temperature or instrumentation fault"],
+    "commonEvidence": ["source commit/build","bench/equipment identities","synchronized timestamps","scenario evidence refs with SHA-256","operator and independent reviewer"],
+    "scenarios": [
+      ["HIL-001","Frozen radar","stale/frozen radar observation","reject/degrade stale range"],
+      ["HIL-002","Replay/clock","duplicate/reordered/clock-invalid packets","reject invalid temporal input"],
+      ["HIL-003","DMS dropout","DMS metadata discontinuity","degrade DMS availability"],
+      ["HIL-004","Surround sync/calibration","surround sync/calibration degradation","degrade surround health/visualization"],
+      ["HIL-005","Device auth","tampered or revoked device identity","reject untrusted device input"],
+      ["HIL-006","Update/rollback","invalid update plus unhealthy boot","reject update and follow reviewed recovery path"],
+      ["HIL-007","Power-loss recovery","controlled isolated-bench update power interruption","recover known-good state or record fail"],
+      ["HIL-008","CAN receive loss","remove CAN receive observations","degrade CAN-dependent confidence; no transmit"],
+      ["HIL-009","GNSS jump/loss","GNSS jump/loss/recovery stimulus","degrade and recover only after quality returns"],
+      ["HIL-010","Fusion disagreement","contradictory radar/camera observations","expose fusion uncertainty/degradation"],
+      ["HIL-011","Restart/reconnect","restart service during bounded soak","bounded reconnect/recovery evidence"],
+      ["HIL-012","Read-only CAN boundary","observe bus during receive-only workload","independent evidence of no KINGMAST transmit"]
+    ],
+    "initialResult": "captured-awaiting-independent-review",
+    "automaticRegistryMutation": false,
+    "independentReviewRequired": true,
+    "ciOrSimulationCannotSatisfyPhysicalEvidence": true
+  },
+  "externalContracts": [
+    "docs/architecture/READ_ONLY_VEHICLE_PORT.md",
+    "docs/validation/hardware/V006_HARDWARE_QUALIFICATION_MATRIX.json",
+    "docs/validation/sensors/V006_SENSOR_CALIBRATION_LIFECYCLE.json",
+    "docs/validation/hil/V006_HIL_EXECUTION_MANIFEST.json",
+    "docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json",
+    "docs/validation/runtime/V006_TARGET_SOAK_CAPTURE.json"
+  ],
+  "notes": [
+    "No vehicle connector position, wire color, fuse/current rating or vendor-specific power limit is guessed in this baseline.",
+    "Vehicle-specific mapping must come from authorized documentation or a reviewed adapter supplier.",
+    "KINGMAST remains warning-only SAE Level 0 with no steering, braking, throttle, gear, torque, drivetrain or CAN-write authority."
+  ]
+}
