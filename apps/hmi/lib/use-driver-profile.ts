@@ -57,6 +57,7 @@ function applyToDocument(profile: DriverProfilePreferences) {
   root.dataset.kingmastContrast = profile.contrast;
   root.dataset.kingmastMotion = profile.motion;
   root.dataset.kingmastLocale = profile.locale;
+  root.lang = profile.locale === 'vi-VN' ? 'vi' : 'en';
 }
 
 function readStoredProfile() {
