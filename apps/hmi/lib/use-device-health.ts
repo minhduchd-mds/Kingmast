@@ -46,6 +46,7 @@ interface NativeDeviceBridge {
   getState: () => Promise<DeviceHealthSnapshot>;
   diagnose?: (deviceId: string) => Promise<DeviceHealthSnapshot>;
   setProfile?: (profileId: string) => Promise<DeviceHealthSnapshot>;
+  subscribe?: (listener: (snapshot:DeviceHealthSnapshot) => void) => (() => void) | void;
 }
 
 const EXPECTED_DEVICES: DeviceHealthRecord[] = [
@@ -69,6 +70,7 @@ function fallbackSnapshot(): DeviceHealthSnapshot {
 
 export function useDeviceHealth() {
   const [mode, setMode] = useState<'native'|'host-managed'>('host-managed');
+  const [monitoring, setMonitoring] = useState<'events'|'polling'|'unavailable'>('unavailable');
   const [snapshot, setSnapshot] = useState<DeviceHealthSnapshot>(fallbackSnapshot);
   const [busyDeviceId, setBusyDeviceId] = useState<string | null>(null);
   const [profileBusy, setProfileBusy] = useState(false);
@@ -76,13 +78,33 @@ export function useDeviceHealth() {
 
   const refresh = useCallback(async () => {
     const native = bridge();
-    if (!native) { setMode('host-managed'); setSnapshot(fallbackSnapshot()); setError(null); return; }
+    if (!native) { setMode('host-managed'); setMonitoring('unavailable'); setSnapshot(fallbackSnapshot()); setError(null); return; }
     setMode('native');
     try { setSnapshot(await native.getState()); setError(null); }
     catch { setError('Unable to read device state from the vehicle host.'); }
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    const native=bridge();
+    if(!native)return;
+    let disposed=false;
+    if(typeof native.subscribe==='function'){
+      try{
+        const unsubscribe=native.subscribe((next)=>{if(disposed)return;setMode('native');setSnapshot(next);setError(null);});
+        setMonitoring('events');
+        return ()=>{disposed=true;if(typeof unsubscribe==='function')unsubscribe();};
+      }catch{
+        // Fall through to bounded polling when the host event channel is unavailable.
+      }
+    }
+    setMonitoring('polling');
+    const timer=window.setInterval(()=>{
+      void native.getState().then((next)=>{if(disposed)return;setMode('native');setSnapshot(next);setError(null);}).catch(()=>{if(!disposed)setError('Live device refresh failed. Manual refresh remains available.');});
+    },3000);
+    return ()=>{disposed=true;window.clearInterval(timer);};
+  },[]);
 
   const diagnose = useCallback(async (deviceId:string) => {
     const native = bridge();
@@ -109,5 +131,5 @@ export function useDeviceHealth() {
     warnings: snapshot.devices.filter((device)=>device.health==='warning'||device.health==='calibration-required').length,
   }), [snapshot.devices]);
 
-  return useMemo(() => ({ mode, ...snapshot, counts, busyDeviceId, profileBusy, error, refresh, diagnose, setProfile, canDiagnose:typeof bridge()?.diagnose==='function', canSetProfile:typeof bridge()?.setProfile==='function' }), [busyDeviceId, counts, diagnose, error, profileBusy, refresh, setProfile, snapshot, mode]);
+  return useMemo(() => ({ mode, monitoring, ...snapshot, counts, busyDeviceId, profileBusy, error, refresh, diagnose, setProfile, canDiagnose:typeof bridge()?.diagnose==='function', canSetProfile:typeof bridge()?.setProfile==='function' }), [busyDeviceId, counts, diagnose, error, monitoring, profileBusy, refresh, setProfile, snapshot, mode]);
 }
