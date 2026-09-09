@@ -1,0 +1,72 @@
+/* KINGMAST v0.0.7 performance layer.
+   Keep continuously visible driver surfaces compositor-friendly while preserving
+   warning-only authority and existing semantic colors. */
+
+/* Current software identity overrides legacy visual text without rewriting V006 evidence. */
+.hmiV5 .hmiTopbar::after{content:"v0.0.7"}
+
+/* Avoid large full-surface backdrop sampling on every frame. The surfaces remain
+   visually opaque enough to preserve the Apple-inspired material hierarchy. */
+.hmiV5 .sidebar,
+.hmiV5 .surface,
+.driverActionDock{
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+.hmiV5 .sidebar{background:rgba(13,15,19,.97)}
+.hmiV5 .surface{background:linear-gradient(150deg,rgba(28,31,38,.975),rgba(16,18,23,.99))}
+.driverActionDock{background:rgba(17,19,24,.975)}
+.theme-day .driverActionDock,.theme-day~.driverActionDock{background:rgba(246,247,250,.985)}
+
+/* Bound expensive spatial paints to their own regions. */
+.hmiV5 .v5RoadScene,
+.surroundSpatialLayer{
+  contain:paint;
+  transform:translateZ(0);
+  backface-visibility:hidden;
+}
+
+/* Keep continuous surround motion on transform-only compositor paths. */
+.surroundScanSweep{
+  will-change:transform;
+  transform:translate3d(-50%,-50%,0) rotate(0deg);
+}
+.surroundSensorField,
+.surroundMarkerRay,
+.surroundMarker::before{
+  filter:none!important;
+}
+.surroundMarkerCopy{
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  background:linear-gradient(145deg,rgba(13,20,28,.97),rgba(7,11,16,.985));
+}
+.surroundMarker.range-near .surroundMarkerTarget{
+  animation:kingmastTargetTransformOnly 2.5s cubic-bezier(.4,0,.2,1) infinite;
+  will-change:transform;
+}
+@keyframes surroundScanRotate{
+  to{transform:translate3d(-50%,-50%,0) rotate(360deg)}
+}
+@keyframes kingmastTargetTransformOnly{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.035)}
+}
+
+/* Startup now represents host truth rather than a timer-based ready claim. */
+.startupChip.isWaiting{opacity:.82;transform:none;border-color:rgba(64,156,255,.16)}
+.startupChip.isWaiting>svg:last-child{color:#70b5ff}
+.startupChip.isWaiting small{color:#9bbce6}
+.startupChip.isAttention{opacity:1;transform:none;border-color:rgba(255,214,10,.24)}
+.startupChip.isAttention>svg:last-child{color:var(--apple-yellow)}
+.startupChip.isAttention small{color:#e1c874}
+.startupChip.isUnavailable{opacity:.9;transform:none;border-color:rgba(160,166,178,.16)}
+.startupChip.isUnavailable>svg:last-child{color:#8f96a3}
+.startupChip.isUnavailable small{color:#9a9fa9}
+.startupReadyChip.isAttention{background:linear-gradient(180deg,rgba(66,54,18,.46),rgba(30,25,12,.78))}
+.startupReadyChip.isUnavailable{background:linear-gradient(180deg,rgba(35,39,48,.78),rgba(16,18,23,.9))}
+
+@media(prefers-reduced-motion:reduce){
+  .surroundScanSweep,
+  .surroundMarker.range-near .surroundMarkerTarget{animation:none!important;will-change:auto}
+}
