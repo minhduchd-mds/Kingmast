@@ -1,4 +1,4 @@
-# KINGMAST v0.0.6 — Automotive Motion & Interaction Rules
+# KINGMAST v0.0.7 — Automotive Motion & Interaction Rules
 
 Status: development guidance for the warning-only HMI. This document does not define an official Apple CarPlay implementation. KINGMAST is an original OEM-style automotive interface inspired by Apple HIG principles such as clarity, hierarchy, restraint, accessibility, and predictable interaction.
 
