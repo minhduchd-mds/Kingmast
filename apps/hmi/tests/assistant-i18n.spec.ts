@@ -74,12 +74,48 @@ test.describe('KINGMAST Vietnamese localization and Assistant V1',()=>{
       (window as any).kingmastNative={voice:{listen:async()=>({text:'Thiết bị nào đang lỗi?'}),speak:async({text}:{text:string})=>{(window as any).__spoken.push(text);}}};
     });
     await page.route('**/api/kingmast/assistant',async(route)=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({answer:'Không có thiết bị nào đang báo lỗi trong ngữ cảnh hiện tại.',mode:'grounded-fallback',grounded:true,executionAllowed:true,providerConfigured:false,controlAuthority:'none'})}));
+    await page.route('**/api/kingmast/tts',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'neural-tts-not-configured'})}));
     await boot(page,'vi-VN');
     await page.getByRole('button',{name:'Mở Trợ lý KINGMAST'}).click();
     const assistant=page.getByTestId('kingmast-assistant');
     await assistant.getByRole('button',{name:'Nhập bằng giọng nói'}).click();
     await expect(assistant).toContainText('Không có thiết bị nào đang báo lỗi trong ngữ cảnh hiện tại.');
     await expect.poll(()=>page.evaluate(()=>(window as any).__spoken.length)).toBeGreaterThan(0);
+  });
+
+  test('spoken traffic request updates the grounded route and reports traffic provenance',async({page})=>{
+    await page.addInitScript(()=>{
+      (window as any).kingmastNative={voice:{listen:async()=>({text:'Tìm đường ít tắc tới Hồ Gươm'}),speak:async()=>{}}};
+    });
+    await page.route('**/v4/navigation/search**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({places:[{id:'ho-guom',name:'Hồ Gươm',subtitle:'Hoàn Kiếm, Hà Nội',position:{lat:21.0287,lng:105.852},source:'geocoder'}]})}));
+    await page.route('**/v5/navigation/alternatives',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({routes:[{id:'route-google-0',label:'Recommended · live traffic',estimatedEnergyKwh:.6,estimatedArrivalBatteryPct:74,reserveMarginPct:59,recommended:true,score:0,route:{provider:'google-routes',origin:{lat:21.04,lng:105.78},destination:{lat:21.0287,lng:105.852},distanceM:6200,durationS:780,geometry:[{lat:21.04,lng:105.78},{lat:21.0287,lng:105.852}],steps:[{instruction:'Đi theo tuyến đã đánh dấu',distanceM:6200,durationS:780,location:{lat:21.04,lng:105.78},roadName:null}],fetchedAtMs:Date.now(),traffic:{aware:true,source:'google-live',delayS:180,observedAtMs:Date.now()}}}]})}));
+    await page.route('**/v5/navigation/intelligence',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({speedZones:[],junctions:[],chargingStations:[],coverage:'unavailable',generatedAtMs:Date.now(),notes:[]})}));
+    await page.route('**/api/kingmast/tts',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'neural-tts-not-configured'})}));
+    await boot(page,'vi-VN');
+    await page.getByRole('button',{name:'Mở Trợ lý KINGMAST'}).click();
+    const assistant=page.getByTestId('kingmast-assistant');
+    await assistant.getByRole('button',{name:'Nhập bằng giọng nói'}).click();
+    await expect(assistant).toContainText('Hồ Gươm');
+    await expect(assistant).toContainText('6.2 km');
+    await expect(assistant).toContainText('giao thông hiện tại');
+    const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('kingmast:v25:route')||'null'));
+    expect(stored?.route?.provider).toBe('google-routes');
+    expect(stored?.route?.traffic?.aware).toBe(true);
+  });
+
+  test('OSRM route fallback never claims live traffic',async({page})=>{
+    await page.route('**/v4/navigation/search**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({places:[{id:'noi-bai',name:'Sân bay Nội Bài',subtitle:'Hà Nội',position:{lat:21.2187,lng:105.804},source:'geocoder'}]})}));
+    await page.route('**/v5/navigation/alternatives',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({routes:[{id:'route-osrm-0',label:'Recommended · routing data',estimatedEnergyKwh:4.5,estimatedArrivalBatteryPct:69,reserveMarginPct:54,recommended:true,score:0,route:{provider:'osrm',origin:{lat:21.04,lng:105.78},destination:{lat:21.2187,lng:105.804},distanceM:28500,durationS:2100,geometry:[{lat:21.04,lng:105.78},{lat:21.2187,lng:105.804}],steps:[{instruction:'Follow route',distanceM:28500,durationS:2100,location:{lat:21.04,lng:105.78},roadName:null}],fetchedAtMs:Date.now(),traffic:{aware:false,source:'none',delayS:null,observedAtMs:null}}}]})}));
+    await page.route('**/v5/navigation/intelligence',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({speedZones:[],junctions:[],chargingStations:[],coverage:'unavailable',generatedAtMs:Date.now(),notes:[]})}));
+    await page.route('**/api/kingmast/tts',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'neural-tts-not-configured'})}));
+    await boot(page,'vi-VN');
+    await page.getByRole('button',{name:'Mở Trợ lý KINGMAST'}).click();
+    const assistant=page.getByTestId('kingmast-assistant');
+    await assistant.getByRole('textbox').fill('Tìm đường ít tắc tới Sân bay Nội Bài');
+    await assistant.getByRole('button',{name:'Gửi'}).click();
+    await expect(assistant).toContainText('28 km');
+    await expect(assistant).toContainText('chưa có dữ liệu giao thông trực tiếp');
+    await expect(assistant).not.toContainText('giao thông hiện tại tới Sân bay Nội Bài');
   });
 
   test('server assistant route remains read-only and degrades without a provider',async({request})=>{
