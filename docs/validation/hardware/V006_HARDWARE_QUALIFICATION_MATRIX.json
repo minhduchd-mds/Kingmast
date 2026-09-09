@@ -1,0 +1,146 @@
+{
+  "schema": "kingmast-hardware-qualification-matrix/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "qualificationClaim": "preparation-only-no-target-hardware-qualification",
+  "automaticQualification": false,
+  "targetHardwareQualified": false,
+  "physicalVehicleComputerQualified": false,
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "privacy": {
+    "rawHardwareSerialsProhibited": true,
+    "secretsProhibited": true,
+    "preciseCoordinatesProhibited": true,
+    "rawCabinVideoProhibited": true,
+    "rawCameraFramesProhibited": true
+  },
+  "qualificationDimensions": [
+    {"id":"identity-and-build-binding","weightPercent":15,"physicalEvidenceRequired":true},
+    {"id":"firmware-and-boot-trust","weightPercent":15,"physicalEvidenceRequired":true},
+    {"id":"configuration-and-calibration","weightPercent":15,"physicalEvidenceRequired":true},
+    {"id":"runtime-and-resource-envelope","weightPercent":15,"physicalEvidenceRequired":true},
+    {"id":"sensor-health-and-degraded-mode","weightPercent":15,"physicalEvidenceRequired":true},
+    {"id":"read-only-vehicle-authority-boundary","weightPercent":10,"physicalEvidenceRequired":true},
+    {"id":"hil-and-fault-injection","weightPercent":10,"physicalEvidenceRequired":true},
+    {"id":"independent-review","weightPercent":5,"physicalEvidenceRequired":true}
+  ],
+  "targets": [
+    {
+      "id": "vehicle-computer-aarch64",
+      "category": "vehicle-computer",
+      "status": "pending-physical-evidence",
+      "evidence": null,
+      "requiredEvidence": [
+        "bounded hardware target identity and SHA-256 hardware-instance binding",
+        "exact software commit and build identity",
+        "OS image and firmware revision",
+        "signed firmware/update trust evidence",
+        "two-hour-or-longer target soak report",
+        "boot-to-ready and restart/recovery measurements",
+        "runtime thermal/free-memory envelope",
+        "independent hardware review"
+      ]
+    },
+    {
+      "id": "display-primary",
+      "category": "display",
+      "status": "pending-physical-evidence",
+      "evidence": null,
+      "requiredEvidence": [
+        "display controller and panel class identity",
+        "native resolution and refresh characteristics",
+        "physical boot-to-ready measurement",
+        "physical frame/jank measurement",
+        "renderer fallback observation",
+        "independent HMI/human-factors review"
+      ]
+    },
+    {
+      "id": "front-radar",
+      "category": "sensor",
+      "status": "pending-physical-evidence",
+      "evidence": null,
+      "requiredEvidence": [
+        "hashed hardware-instance identity",
+        "firmware revision",
+        "mounting/harness revision",
+        "calibration revision and SHA-256 calibration binding",
+        "freshness and stale-range rejection measurement",
+        "HIL-001 and HIL-010 evidence references"
+      ]
+    },
+    {
+      "id": "surround-camera-set",
+      "category": "sensor",
+      "status": "pending-physical-evidence",
+      "evidence": null,
+      "requiredEvidence": [
+        "hashed camera-set identity",
+        "camera firmware revisions",
+        "mounting/harness revision",
+        "calibration dataset SHA-256",
+        "synchronization/reprojection measurements",
+        "HIL-004 and HIL-010 evidence references"
+      ]
+    },
+    {
+      "id": "dms-camera",
+      "category": "sensor",
+      "status": "pending-physical-evidence",
+      "evidence": null,
+      "requiredEvidence": [
+        "hashed sensor identity",
+        "firmware revision",
+        "mounting/configuration revision",
+        "calibration revision and SHA-256 binding",
+        "temporal dropout/discontinuity measurement",
+        "HIL-003 evidence reference"
+      ]
+    },
+    {
+      "id": "gnss-imu",
+      "category": "sensor",
+      "status": "pending-physical-evidence",
+      "evidence": null,
+      "requiredEvidence": [
+        "hashed receiver identity",
+        "firmware revision",
+        "configuration revision",
+        "time-source and synchronization reference",
+        "jump/loss/recovery measurement",
+        "HIL-009 evidence reference"
+      ]
+    },
+    {
+      "id": "read-only-can-interface",
+      "category": "interface",
+      "status": "pending-physical-evidence",
+      "evidence": null,
+      "requiredEvidence": [
+        "bounded adapter part/revision identity",
+        "harness revision",
+        "documented TX-disable mechanism",
+        "bus-analyzer evidence showing no KINGMAST transmit authority",
+        "CAN receive-loss degraded-mode trace",
+        "HIL-008 and HIL-012 evidence references",
+        "independent hardware/cyber review"
+      ]
+    }
+  ],
+  "promotionRule": {
+    "captureStatus": "captured-awaiting-independent-review",
+    "reviewedPassStatus": "reviewed-pass",
+    "reviewedFailStatus": "reviewed-fail",
+    "sourceCommitBindingRequired": true,
+    "sha256EvidenceBindingRequired": true,
+    "independentReviewerRequired": true,
+    "registryMutationByAutomation": false,
+    "qualificationDecisionOutsideRepositoryAutomation": true
+  },
+  "notes": [
+    "This matrix describes what must be evidenced for a selected hardware baseline; it does not claim that any listed target is qualified.",
+    "CI may validate bookkeeping, schemas and software contracts only. Physical evidence must originate from controlled target/HIL/track execution and remain independently reviewable.",
+    "KINGMAST remains warning-only SAE Level 0 with no steering, braking, throttle, gear, torque, drivetrain or CAN-write authority."
+  ]
+}

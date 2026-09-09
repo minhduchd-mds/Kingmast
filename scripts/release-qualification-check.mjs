@@ -36,6 +36,9 @@ expect('edge protocol remains v1',matrix.compatibility?.edgeProtocolVersion===1)
 expect('rollback evidence is required',matrix.compatibility?.rollbackEvidenceRequired===true);
 expect('firmware trust evidence exists',existsSync(matrix.compatibility?.firmwareTrustEvidence??''));
 expect('A/B recovery evidence exists',existsSync(matrix.compatibility?.abRecoveryModel??''));
+expect('hardware qualification matrix exists',existsSync(matrix.compatibility?.hardwareQualificationMatrix??''));
+expect('sensor calibration lifecycle exists',existsSync(matrix.compatibility?.sensorCalibrationLifecycle??''));
+expect('qualification readiness dashboard exists',existsSync(matrix.compatibility?.qualificationReadinessDashboard??''));
 expect('configuration revision is required for target hardware',String(matrix.compatibility?.configurationRevisionPolicy??'').includes('explicit external revision required'));
 expect('calibration revision is required for target hardware',String(matrix.compatibility?.calibrationRevisionPolicy??'').includes('explicit external revision required'));
 expect('display classes are defined',Array.isArray(matrix.displayClasses)&&matrix.displayClasses.length>=3);

@@ -66,6 +66,9 @@
     "productVersion": "0.0.6",
     "firmwareTrustEvidence": "docs/updates/V006_FIRMWARE_TRUST_EVIDENCE.json",
     "abRecoveryModel": "docs/updates/AB_RECOVERY_MODEL_V006.md",
+    "hardwareQualificationMatrix": "docs/validation/hardware/V006_HARDWARE_QUALIFICATION_MATRIX.json",
+    "sensorCalibrationLifecycle": "docs/validation/sensors/V006_SENSOR_CALIBRATION_LIFECYCLE.json",
+    "qualificationReadinessDashboard": "docs/validation/QUALIFICATION_READINESS_DASHBOARD_V006.md",
     "configurationRevisionPolicy": "explicit external revision required for target-hardware evidence",
     "calibrationRevisionPolicy": "explicit external revision required for target-hardware evidence",
     "rollbackEvidenceRequired": true

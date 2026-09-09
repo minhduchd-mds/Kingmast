@@ -1,0 +1,110 @@
+{
+  "schema": "kingmast-sensor-calibration-lifecycle/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "automaticCalibrationPromotion": false,
+  "productionThresholdMutation": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "states": [
+    "unprovisioned",
+    "provisioned",
+    "calibration-pending",
+    "captured-awaiting-independent-review",
+    "approved",
+    "rejected",
+    "invalidated"
+  ],
+  "transitions": [
+    {"from":"unprovisioned","to":"provisioned","automatic":false,"requiredEvidence":["hashed hardware-instance identity","firmware revision","mounting/harness revision"]},
+    {"from":"provisioned","to":"calibration-pending","automatic":false,"requiredEvidence":["configuration revision","calibration procedure reference","time synchronization reference"]},
+    {"from":"calibration-pending","to":"captured-awaiting-independent-review","automatic":false,"requiredEvidence":["calibration revision","calibration SHA-256","measurement references","measurement SHA-256 bindings","source software commit"]},
+    {"from":"captured-awaiting-independent-review","to":"approved","automatic":false,"requiredEvidence":["independent reviewer","review timestamp","accepted calibration evidence"]},
+    {"from":"captured-awaiting-independent-review","to":"rejected","automatic":false,"requiredEvidence":["independent reviewer","review timestamp","rejection rationale"]},
+    {"from":"approved","to":"invalidated","automatic":false,"requiredEvidence":["invalidation trigger","invalidation timestamp"]},
+    {"from":"rejected","to":"calibration-pending","automatic":false,"requiredEvidence":["corrective action reference"]},
+    {"from":"invalidated","to":"calibration-pending","automatic":false,"requiredEvidence":["recalibration trigger acknowledgement"]}
+  ],
+  "invalidationTriggers": [
+    "hardware-replacement",
+    "mounting-position-or-harness-change",
+    "sensor-firmware-change",
+    "configuration-geometry-change",
+    "calibration-input-change",
+    "clock-or-time-synchronization-loss",
+    "physical-impact-or-maintenance-event",
+    "independent-review-revocation"
+  ],
+  "promotionRule": {
+    "independentReviewRequired": true,
+    "sourceSoftwareCommitBindingRequired": true,
+    "configurationRevisionMatchRequired": true,
+    "firmwareRevisionMatchRequired": true,
+    "sha256EvidenceBindingRequired": true,
+    "automaticPromotion": false,
+    "productionThresholdMutation": false
+  },
+  "sensors": [
+    {
+      "id": "front-radar",
+      "currentState": "unprovisioned",
+      "hardwareInstanceSha256": null,
+      "firmwareRevision": null,
+      "configurationRevision": null,
+      "calibrationRevision": null,
+      "calibrationSha256": null,
+      "sourceSoftwareCommit": null,
+      "approvedAt": null,
+      "reviewer": null,
+      "evidenceRefs": [],
+      "invalidation": null
+    },
+    {
+      "id": "surround-camera-set",
+      "currentState": "unprovisioned",
+      "hardwareInstanceSha256": null,
+      "firmwareRevision": null,
+      "configurationRevision": null,
+      "calibrationRevision": null,
+      "calibrationSha256": null,
+      "sourceSoftwareCommit": null,
+      "approvedAt": null,
+      "reviewer": null,
+      "evidenceRefs": [],
+      "invalidation": null
+    },
+    {
+      "id": "dms-camera",
+      "currentState": "unprovisioned",
+      "hardwareInstanceSha256": null,
+      "firmwareRevision": null,
+      "configurationRevision": null,
+      "calibrationRevision": null,
+      "calibrationSha256": null,
+      "sourceSoftwareCommit": null,
+      "approvedAt": null,
+      "reviewer": null,
+      "evidenceRefs": [],
+      "invalidation": null
+    },
+    {
+      "id": "gnss-imu",
+      "currentState": "unprovisioned",
+      "hardwareInstanceSha256": null,
+      "firmwareRevision": null,
+      "configurationRevision": null,
+      "calibrationRevision": null,
+      "calibrationSha256": null,
+      "sourceSoftwareCommit": null,
+      "approvedAt": null,
+      "reviewer": null,
+      "evidenceRefs": [],
+      "invalidation": null
+    }
+  ],
+  "notes": [
+    "No calibration is approved in this committed baseline. Sensor identities and calibration values remain null until genuine controlled physical work is performed.",
+    "A software build, simulation result or CI run cannot move a sensor into approved state.",
+    "Approved calibration is invalidated by relevant hardware, mounting, firmware, geometry, time-synchronization or maintenance changes and must be re-reviewed before reuse."
+  ]
+}
