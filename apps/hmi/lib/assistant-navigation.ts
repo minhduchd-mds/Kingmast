@@ -8,8 +8,6 @@ export interface AssistantNavigationIntent{destinationQuery:string;preference:As
 export interface AssistantNavigationRequestDetail{requestId:string;destinationQuery:string;preference:AssistantRoutePreference;}
 export interface AssistantNavigationResultDetail{requestId:string;ok:boolean;destinationName:string|null;route:NavigationRoute|null;error:'offline'|'not-found'|'route-unavailable'|null;}
 
-type NavigationEventWindow=Window&{crypto:Crypto};
-
 const VI_PREFIXES=[
   /^(?:kingmast[,.]?\s*)?(?:hãy\s+)?(?:tìm|chỉ|dẫn)\s+(?:cho\s+(?:tôi|mình|anh|em)\s+)?(?:đường|lộ trình|tuyến)\s+(?:đi\s+|đến\s+|tới\s+)?/iu,
   /^(?:kingmast[,.]?\s*)?(?:đường|lộ trình|tuyến)\s+(?:nhanh nhất|ít tắc nhất|đỡ tắc nhất|tránh tắc|không tắc)\s+(?:đến|tới|đi)\s+/iu,
@@ -19,13 +17,14 @@ const EN_PREFIXES=[
   /^(?:kingmast[,.]?\s*)?(?:find|show|give me|navigate|directions?)\s+(?:the\s+)?(?:fastest|best|least congested|traffic-free|route|way)?\s*(?:route|way)?\s*(?:to|toward|for)?\s*/iu,
   /^(?:kingmast[,.]?\s*)?(?:go|take me|navigate me)\s+to\s+/iu,
 ];
+function fold(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase();}
 
 export function parseAssistantNavigationIntent(input:string):AssistantNavigationIntent|null{
   const value=input.replace(/\s+/g,' ').trim();if(value.length<3)return null;
-  const lower=value.toLocaleLowerCase('vi');
-  const traffic=/(ít tắc|đỡ tắc|tránh tắc|không tắc|kẹt xe|ùn tắc|traffic|congestion|least congested|avoid traffic)/iu.test(lower);
-  const fastest=/(nhanh nhất|nhanh hơn|fastest|quickest|best route)/iu.test(lower);
-  const navigationSignal=/(đường|lộ trình|tuyến|chỉ đường|dẫn đường|đi đến|đi tới|navigate|directions?|route|way to|take me)/iu.test(lower);
+  const lower=value.toLocaleLowerCase('vi'),plain=fold(value);
+  const traffic=/(ít tắc|đỡ tắc|tránh tắc|không tắc|kẹt xe|ùn tắc|traffic|congestion|least congested|avoid traffic)/iu.test(lower)||/(it tac|do tac|tranh tac|khong tac|ket xe|un tac)/iu.test(plain);
+  const fastest=/(nhanh nhất|nhanh hơn|fastest|quickest|best route)/iu.test(lower)||/(nhanh nhat|nhanh hon)/iu.test(plain);
+  const navigationSignal=/(đường|lộ trình|tuyến|chỉ đường|dẫn đường|đi đến|đi tới|navigate|directions?|route|way to|take me)/iu.test(lower)||/(duong|lo trinh|tuyen|chi duong|dan duong|di den|di toi)/iu.test(plain);
   if(!navigationSignal)return null;
   let destination=value;
   for(const pattern of [...VI_PREFIXES,...EN_PREFIXES])destination=destination.replace(pattern,'').trim();
@@ -55,5 +54,3 @@ export function requestAssistantNavigation(intent:AssistantNavigationIntent,time
 export function publishAssistantNavigationResult(detail:AssistantNavigationResultDetail){
   window.dispatchEvent(new CustomEvent<AssistantNavigationResultDetail>(ASSISTANT_NAVIGATION_RESULT,{detail}));
 }
-
-void(0 as unknown as NavigationEventWindow);
