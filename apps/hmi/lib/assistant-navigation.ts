@@ -10,7 +10,7 @@ export interface AssistantNavigationResultDetail{requestId:string;ok:boolean;des
 
 const VI_PREFIXES=[
   /^(?:kingmast[,.]?\s*)?(?:hãy\s+)?(?:tìm|chỉ|dẫn)\s+(?:cho\s+(?:tôi|mình|anh|em)\s+)?(?:đường|lộ trình|tuyến)\s+(?:đi\s+|đến\s+|tới\s+)?/iu,
-  /^(?:kingmast[,.]?\s*)?(?:đường|lộ trình|tuyến)\s+(?:nhanh nhất|ít tắc nhất|đỡ tắc nhất|tránh tắc|không tắc)\s+(?:đến|tới|đi)\s+/iu,
+  /^(?:kingmast[,.]?\s*)?(?:đường|lộ trình|tuyến)\s+(?:nhanh nhất|ít tắc(?: nhất)?|đỡ tắc(?: nhất)?|tránh tắc|không tắc)\s+(?:đến|tới|đi)\s+/iu,
   /^(?:kingmast[,.]?\s*)?(?:đi|đến|tới)\s+/iu,
 ];
 const EN_PREFIXES=[
@@ -29,8 +29,10 @@ export function parseAssistantNavigationIntent(input:string):AssistantNavigation
   let destination=value;
   for(const pattern of [...VI_PREFIXES,...EN_PREFIXES])destination=destination.replace(pattern,'').trim();
   destination=destination
-    .replace(/^(?:nhanh nhất|ít tắc nhất|đỡ tắc nhất|tránh tắc|không tắc)\s+(?:đến|tới|đi)?\s*/iu,'')
-    .replace(/\s+(?:nhanh nhất|ít tắc nhất|đỡ tắc nhất|tránh tắc|không tắc)$/iu,'')
+    .replace(/^(?:nhanh nhất|nhanh hơn|ít tắc(?: nhất)?|đỡ tắc(?: nhất)?|tránh tắc|không tắc)\s*(?:đến|tới|đi)?\s*/iu,'')
+    .replace(/^(?:nhanh nhat|nhanh hon|it tac(?: nhat)?|do tac(?: nhat)?|tranh tac|khong tac)\s*(?:den|toi|di)?\s*/iu,'')
+    .replace(/\s+(?:nhanh nhất|nhanh hơn|ít tắc(?: nhất)?|đỡ tắc(?: nhất)?|tránh tắc|không tắc)$/iu,'')
+    .replace(/\s+(?:nhanh nhat|nhanh hon|it tac(?: nhat)?|do tac(?: nhat)?|tranh tac|khong tac)$/iu,'')
     .replace(/[?.!,]+$/g,'').trim();
   if(destination.length<2||destination.length>120)return null;
   return{destinationQuery:destination,preference:traffic?'avoid-traffic':fastest?'fastest':'balanced'};
