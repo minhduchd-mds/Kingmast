@@ -1,9 +1,18 @@
+import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 
 const Label=z.string().trim().min(1).max(96).regex(/^[A-Za-z0-9][A-Za-z0-9._:+/@-]*$/);
 const Sha256=z.string().regex(/^[a-f0-9]{64}$/i);
 const Counter=z.number().int().nonnegative().max(1_000_000_000);
 const AgeMs=z.number().int().nonnegative().max(86_400_000).nullable();
+
+const CURRENT_PRODUCT_VERSION=(()=>{
+  try{
+    const raw=readFileSync(new URL('../package.json',import.meta.url),'utf8');
+    const parsed=JSON.parse(raw) as {version?:unknown};
+    return typeof parsed.version==='string'&&parsed.version.trim()?parsed.version.trim():'development';
+  }catch{return'development';}
+})();
 
 const EdgeSourceSchema=z.object({
   status:z.enum(['live','degraded','offline']).default('offline'),
@@ -73,7 +82,7 @@ function optionalSha256(value:string|undefined):string|null{
 }
 
 export function fieldDiagnosticIdentityFromEnv(env:NodeJS.ProcessEnv=process.env):FieldDiagnosticIdentity{
-  const productVersion=optionalLabel(env.KINGMAST_PRODUCT_VERSION)??'0.0.6';
+  const productVersion=optionalLabel(env.KINGMAST_PRODUCT_VERSION)??CURRENT_PRODUCT_VERSION;
   return{
     productVersion,
     buildCommit:optionalLabel(env.KINGMAST_BUILD_COMMIT),
