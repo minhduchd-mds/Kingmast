@@ -1,6 +1,6 @@
-# KINGMAST v0.0.6 — Road-event HMI rules
+# KINGMAST v0.0.7 — Road-event HMI rules
 
-This batch keeps the product version at `v0.0.6` and extends the warning-only HMI. It does not add steering, braking, throttle, drivetrain or CAN-write authority.
+This document is part of the active `v0.0.7` software checkpoint and extends the warning-only HMI. It does not add steering, braking, throttle, drivetrain or CAN-write authority.
 
 ## Rules
 
@@ -24,3 +24,7 @@ This batch keeps the product version at `v0.0.6` and extends the warning-only HM
 18. Auto appearance uses a local-time day/night readability profile; explicit Day/Night user settings still take precedence inside the HMI.
 19. Sunlight mode increases text/background separation instead of increasing decoration.
 20. Short automotive displays remove secondary event details before shrinking speed, speed limit, maneuver or primary hazard information.
+21. Product-owned road-event shell copy may be localized to Vietnamese, but provider-authored event text must remain source-authored unless a trusted translation path exists.
+22. Assistant explanations may reference a grounded road event but must not alter its severity, dismiss the underlying warning, or claim vehicle-control authority.
+
+Historical `V006` evidence remains bound to the v0.0.6 evidence cycle; these v0.0.7 HMI rules do not imply new physical validation.

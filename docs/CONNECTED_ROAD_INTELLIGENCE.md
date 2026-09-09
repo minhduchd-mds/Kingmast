@@ -1,35 +1,37 @@
-# KINGMAST v0.0.6 — Connected Road Intelligence Batch
+# KINGMAST v0.0.7 — Connected Road Intelligence
 
-This batch adds connected-road context while keeping the product development version at **v0.0.6**. It is a feature batch, not a product release. The safety boundary remains **warning-only Level 0** with no steering, braking, throttle, drivetrain or CAN-write authority.
+This document is carried forward into the active **v0.0.7** software checkpoint. The safety boundary remains **warning-only Level 0** with no steering, braking, throttle, drivetrain or CAN-write authority.
 
-## 20 consolidated upgrades
-1. Add a normalized V2X/SPaT abstraction for intersection phase data.
-2. Keep SPaT source/freshness/confidence explicit instead of assuming signal state from map data.
-3. Add school-zone context with active window, advisory speed and distance.
-4. Add construction-zone context with the same warning-only contract.
-5. Add weather context including visibility, precipitation, wind and road-surface state.
-6. Add explicit road-hazard items such as flooding, debris, potholes, slippery surface and low visibility.
-7. Add emergency-vehicle advisories with approach state, confidence and siren metadata.
-8. Add lane-topology contracts with lane count, lane maneuvers and preferred-lane hints.
-9. Add highway-exit guidance with exit reference, destination, side and target lanes.
-10. Add authenticated `/connected-road/provider` ingest using the existing edge token policy.
-11. Add `/connected-road/context` for the HMI to obtain fused connected-road context.
-12. Add `/connected-road/capabilities` without tying API generation to product versioning.
-13. Reject stale SPaT, emergency, weather and topology data according to source-specific freshness budgets.
-14. Add route-relative distance calculation when an active route is available.
-15. Add a deterministic simulator context so the HMI can be exercised without a live V2X provider.
-16. Add connected-road alert priority and deduplication.
-17. Suppress generic weather notices when a more specific road hazard already explains the risk.
-18. Suppress all connected-road notices while an existing collision-critical warning owns driver attention.
-19. Add a compact Apple-inspired connected-road HUD ribbon rather than another dashboard page.
-20. Add deterministic tests for simulator context, emergency priority, collision suppression and hazard deduplication.
+## Consolidated capabilities
+1. Normalized V2X/SPaT abstraction for intersection phase data.
+2. Explicit SPaT source/freshness/confidence instead of assuming signal state from map data.
+3. School-zone context with active window, advisory speed and distance.
+4. Construction-zone context under the same warning-only contract.
+5. Weather context including visibility, precipitation, wind and road-surface state.
+6. Explicit road-hazard items such as flooding, debris, potholes, slippery surface and low visibility.
+7. Emergency-vehicle advisories with approach state, confidence and siren metadata.
+8. Lane-topology contracts with lane count, lane maneuvers and preferred-lane hints.
+9. Highway-exit guidance with exit reference, destination, side and target lanes.
+10. Authenticated `/connected-road/provider` ingest with provider identity controls.
+11. `/connected-road/context` for fused read-only HMI context.
+12. `/connected-road/capabilities` without tying API generation to product versioning.
+13. Source-specific freshness budgets for SPaT, emergency, weather and topology data.
+14. Route-relative distance calculation when an active route is available.
+15. Deterministic simulator context for HMI bench verification without a live V2X provider.
+16. Connected-road alert priority and deduplication.
+17. Generic weather suppression when a more specific road hazard already explains the risk.
+18. Connected-road suppression while an existing collision-critical warning owns driver attention.
+19. Compact connected-road HUD ribbon rather than another dashboard page.
+20. Deterministic tests for simulator context, emergency priority, collision suppression and hazard deduplication.
+21. English/Vietnamese product-owned connected-road shell copy while provider-authored safety content remains source-authored without a trusted translation path.
+22. Grounded Assistant explanations remain subordinate to the connected-road warning state and have no vehicle-control authority.
 
 ## Driver-attention hierarchy
 Connected-road information sits below collision-critical perception warnings. The intended ordering is:
 
-`Collision / VRU hazard → emergency vehicle → SPaT caution → road hazard → construction / school zone → highway exit → lane guidance → general weather context`
+`Collision / VRU hazard → emergency vehicle → SPaT caution → road hazard → construction / school zone → highway exit → lane guidance → general weather context → Assistant explanation`
 
-The HUD shows at most three connected-road advisories at once. Lower-priority duplicates are intentionally hidden.
+Lower-priority duplicates are intentionally hidden.
 
 ## SPaT abstraction
 The normalized SPaT model is intentionally provider-neutral. It includes:
@@ -56,31 +58,17 @@ Emergency-vehicle context may come from an authorized V2X/fleet/roadside provide
 ## Lane topology and highway exits
 Lane guidance is descriptive. It can recommend a preferred lane for an upcoming route or exit but does not command a lane change. Missing or low-confidence topology must degrade to ordinary turn-by-turn navigation.
 
-## Provider API
-Authenticated provider ingest:
+## Provider trust
+Provider identity is separate from vehicle/device identity. Production-intent connected-road sources require authenticated transport, bounded freshness and explicit trust/revocation handling. Public-map data and authorized live V2X are separate trust classes.
 
-```http
-POST /connected-road/provider
-x-kingmast-edge-token: <configured token>
-content-type: application/json
-```
-
-Read-only fused context:
-
-```http
-POST /connected-road/context
-content-type: application/json
-```
-
-The request includes the current vehicle position, optional route and whether a collision-critical warning currently owns attention.
+The Assistant provider is also a separate trust domain. It does not receive provider secrets from browser code and receives no actuator tool surface.
 
 ## HMI
-The development HMI keeps the existing navigation-first cockpit and adds a bottom connected-road ribbon. The ribbon:
+The development HMI keeps the navigation-first cockpit and a compact connected-road ribbon. The ribbon:
 - never covers the dominant collision warning;
-- shows no more than three advisories;
-- exposes current SPaT availability, lane topology and next-exit context in compact metadata;
+- exposes only attention-relevant connected-road context;
 - uses stable semantic caution/critical colors;
-- respects reduced-motion preferences;
+- respects reduced-motion and locale preferences;
 - remains read-only.
 
 ## Production gates
@@ -91,7 +79,10 @@ Before a connected-road provider can be considered production-ready:
 - verify intersection and signal-group mapping;
 - verify route-to-lane and route-to-exit matching;
 - define location-retention/privacy policy;
-- prove that collision-critical warnings always preempt connected-road context;
-- test sunlight, night, vibration and glanceability on target 12–15 inch displays.
+- prove that collision-critical warnings always preempt connected-road and Assistant context;
+- test English/Vietnamese presentation, sunlight, night, vibration and glanceability on target displays;
+- generate new v0.0.7 target evidence before making physical/HIL qualification claims.
+
+Historical files explicitly named `V006` remain bound to the v0.0.6 evidence campaign and are not relabelled by this software checkpoint.
 
 KINGMAST remains Apple-inspired and is not an official Apple CarPlay app or a homologated ADAS product.

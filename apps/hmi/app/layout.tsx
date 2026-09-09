@@ -24,15 +24,17 @@ import './hmi-apple-density.css';
 import './hmi-surround-v2.css';
 import './hmi-surround-v2-compat.css';
 import './hmi-surround-effects-v3.css';
+import './hmi-assistant.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 import DriverCapabilityRail from '../components/DriverCapabilityRail';
 import SurroundSpatialOverlay from '../components/SurroundSpatialOverlay';
+import AssistantRuntime from '../components/AssistantRuntime';
 
 export const metadata={
   title:'KINGMAST Driver Safety',
-  description:'KINGMAST v0.0.6 Apple-inspired warning-only automotive navigation and connected-road safety HMI',
+  description:'KINGMAST v0.0.7 Apple-inspired warning-only automotive navigation and connected-road safety HMI',
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){
-  return <html lang="en"><body><DriverProfileRuntime/><DriverCapabilityRail/><SurroundSpatialOverlay/>{children}</body></html>;
+  return <html lang="en"><body><DriverProfileRuntime/><DriverCapabilityRail/><SurroundSpatialOverlay/><AssistantRuntime/>{children}</body></html>;
 }

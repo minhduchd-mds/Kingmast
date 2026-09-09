@@ -1,4 +1,4 @@
-# KINGMAST v0.0.6 — Wi-Fi and Alert UX Flow
+# KINGMAST v0.0.7 — Wi-Fi and Alert UX Flow
 
 KINGMAST remains a warning-only Level 0 driver-assistance HMI. This flow does not add steering, braking, throttle, drivetrain, gear, torque, or CAN-write authority.
 
@@ -37,23 +37,22 @@ In a normal web/Vercel preview, the browser cannot control the operating system 
 
 ## Flow audit
 
-The current v0.0.6 driving loop now covers startup/self-check, Drive, navigation, route alternatives, active alerts, optional advisory settings, Wi-Fi host integration, parked settings, degraded connected-road state, sensor fallback, camera warning interaction, reroute interaction, voice mute, route arrival, and reduced-motion/high-contrast modes.
+The current v0.0.7 driving loop covers startup/self-check, bilingual first-run, Drive, navigation, route alternatives, active alerts, optional advisory settings, Wi-Fi host integration, parked settings, degraded connected-road state, sensor fallback, camera warning interaction, reroute interaction, voice mute, route arrival, Vietnamese Assistant/voice surfaces, and reduced-motion/high-contrast modes.
 
 The following flows are still required before calling the UX complete for an embedded vehicle product:
 
-1. First-run consent and permission rationale for location, network, microphone/voice, and diagnostics.
+1. Native target validation for location, network, microphone/voice, and diagnostic permissions.
 2. Wi-Fi wrong-password, captive-portal, no-internet, reconnect, saved-network, and forget-network flows on target hardware.
-3. Sensor calibration and sensor-replacement onboarding.
-4. Firmware/software update flow with parked-only install, rollback, and interrupted-update recovery.
-5. Privacy/data controls for telemetry retention, diagnostic upload, location history, and account removal.
-6. Driver profile, locale, units, accessibility, and seat/display preference restoration.
-7. Route cancellation, no-route-found, destination unreachable, offline maps, and map-provider timeout recovery.
-8. Backend/V2X credential expiry, provider outage, stale-data, and certificate rotation messaging.
+3. Sensor calibration and sensor-replacement onboarding on target hardware.
+4. Firmware/software update validation with parked-only install, rollback, and interrupted-update recovery.
+5. Backend identity/account-level privacy deletion only when an account backend actually exists.
+6. Target-display validation for locale, units, accessibility, sunlight, glare, night luminance and physical input.
+7. Route provider timeout, offline-map and destination-unreachable recovery on target integrations.
+8. Backend/V2X credential expiry, provider outage, stale-data, and certificate rotation messaging on authorized providers.
 9. Emergency fallback when GNSS, camera, radar, or network availability changes during a trip.
 10. Power-off, reboot, sleep/wake, ignition-cycle, and crash-recovery flows.
-11. Target-display validation for sunlight, glare, night luminance, physical touch/knob input, and distraction testing.
-12. Legal/regional feature policy for camera warnings, data sharing, and connected-road services.
+11. Legal/regional feature policy for camera warnings, data sharing, voice and connected-road services.
 
 ## UX completion gate
 
-Do not label the HMI UX complete until every required flow above has a success state, loading state, empty state, permission-denied state, recoverable error state, unrecoverable/degraded state, and a deterministic return path to Drive.
+Do not label the embedded-vehicle HMI UX complete until every required target flow above has a success state, loading state, empty state, permission-denied state, recoverable error state, unrecoverable/degraded state, and a deterministic return path to Drive.

@@ -1,12 +1,15 @@
 # KINGMAST
 
-**Development version: v0.0.6**
+**Development version: v0.0.7**
 
 KINGMAST is a safety-first ADAS research platform for electric vehicles. The production boundary remains **warning-only Level 0 driver assistance**: speed, forward/rear gap, THW/TTC, surround awareness, GPS positioning, road-object detection, location-aware alerts, navigation context, EV route intelligence, connected-road context, sensor health and event logging.
 
 > Safety boundary: this repository does **not** issue steering, braking, throttle or drivetrain commands. Vehicle adapters are read-only by design. Autonomous-driving work belongs in a separate simulation-only lab.
 
 ## Current development highlights
+- English (`en-US`) and Vietnamese (`vi-VN`) HMI localization across startup, first-run, Drive, Navigation, alerts, vehicle/device, connectivity, privacy, settings and Assistant surfaces.
+- KINGMAST Assistant V1 with server-side provider adapter, grounded read-only planning, Vietnamese voice input/output, bounded device diagnostics and deterministic offline fallback.
+- Moving-mode assistant restrictions: voice-first compact interaction; long text entry and extended conversation remain parked-only.
 - Apple-inspired automotive HMI with a navigation-first driver hierarchy.
 - Native MapLibre map rendering with configurable production style provider and OSM demo fallback.
 - Route geometry, destination, vehicle, camera and object markers in one map coordinate system.
@@ -39,9 +42,11 @@ The current proof-of-concept uses an ESP32-class controller for bench and closed
 The diagram is a development reference, not a homologated automotive ECU or a vehicle-certified wiring harness. GPIO assignment, power conditioning, radar protocol and adapter design must be validated against the selected hardware and each target vehicle. See `docs/EDGE_REALTIME_INTEGRATION.md` for the software/data path.
 
 ## Versioning during development
-KINGMAST is still in active development. Adding a feature batch does **not** automatically create a new product version. The repository stays on **v0.0.6** until an explicit release checkpoint is approved.
+KINGMAST is still in active development. **v0.0.7 is an explicit software release checkpoint** for the Vietnamese HMI/Assistant V1 and associated safety/test hardening. Future feature batches do not automatically create another product version; a new bump still requires an intentional checkpoint.
 
-API paths such as `/v3`, `/v4` and `/v5` are **interface generations**, not the KINGMAST product version. Connected-road endpoints intentionally use descriptive paths instead of implying another product release. See `docs/VERSIONING.md`.
+Historical evidence and qualification artifacts explicitly named `V006` remain bound to the v0.0.6 evidence cycle for traceability. They are not silently promoted to v0.0.7 and do not imply new physical/HIL/public-road qualification. See `docs/VERSIONING.md` and `docs/releases/V0.0.7.md`.
+
+API paths such as `/v3`, `/v4` and `/v5` are **interface generations**, not the KINGMAST product version. Connected-road endpoints intentionally use descriptive paths instead of implying another product release.
 
 ## Monorepo
 ```text
@@ -113,8 +118,8 @@ database/003_edge_operations.sql
 ```
 
 ## Safety model
-`THW = range / egoSpeed`. `closingSpeed = egoSpeed - targetSpeed`. `TTC = range / closingSpeed` only when the gap is closing. Safety decisions are timestamp/confidence aware; stale camera/radar/GNSS inputs are degraded or rejected. GPS, map, navigation and connected-road context never create vehicle-control authority.
+`THW = range / egoSpeed`. `closingSpeed = egoSpeed - targetSpeed`. `TTC = range / closingSpeed` only when the gap is closing. Safety decisions are timestamp/confidence aware; stale camera/radar/GNSS inputs are degraded or rejected. GPS, map, navigation, connected-road context and Assistant output never create vehicle-control authority.
 
-See `docs/CONNECTED_ROAD_INTELLIGENCE.md` and `safety/CONNECTED_ROAD_WARNING_POLICY.md` for the latest feature batch.
+See `docs/CONNECTED_ROAD_INTELLIGENCE.md`, `docs/releases/V0.0.7.md` and `safety/CONNECTED_ROAD_WARNING_POLICY.md` for the current software checkpoint and safety context.
 
 KINGMAST is Apple-inspired but is not an official Apple CarPlay app, not AEB/ACC and not a homologated safety product.

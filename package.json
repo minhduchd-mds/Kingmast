@@ -1,12 +1,12 @@
 {
   "name": "kingmast",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": true,
   "packageManager": "pnpm@10.34.0",
   "scripts": {
     "dev": "concurrently -n hmi,api \"pnpm --filter @kingmast/hmi dev\" \"pnpm --filter @kingmast/risk-engine dev\"",
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
+    "lint": "node scripts/documentation-version-check.mjs && pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "sil:replay": "pnpm --filter @kingmast/risk-engine exec tsx src/sil-replay-cli.ts",

@@ -7,6 +7,7 @@ const has=(path,text)=>existsSync(resolve(root,path))&&read(path).includes(text)
 const pkg=JSON.parse(read('package.json'));
 const layout=read('app/layout.tsx');
 const settings=read('components/HmiSettingsPanel.tsx');
+const i18n=read('lib/i18n.ts');
 const shell=read('components/KingmastV006.tsx');
 const cockpit=read('components/KingmastV5.tsx');
 const interaction=read('components/DriverInteractionLayer.tsx');
@@ -26,7 +27,7 @@ const roadEvents=read('lib/road-event-presentation.ts');
 const contracts=read('../../packages/contracts/src/index.ts');
 
 const checks=[
-  ['development version remains 0.0.6',pkg.version==='0.0.6'],
+  ['development version remains 0.0.7',pkg.version==='0.0.7'],
   ['Apple-inspired base layer is loaded',layout.includes("import './hmi-apple.css';")],
   ['Apple density layer is loaded after the control system',layout.includes("import './hmi-control-system.css';\nimport './hmi-apple-density.css';")],
   ['calm driver attention layer is loaded after capability styling',layout.includes("import './hmi-driver-capabilities.css';\nimport './hmi-attention.css';")],
@@ -34,10 +35,10 @@ const checks=[
   ['driver-facing capability rail is loaded',layout.includes("import './hmi-driver-capabilities.css';")&&layout.includes('DriverCapabilityRail')&&layout.includes('<DriverCapabilityRail/>')],
   ['startup layer remains present',has('components/StartupExperience.tsx','Warning-only assistance')&&has('components/StartupExperience.tsx','aria-live="polite"')],
   ['first-run keeps warning-only authority',has('components/FirstRunExperience.tsx','Critical collision and vulnerable-road-user warnings always stay active')],
-  ['critical warnings cannot be disabled',settings.includes('cannot be disabled in KINGMAST')&&settings.includes('Always on')],
+  ['critical warnings cannot be disabled',settings.includes("t('settings.criticalWarningsDetail')")&&settings.includes("t('settings.alwaysOn')")&&i18n.includes('cannot be disabled in KINGMAST')&&i18n.includes('không thể tắt trong KINGMAST')],
   ['optional advisories require explicit confirmation',settings.includes('Turn off optional road advisories?')&&settings.includes('Turn off advisories')],
-  ['camera warning calls out local law',settings.includes('subject to local law')],
-  ['settings use parked progressive disclosure',settings.includes("'capabilities'")&&settings.includes('Vehicle & updates')&&settings.includes('role="tablist"')],
+  ['camera warning calls out local law',settings.includes("t('settings.speedCameraWarningsDetail')")&&i18n.includes('subject to local law')&&i18n.includes('tuân theo pháp luật địa phương')],
+  ['settings use parked progressive disclosure',settings.includes("'capabilities'")&&settings.includes("t('settings.vehicle')")&&settings.includes('role="tablist"')&&i18n.includes("'settings.vehicle':'Vehicle & updates'")],
   ['36 capability center is parked inside settings',settings.includes('<CapabilityCenter/>')&&capabilityCenter.includes('36 capabilities · one safety-first platform')],
   ['capability registry covers exactly 36 numbered capabilities',(capabilityRegistry.match(/\{id:\d+,key:/g)??[]).length===36],
   ['capability states distinguish integration truth',capabilityRegistry.includes("'requires-integration'")&&capabilityRegistry.includes("'software-ready'")],
@@ -58,11 +59,11 @@ const checks=[
   ['voice guidance is serialized by priority',driverAssist.includes('GLOBAL_VOICE_GAP_MS=4_500')&&driverAssist.includes('activeSpeechPriority')&&driverAssist.includes('synthesis.speaking')&&driverAssist.includes('priority<=activeSpeechPriority.current')],
   ['camera voice avoids repeated distance-band narration',driverAssist.includes("cameraBand!=='300m'")&&driverAssist.includes('120_000')],
   ['overspeed voice requires persistence',driverAssist.includes('OVERSPEED_CONFIRM_MS=3_500')&&driverAssist.includes('window.setTimeout')&&!driverAssist.includes('Speed limit is now')],
-  ['driver quick actions remain compact',interaction.includes('driverActionDock')&&interaction.includes('<span>Camera</span>')&&interaction.includes('<span>Alerts</span>')&&densityCss.includes('width:min(880px,calc(100vw - 196px))')],
+  ['driver quick actions remain compact',interaction.includes('driverActionDock')&&interaction.includes('<span>Camera</span>')&&interaction.includes("isVietnamese?'Cảnh báo':'Alerts'")&&densityCss.includes('width:min(880px,calc(100vw - 196px))')],
   ['driver action sheets are modal with focus return',interaction.includes('aria-modal="true"')&&interaction.includes('returnFocusRef.current?.focus()')],
   ['context sheets close stale hazard and camera state',interaction.includes("staleHazard=sheet==='hazard'&&props.severity==='safe'")&&interaction.includes("staleCamera=sheet==='camera'&&!props.camera")],
   ['context sheets avoid duplicate voice and footer controls',!interaction.includes('Mute voice')&&!interaction.includes('<footer>')],
-  ['context sheets use progressive disclosure',densityCss.includes('width:min(720px,100%)')&&densityCss.includes('grid-template-columns:repeat(2,minmax(0,1fr))')&&interaction.includes('<strong>Route options</strong>')&&!interaction.includes('Recalculate around the issue')],
+  ['context sheets use progressive disclosure',densityCss.includes('width:min(720px,100%)')&&densityCss.includes('grid-template-columns:repeat(2,minmax(0,1fr))')&&interaction.includes("isVietnamese?'Tùy chọn tuyến':'Route options'")&&!interaction.includes('Recalculate around the issue')],
   ['live telemetry is never silently replaced by simulation',shell.includes('KINGMAST will not substitute simulator road context over a live vehicle session')],
   ['offline mode explicitly preserves on-vehicle warnings',shell.includes('Offline mode')&&shell.includes('Primary on-vehicle warnings remain active')],
   ['sensor loss is explicit',cockpit.includes('data-testid="sensor-loss-warning"')],

@@ -1,6 +1,6 @@
-# KINGMAST v0.0.6 — Runtime Resilience and Trust
+# KINGMAST v0.0.7 — Runtime Resilience and Trust
 
-KINGMAST remains warning-only SAE Level 0. This batch hardens the driver HMI around lifecycle recovery, sensor capability loss, connected-road provider trust and unit restoration without adding steering, braking, throttle, drivetrain, gear, torque or CAN-write authority.
+KINGMAST remains warning-only SAE Level 0. This checkpoint hardens the driver HMI around lifecycle recovery, sensor capability loss, connected-road provider trust, bilingual presentation and unit restoration without adding steering, braking, throttle, drivetrain, gear, torque or CAN-write authority.
 
 ## Runtime lifecycle
 
@@ -14,6 +14,8 @@ KINGMAST remains warning-only SAE Level 0. This batch hardens the driver HMI aro
 
 The driver HMI derives a non-dismissible capability notice from the live `SensorHealth` frame. A forward radar/camera loss, rear radar loss, positioning loss, CAN loss or safety-ECU loss explicitly describes which warning capability may be reduced or unavailable. KINGMAST does not claim that a warning remains available when its required sensing path is unavailable.
 
+v0.0.7 localizes these runtime capability states for English and Vietnamese without changing their safety meaning or severity arbitration.
+
 Critical road/object alerts retain display priority. Sensor-loss presentation is a separate capability warning and does not create a control command or hide an active collision warning.
 
 ## Connected-road / V2X trust
@@ -24,9 +26,15 @@ Live data whose source is `v2x-provider` fails closed unless the provider is `ve
 
 `GET /connected-road/status` exposes provider health for HMI diagnostics. The HMI shows degraded trust but continues to instruct the driver to rely on physical signs, signals, emergency vehicles and direct observation. Public-map data is never promoted to live SPaT state.
 
-## Atomic driver unit restoration
+## Assistant/provider trust
 
-The driver profile persists Metric or Imperial preference. v0.0.6 now converts driver-facing speed and distance surfaces together:
+The v0.0.7 Assistant provider adapter is server-side. Provider credentials are not exposed to browser code or `NEXT_PUBLIC_*`. External provider URLs require HTTPS except explicit loopback bench endpoints. The provider receives a bounded grounded context and no actuator tool/function surface.
+
+When provider or live context is unavailable, KINGMAST uses grounded/deterministic fallback and explicitly states missing data rather than inventing vehicle or road state.
+
+## Atomic driver unit and locale restoration
+
+The driver profile persists Metric or Imperial preference and `en-US` / `vi-VN` locale. v0.0.7 converts driver-facing speed and distance surfaces together and applies locale consistently across primary HMI surfaces:
 
 - Drive speed and speed limit
 - following gap and object distance
@@ -37,10 +45,13 @@ The driver profile persists Metric or Imperial preference. v0.0.6 now converts d
 - map speed/distance summaries
 - connected-road advisory and exit distance
 - GNSS accuracy and charging detour distance
+- startup, first-run, route recovery, settings, device diagnostics and Assistant shell copy
+
+Provider-authored route instructions, road names and external warning text remain source-authored when no trusted translation exists.
 
 Internal risk, routing and sensor calculations remain in SI (`m`, `m/s`, `km/h` where existing contracts define it). Conversion is presentation-only so TTC/risk thresholds are not changed by display preference.
 
-EV consumption configuration remains an internal `Wh/km` model in v0.0.6. It is a parked engineering parameter rather than a moving safety readout; converting that model requires a separate data-model migration rather than relabeling the same numeric value.
+EV consumption configuration remains an internal `Wh/km` model in v0.0.7. It is a parked engineering parameter rather than a moving safety readout; converting that model requires a separate data-model migration rather than relabeling the same numeric value.
 
 ## Production gates
 
@@ -49,5 +60,6 @@ EV consumption configuration remains an internal `Wh/km` model in v0.0.6. It is 
 3. Build a sensor-to-capability matrix from actual radar/camera/GNSS/ECU hardware and validate degraded combinations on a test vehicle.
 4. Provision V2X trust anchors, certificate rotation, revocation and clock-integrity handling in the native/provider adapter.
 5. Add signed provider-message verification where required by the selected V2X profile; transport trust alone is not equivalent to message authenticity.
-6. Validate Metric/Imperial presentation on every target display and localization before production release.
-7. Keep posted signs, physical signals, road conditions and driver observation authoritative over connected/map context.
+6. Validate Metric/Imperial and English/Vietnamese presentation on every target display before production release.
+7. Keep posted signs, physical signals, road conditions and driver observation authoritative over connected/map/Assistant context.
+8. Generate new version-bound physical/HIL evidence for v0.0.7 before making any physical qualification claim; v0.0.6 evidence remains historical.
