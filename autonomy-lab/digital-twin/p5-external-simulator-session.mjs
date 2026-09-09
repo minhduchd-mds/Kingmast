@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 
 const SHA256_RE=/^[a-f0-9]{64}$/i;
 const COMMIT_RE=/^[a-f0-9]{40}$/i;
-const ROOT=resolve(fileURLToPath(new URL('../..',import.meta.url)),'..');
+const ROOT=resolve(fileURLToPath(new URL('../..',import.meta.url)));
 
 export function loadRunnerContract(path=resolve(ROOT,'autonomy-lab/digital-twin/runner-contract.json')){
   return JSON.parse(readFileSync(path,'utf8'));
