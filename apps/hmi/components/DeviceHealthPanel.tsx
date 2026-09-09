@@ -46,7 +46,7 @@ export default function DeviceHealthPanel(){
 
     <div className="deviceHealthList">{devices.devices.map((device)=>{
       const faults=[...device.faults].sort((a,b)=>severityRank(b.severity)-severityRank(a.severity));
-      return <article key={device.id} className={`deviceHealthRow connection-${device.connection} health-${device.health}`}>
+      return <article key={device.id} data-testid={`device-row-${device.id}`} className={`deviceHealthRow connection-${device.connection} health-${device.health}`}>
         <div className="deviceHealthTop"><span className="maintenanceGlyph"><DeviceIcon device={device}/></span><span className="deviceHealthIdentity"><strong>{device.label}</strong><small>{device.interfaceLabel??device.category}{device.firmwareVersion?` · FW ${device.firmwareVersion}`:''}</small></span><span className={`connectionBadge state-${device.connection}`}>{connectionLabel(device)}</span><span className={`healthBadge state-${device.health}`}>{healthLabel(device)}</span></div>
         {device.detail?<p className="deviceHealthDetail">{device.detail}</p>:null}
         {faults.length>0?<div className="deviceFaultList" aria-label={`${device.label} faults`}>{faults.map((fault)=><div className={`deviceFaultItem severity-${fault.severity}`} key={`${fault.code}-${fault.layer}`}><TriangleAlert/><span><strong>{fault.summary}</strong><small><b>Fault point:</b> {fault.layer} · {fault.code}{fault.action?` · ${fault.action}`:''}</small></span></div>)}</div>:null}
