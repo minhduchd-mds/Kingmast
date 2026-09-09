@@ -1,6 +1,6 @@
 {
   "schema": "kingmast-gate3-acceptance-criteria/v1",
-  "productVersion": "0.0.6",
+  "productVersion": "0.0.7",
   "controlAuthority": "none",
   "gate": "Gate-2-to-Gate-3-controlled-closed-track",
   "currentDisposition": "blocked-pending-physical-evidence-and-review",
