@@ -32,7 +32,7 @@ import AssistantRuntime from '../components/AssistantRuntime';
 
 export const metadata={
   title:'KINGMAST Driver Safety',
-  description:'KINGMAST v0.0.6 Apple-inspired warning-only automotive navigation and connected-road safety HMI',
+  description:'KINGMAST v0.0.7 Apple-inspired warning-only automotive navigation and connected-road safety HMI',
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){
