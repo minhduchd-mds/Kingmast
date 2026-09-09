@@ -1,6 +1,6 @@
 # KINGMAST read-only vehicle port
 
-Status: enforced software architecture contract for the warning-only v0.0.6 research line. It is not evidence of an automotive-qualified physical CAN interface.
+Status: enforced software architecture contract for the warning-only v0.0.7 research line. It is not evidence of an automotive-qualified physical CAN interface.
 
 ## Purpose
 
@@ -29,13 +29,16 @@ There is intentionally no symmetric write/control port in KINGMAST main.
 1. Vehicle integration adapters produce bounded typed snapshots only.
 2. Every snapshot carries observation time and provenance.
 3. Missing or untrusted vehicle state degrades dependent functions instead of inventing healthy values.
-4. HMI, AI, connected-road and cloud code consume read models only.
-5. `scripts/safety-boundary-check.mjs` scans service, edge, HMI and shared-contract code for prohibited control-like APIs and verifies this contract remains exported.
-6. Autonomous/control research stays isolated under `autonomy-lab/` and must never be imported into the main warning-only runtime.
+4. HMI, Assistant/AI, connected-road and cloud code consume read models only.
+5. The Assistant provider receives no actuator tool/function surface and cannot convert natural-language requests into vehicle commands.
+6. `scripts/safety-boundary-check.mjs` scans service, edge, HMI and shared-contract code for prohibited control-like APIs and verifies this contract remains exported.
+7. Autonomous/control research stays isolated under `autonomy-lab/` and must never be imported into the main warning-only runtime.
 
 ## Hardware boundary still required
 
 A TypeScript contract and static CI gate are not sufficient proof for a real vehicle. Before controlled vehicle integration, the selected adapter/harness must independently demonstrate a receive-only or otherwise physically/permission-enforced non-actuating path, appropriate isolation/protection, and a reviewed failure mode.
+
+Historical `V006` physical/HIL evidence remains bound to its v0.0.6 campaign. The v0.0.7 software version does not by itself prove that a target adapter has been requalified.
 
 ## Migration rule
 
