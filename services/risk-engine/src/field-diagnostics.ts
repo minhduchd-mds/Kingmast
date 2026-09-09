@@ -82,7 +82,10 @@ function optionalSha256(value:string|undefined):string|null{
 }
 
 export function fieldDiagnosticIdentityFromEnv(env:NodeJS.ProcessEnv=process.env):FieldDiagnosticIdentity{
-  const productVersion=optionalLabel(env.KINGMAST_PRODUCT_VERSION)??CURRENT_PRODUCT_VERSION;
+  const requestedVersion=optionalLabel(env.KINGMAST_PRODUCT_VERSION);
+  // Evidence must identify the checked-out release, not a stale workflow literal.
+  // An explicit environment value is used only by unpackaged development builds.
+  const productVersion=CURRENT_PRODUCT_VERSION==='development'?(requestedVersion??'development'):CURRENT_PRODUCT_VERSION;
   return{
     productVersion,
     buildCommit:optionalLabel(env.KINGMAST_BUILD_COMMIT),
