@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { expect,test } from '@playwright/test';
+import hmiPackage from '../package.json';
 
 const enabled=process.env.KINGMAST_HMI_PERFORMANCE_EVIDENCE==='1';
 const outputPath=process.env.KINGMAST_HMI_PERFORMANCE_OUTPUT??'performance-evidence.json';
@@ -22,11 +23,11 @@ test.describe('KINGMAST HMI performance evidence',()=>{
     await page.goto('/',{waitUntil:'domcontentloaded'});
     await expect(page.getByTestId('kingmast-startup')).toBeVisible({timeout:4_000});
     const startupVisibleMs=performance.now()-startedAt;
-    await expect(page.locator('main.appShell')).toBeVisible({timeout:8_000});
+    await expect(page.locator('main.appShell')).toBeVisible({timeout:4_000});
     const bootToReadyMs=performance.now()-startedAt;
     await expect(page.locator('.speedValue')).toBeVisible();
     await expect(page.getByTestId('driver-action-dock')).toBeVisible();
-    await expect(page.getByTestId('surround-spatial-layer')).toBeVisible({timeout:7_000});
+    await expect(page.getByTestId('surround-spatial-layer')).toBeVisible({timeout:5_000});
     const markerCount=await page.getByTestId('surround-spatial-layer').locator('.surroundMarker').count();
     const firstUsableDrivingSurfaceMs=performance.now()-startedAt;
 
@@ -61,7 +62,8 @@ test.describe('KINGMAST HMI performance evidence',()=>{
       webglFallbackMode='renderer-unavailable';
     }
 
-    const budget={bootToReadyMs:8_000,firstUsableDrivingSurfaceMs:8_500,frameP99Ms:180,frameMaxMs:500,jankRatioMax:0.35,minSurroundMarkers:2} as const;
+    const target={frameMs:16.67,frameP50Ms:20,frameP95Ms:34,frameP99Ms:50} as const;
+    const budget={bootToReadyMs:1_800,firstUsableDrivingSurfaceMs:2_000,frameP50Ms:target.frameP50Ms,frameP95Ms:target.frameP95Ms,frameP99Ms:target.frameP99Ms,frameMaxMs:120,jankRatioMax:.08,minSurroundMarkers:2} as const;
     const latency={
       startupVisibleMs:round(startupVisibleMs),
       bootToReadyMs:round(bootToReadyMs),
@@ -80,6 +82,8 @@ test.describe('KINGMAST HMI performance evidence',()=>{
     const checks={
       bootToReady:latency.bootToReadyMs<=budget.bootToReadyMs,
       firstUsableDrivingSurface:latency.firstUsableDrivingSurfaceMs<=budget.firstUsableDrivingSurfaceMs,
+      frameP50:frameTiming.p50Ms<=budget.frameP50Ms,
+      frameP95:frameTiming.p95Ms<=budget.frameP95Ms,
       frameP99:frameTiming.p99Ms<=budget.frameP99Ms,
       frameMax:frameTiming.maxMs<=budget.frameMaxMs,
       jankRatio:frameTiming.jankRatio<=budget.jankRatioMax,
@@ -90,15 +94,16 @@ test.describe('KINGMAST HMI performance evidence',()=>{
     const report={
       schema:'kingmast-hmi-performance-report/v1',
       generatedAt:new Date().toISOString(),
-      productVersion:'0.0.6',
-      controlAuthority:'none',
-      qualificationClaim:'ci-browser-regression-only-not-target-display-or-vehicle-computer',
+      productVersion:hmiPackage.version,
+      controlAuthority:'none' as const,
+      qualificationClaim:'ci-browser-regression-only-not-target-display-or-vehicle-computer' as const,
       targetHardwareQualified:false,
       physicalVehicleComputerTest:false,
       userStudyEvidence:false,
       browser:browserName,
       viewport:{width:1366,height:768},
       workload:{simulator:true,surroundMarkers:markerCount,mapSurface:true,alertAndSpatialUi:'simulator-driven'},
+      performanceTarget:{name:'60fps-oriented-browser-target',...target,targetHardwareValidated:false},
       latency,
       frameTiming,
       rendererFallback:{mode:webglFallbackMode,passed:checks.webglFallback},
