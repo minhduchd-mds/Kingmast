@@ -1,0 +1,13 @@
+{
+  "schema":"kingmast-p0-p6-implementation-review/v1",
+  "version":"0.0.6",
+  "controlAuthority":"none",
+  "sourceBaseline":"7045e2ad99e9e3d67c37f3924fbb5733b7ca5024",
+  "reviewScope":["existing architecture boundary","physical evidence store contract","HIL time-sync contract","sensor calibration lifecycle","hardware qualification matrix","HIL registry","controlled-track registry","P3 engineering workflow"],
+  "implementation":{"productionRuntime":"services/risk-engine/src/physical-validation-runtime.ts","unitTests":"services/risk-engine/src/physical-validation-runtime.test.ts","simulatorSessionGate":"autonomy-lab/digital-twin/p5-external-simulator-session.mjs","policyGate":"scripts/p0-p6-physical-runtime-policy-check.mjs"},
+  "baselinePhysicalClaims":{"backendConfigured":false,"hilReviewed":0,"closedTrackReviewed":0,"targetHardwareQualified":false,"closedTrackApproved":false,"publicRoadApproved":false},
+  "automaticQualification":false,
+  "automaticRegistryMutation":false,
+  "repositoryStoresRawEvidence":false,
+  "notes":["This manifest records software review scope only; it is not physical evidence.","Physical registry state is intentionally unchanged by this implementation."]
+}
