@@ -28,6 +28,7 @@ import './hmi-assistant.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 import DriverCapabilityRail from '../components/DriverCapabilityRail';
 import SurroundSpatialOverlay from '../components/SurroundSpatialOverlay';
+import AssistantOverlay from '../components/AssistantOverlay';
 
 export const metadata={
   title:'KINGMAST Driver Safety',
@@ -35,5 +36,5 @@ export const metadata={
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){
-  return <html lang="en"><body><DriverProfileRuntime/><DriverCapabilityRail/><SurroundSpatialOverlay/>{children}</body></html>;
+  return <html lang="en"><body><DriverProfileRuntime/><DriverCapabilityRail/><SurroundSpatialOverlay/><AssistantOverlay/>{children}</body></html>;
 }
