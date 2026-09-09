@@ -183,12 +183,14 @@ export class TimeSyncMonitor {
   constructor(private readonly limits:ReviewedTimeSyncLimits){}
   assess(observation:TimeSyncObservation):TimeSyncAssessment{
     if(observation.discontinuityObserved)return{schema:'kingmast-time-sync-assessment/v1',controlAuthority:'none',status:'clock-discontinuity',qualifiedForPhysicalEvidence:false,reasons:['clock-discontinuity']};
-    const complete=this.limits.reviewed&&boundedText(this.limits.reviewRef,256)&&reviewedLimit(this.limits.maxOffsetMs)&&reviewedLimit(this.limits.maxUncertaintyMs)&&reviewedLimit(this.limits.maxDriftPpm);
-    if(!complete)return{schema:'kingmast-time-sync-assessment/v1',controlAuthority:'none',status:'unreviewed-limits',qualifiedForPhysicalEvidence:false,reasons:['reviewed numeric time-sync limits are required']};
+    const maxOffsetMs=this.limits.maxOffsetMs;
+    const maxUncertaintyMs=this.limits.maxUncertaintyMs;
+    const maxDriftPpm=this.limits.maxDriftPpm;
+    if(!this.limits.reviewed||!boundedText(this.limits.reviewRef,256)||!reviewedLimit(maxOffsetMs)||!reviewedLimit(maxUncertaintyMs)||!reviewedLimit(maxDriftPpm))return{schema:'kingmast-time-sync-assessment/v1',controlAuthority:'none',status:'unreviewed-limits',qualifiedForPhysicalEvidence:false,reasons:['reviewed numeric time-sync limits are required']};
     const reasons:string[]=[];
-    if(finiteAbs(observation.offsetMs)>this.limits.maxOffsetMs)reasons.push('offset-outside-reviewed-limit');
-    if(finiteAbs(observation.uncertaintyMs)>this.limits.maxUncertaintyMs)reasons.push('uncertainty-outside-reviewed-limit');
-    if(finiteAbs(observation.driftPpm)>this.limits.maxDriftPpm)reasons.push('drift-outside-reviewed-limit');
+    if(finiteAbs(observation.offsetMs)>maxOffsetMs)reasons.push('offset-outside-reviewed-limit');
+    if(finiteAbs(observation.uncertaintyMs)>maxUncertaintyMs)reasons.push('uncertainty-outside-reviewed-limit');
+    if(finiteAbs(observation.driftPpm)>maxDriftPpm)reasons.push('drift-outside-reviewed-limit');
     return{schema:'kingmast-time-sync-assessment/v1',controlAuthority:'none',status:reasons.length?'outside-reviewed-limits':'within-reviewed-limits',qualifiedForPhysicalEvidence:reasons.length===0,reasons};
   }
 }
