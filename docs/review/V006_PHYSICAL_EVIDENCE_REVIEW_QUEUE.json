@@ -1,0 +1,31 @@
+{
+  "schema": "kingmast-physical-evidence-review-queue/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "empty-no-physical-review-items",
+  "automaticAssignment": false,
+  "automaticReview": false,
+  "automaticRegistryMutation": false,
+  "targetHardwareQualified": false,
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "items": [],
+  "policy": {
+    "allowedEvidenceClasses": [
+      "hil",
+      "closed-track",
+      "target-soak",
+      "sensor-calibration",
+      "boot-security"
+    ],
+    "reviewerMustDifferFromOperator": true,
+    "capturePackageSha256Required": true,
+    "reviewPackageSha256RequiredForCompletion": true,
+    "manualRegistryPromotionOnly": true,
+    "openFindingsBlockCleanAcceptance": true
+  },
+  "notes": [
+    "This queue is bookkeeping only. It cannot perform an engineering review or mutate physical evidence registries.",
+    "Completed review items must reference a separately validated independent review package."
+  ]
+}

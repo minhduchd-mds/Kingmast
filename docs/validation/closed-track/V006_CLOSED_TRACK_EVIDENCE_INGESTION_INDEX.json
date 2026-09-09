@@ -1,0 +1,26 @@
+{
+  "schema": "kingmast-closed-track-evidence-ingestion-index/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "empty-no-physical-ingestion",
+  "automaticRegistryMutation": false,
+  "closedTrackApproved": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "records": [],
+  "recordPolicy": {
+    "sourceCommitBindingRequired": true,
+    "packageSha256Required": true,
+    "evidenceDigestBindingRequired": true,
+    "independentObserverRequired": true,
+    "independentReviewRequiredForRegistryPromotion": true,
+    "duplicatePackageSha256Rejected": true,
+    "duplicateScenarioCaptureRequiresExplicitSupersession": true,
+    "physicalEvidenceStoreRegistrationRequiredBeforeLongTermRetention": true
+  },
+  "notes": [
+    "The committed index is empty and is not a controlled-track result registry.",
+    "Validated packages remain CAPTURED until independent review is completed.",
+    "No ingestion record authorizes a test run or public-road use."
+  ]
+}

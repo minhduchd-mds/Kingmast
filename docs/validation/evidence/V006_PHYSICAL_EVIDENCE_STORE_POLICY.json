@@ -1,0 +1,63 @@
+{
+  "schema": "kingmast-physical-evidence-store-policy/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "storageClaim": "external-protected-evidence-store-contract-not-provisioned-backend",
+  "repositoryStoresRawEvidence": false,
+  "backendConfigured": false,
+  "automaticQualification": false,
+  "automaticRegistryMutation": false,
+  "targetHardwareQualified": false,
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "allowedEvidenceClasses": [
+    "hil",
+    "closed-track",
+    "target-soak",
+    "sensor-calibration",
+    "boot-security",
+    "external-simulator"
+  ],
+  "requiredRecordFields": [
+    "recordId",
+    "evidenceClass",
+    "sourceSoftwareCommit",
+    "packageSha256",
+    "capturedAt",
+    "objectRef",
+    "retentionClass",
+    "immutabilityMode",
+    "encryptedAtRest",
+    "accessControlReviewed",
+    "contentDigestVerified",
+    "evidenceDigests",
+    "reviewStatus"
+  ],
+  "retentionClasses": {
+    "qualification": "program-lifetime-plus-review",
+    "diagnostic": "bounded-by-program-policy",
+    "research": "bounded-non-qualification"
+  },
+  "integrity": {
+    "packageSha256Required": true,
+    "evidenceDigestBindingRequired": true,
+    "sourceCommitBindingRequired": true,
+    "duplicatePackageSha256Rejected": true,
+    "immutableObjectRequired": true,
+    "contentDigestVerificationRequired": true
+  },
+  "privacy": {
+    "rawHardwareSerialStorageInMetadataProhibited": true,
+    "secretsProhibited": true,
+    "privateKeysProhibited": true,
+    "preciseCoordinatesInMetadataProhibited": true,
+    "rawCabinVideoInRepositoryProhibited": true,
+    "rawCameraFramesInRepositoryProhibited": true,
+    "credentialBearingObjectRefsProhibited": true
+  },
+  "notes": [
+    "Source control contains only the policy and bounded metadata index; raw physical evidence belongs in an externally protected evidence store.",
+    "backendConfigured=false is the honest source-controlled baseline until a real protected store is provisioned and independently reviewed.",
+    "Registering evidence never grants physical qualification, closed-track approval or public-road authorization."
+  ]
+}

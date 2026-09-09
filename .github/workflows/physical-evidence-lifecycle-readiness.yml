@@ -1,0 +1,117 @@
+name: Physical Evidence Lifecycle Readiness
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/validation/evidence/**'
+      - 'docs/review/V006_PHYSICAL_EVIDENCE_REVIEW_*.json'
+      - 'docs/review/PHYSICAL_EVIDENCE_REVIEW_WORKFLOW_V006.md'
+      - 'docs/validation/hil/V006_HIL_RUNNER_STATE_BUNDLE_TEMPLATE.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_INGESTION_INDEX.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json'
+      - 'docs/validation/closed-track/V006_CLOSED_TRACK_RUNNER_STATE_BUNDLE_TEMPLATE.json'
+      - 'docs/validation/closed-track/V006_CLOSED_TRACK_EVIDENCE_INGESTION_INDEX.json'
+      - 'docs/validation/closed-track/V006_CLOSED_TRACK_EVIDENCE_REGISTRY.json'
+      - 'docs/validation/closed-track/CLOSED_TRACK_COVERAGE_DASHBOARD_V006.md'
+      - 'docs/validation/PHYSICAL_VALIDATION_PORTFOLIO_DASHBOARD_V006.md'
+      - 'scripts/physical-evidence-store-check.mjs'
+      - 'scripts/physical-evidence-review-package-check.mjs'
+      - 'scripts/physical-evidence-review-queue-check.mjs'
+      - 'scripts/closed-track-runner-state-bundle-check.mjs'
+      - 'scripts/closed-track-evidence-ingestion-validator.mjs'
+      - 'scripts/closed-track-coverage-dashboard.mjs'
+      - 'scripts/physical-validation-portfolio-dashboard.mjs'
+      - '.github/workflows/physical-evidence-lifecycle-readiness.yml'
+  pull_request:
+    paths:
+      - 'docs/validation/evidence/**'
+      - 'docs/review/V006_PHYSICAL_EVIDENCE_REVIEW_*.json'
+      - 'docs/review/PHYSICAL_EVIDENCE_REVIEW_WORKFLOW_V006.md'
+      - 'docs/validation/hil/V006_HIL_RUNNER_STATE_BUNDLE_TEMPLATE.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_INGESTION_INDEX.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json'
+      - 'docs/validation/closed-track/V006_CLOSED_TRACK_RUNNER_STATE_BUNDLE_TEMPLATE.json'
+      - 'docs/validation/closed-track/V006_CLOSED_TRACK_EVIDENCE_INGESTION_INDEX.json'
+      - 'docs/validation/closed-track/V006_CLOSED_TRACK_EVIDENCE_REGISTRY.json'
+      - 'docs/validation/closed-track/CLOSED_TRACK_COVERAGE_DASHBOARD_V006.md'
+      - 'docs/validation/PHYSICAL_VALIDATION_PORTFOLIO_DASHBOARD_V006.md'
+      - 'scripts/physical-evidence-store-check.mjs'
+      - 'scripts/physical-evidence-review-package-check.mjs'
+      - 'scripts/physical-evidence-review-queue-check.mjs'
+      - 'scripts/closed-track-runner-state-bundle-check.mjs'
+      - 'scripts/closed-track-evidence-ingestion-validator.mjs'
+      - 'scripts/closed-track-coverage-dashboard.mjs'
+      - 'scripts/physical-validation-portfolio-dashboard.mjs'
+      - '.github/workflows/physical-evidence-lifecycle-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingmast-physical-evidence-lifecycle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  physical-evidence-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+      - name: Validate protected physical evidence store contract
+        run: |
+          node scripts/physical-evidence-store-check.mjs --json > "$RUNNER_TEMP/store.json"
+          node scripts/physical-evidence-store-check.mjs --selftest --json > "$RUNNER_TEMP/store-selftest.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/store.json'); const t=require(process.env.RUNNER_TEMP+'/store-selftest.json'); if(r.schema!=='kingmast-physical-evidence-store-validation/v1'||r.softwareContractValid!==true||r.backendConfigured!==false||r.recordCount!==0||r.repositoryStoresRawEvidence!==false||r.physicalEvidenceStoreReady!==false||r.failures.length!==0||t.total<5||t.failed!==0||t.allPassed!==true) process.exit(1);"
+      - name: Validate independent physical review contracts
+        run: |
+          node scripts/physical-evidence-review-package-check.mjs --json > "$RUNNER_TEMP/review-template.json"
+          node scripts/physical-evidence-review-package-check.mjs --selftest --json > "$RUNNER_TEMP/review-selftest.json"
+          node scripts/physical-evidence-review-queue-check.mjs --json > "$RUNNER_TEMP/review-queue.json"
+          node -e "const p=require(process.env.RUNNER_TEMP+'/review-template.json'); const t=require(process.env.RUNNER_TEMP+'/review-selftest.json'); const q=require(process.env.RUNNER_TEMP+'/review-queue.json'); if(p.valid!==true||p.template!==true||t.total<7||t.failed!==0||t.allPassed!==true||q.valid!==true||q.itemCount!==0||q.automaticReview!==false||q.automaticRegistryMutation!==false) process.exit(1);"
+      - name: Validate fail-closed HIL lifecycle view
+        run: |
+          node scripts/hil-runner-state-bundle-check.mjs --json > "$RUNNER_TEMP/hil-runner.json"
+          node scripts/hil-coverage-dashboard.mjs --json > "$RUNNER_TEMP/hil-dashboard.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/hil-runner.json'); const d=require(process.env.RUNNER_TEMP+'/hil-dashboard.json'); if(r.counts.blocked!==12||r.counts.ready!==0||r.physicalHilExecuted!==false||d.counts.BLOCKED!==12||d.counts.REVIEWED!==0||d.reviewedEvidenceCoveragePercent!==0||d.failures.length!==0) process.exit(1);"
+      - name: Validate fail-closed controlled-track lifecycle
+        run: |
+          node scripts/closed-track-runner-state-bundle-check.mjs --json > "$RUNNER_TEMP/ct-runner.json"
+          node scripts/closed-track-evidence-ingestion-validator.mjs --selftest --json > "$RUNNER_TEMP/ct-ingestion-selftest.json"
+          node scripts/closed-track-coverage-dashboard.mjs --json > "$RUNNER_TEMP/ct-dashboard.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/ct-runner.json'); const i=require(process.env.RUNNER_TEMP+'/ct-ingestion-selftest.json'); const d=require(process.env.RUNNER_TEMP+'/ct-dashboard.json'); if(r.counts.blocked!==8||r.counts.ready!==0||r.physicalClosedTrackExecuted!==false||i.total<7||i.failed!==0||i.allPassed!==true||d.counts.BLOCKED!==8||d.counts.REVIEWED!==0||d.reviewedEvidenceCoveragePercent!==0||d.closedTrackApproved!==false||d.publicRoadApproved!==false||d.failures.length!==0) process.exit(1);"
+      - name: Generate unified physical validation portfolio
+        run: |
+          node scripts/physical-validation-portfolio-dashboard.mjs --json > "$RUNNER_TEMP/portfolio.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/portfolio.json'); if(r.schema!=='kingmast-physical-validation-portfolio-dashboard/v1'||r.hil.total!==12||r.hil.counts.BLOCKED!==12||r.closedTrack.total!==8||r.closedTrack.counts.BLOCKED!==8||r.reviewedScenarioCount!==0||r.reviewedPhysicalScenarioCoveragePercent!==0||r.evidenceStore.backendConfigured!==false||r.independentReviewQueue.itemCount!==0||r.programIndependentReview.overallStatus!=='pending'||r.gate3PhysicalEvidenceReady!==false||r.targetHardwareQualified!==false||r.closedTrackApproved!==false||r.publicRoadApproved!==false||r.failures.length!==0) process.exit(1);"
+      - name: Upload bounded lifecycle preparation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-physical-evidence-lifecycle-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/store.json
+            ${{ runner.temp }}/store-selftest.json
+            ${{ runner.temp }}/review-template.json
+            ${{ runner.temp }}/review-selftest.json
+            ${{ runner.temp }}/review-queue.json
+            ${{ runner.temp }}/hil-runner.json
+            ${{ runner.temp }}/hil-dashboard.json
+            ${{ runner.temp }}/ct-runner.json
+            ${{ runner.temp }}/ct-ingestion-selftest.json
+            ${{ runner.temp }}/ct-dashboard.json
+            ${{ runner.temp }}/portfolio.json
+            docs/validation/evidence/V006_PHYSICAL_EVIDENCE_STORE_POLICY.json
+            docs/validation/evidence/V006_PHYSICAL_EVIDENCE_STORE_INDEX.json
+            docs/review/V006_PHYSICAL_EVIDENCE_REVIEW_QUEUE.json
+            docs/review/V006_PHYSICAL_EVIDENCE_REVIEW_PACKAGE_TEMPLATE.json
+            docs/validation/closed-track/V006_CLOSED_TRACK_RUNNER_STATE_BUNDLE_TEMPLATE.json
+            docs/validation/closed-track/V006_CLOSED_TRACK_EVIDENCE_INGESTION_INDEX.json
+            docs/validation/PHYSICAL_VALIDATION_PORTFOLIO_DASHBOARD_V006.md
+          if-no-files-found: error
+          retention-days: 14

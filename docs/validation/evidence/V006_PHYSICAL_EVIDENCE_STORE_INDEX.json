@@ -1,0 +1,18 @@
+{
+  "schema": "kingmast-physical-evidence-store-index/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "empty-backend-not-provisioned",
+  "backendConfigured": false,
+  "automaticQualification": false,
+  "automaticRegistryMutation": false,
+  "targetHardwareQualified": false,
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "records": [],
+  "notes": [
+    "The committed index is intentionally empty and contains no raw evidence.",
+    "A runner-local or protected-store metadata index may be validated with scripts/physical-evidence-store-check.mjs --index <path>.",
+    "Independent review is still required before scenario registry promotion."
+  ]
+}

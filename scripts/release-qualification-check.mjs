@@ -34,6 +34,7 @@ expect('risk Zod version matches package',dependencyMatches(risk.dependencies?.z
 expect('risk TypeScript version matches package',dependencyMatches(risk.devDependencies?.typescript,matrix.toolchain?.riskEngine?.typescript));
 expect('edge protocol remains v1',matrix.compatibility?.edgeProtocolVersion===1);
 expect('rollback evidence is required',matrix.compatibility?.rollbackEvidenceRequired===true);
+
 for(const [label,path] of [
   ['firmware trust evidence',matrix.compatibility?.firmwareTrustEvidence],
   ['A/B recovery model',matrix.compatibility?.abRecoveryModel],
@@ -49,8 +50,20 @@ for(const [label,path] of [
   ['HIL equipment capability matrix',matrix.compatibility?.hilEquipmentCapabilityMatrix],
   ['HIL time synchronization contract',matrix.compatibility?.hilTimeSyncContract],
   ['HIL scenario evidence requirements',matrix.compatibility?.hilScenarioEvidenceRequirements],
-  ['HIL orchestration runbook',matrix.compatibility?.hilOrchestrationRunbook]
+  ['HIL orchestration runbook',matrix.compatibility?.hilOrchestrationRunbook],
+  ['HIL runner state bundle',matrix.compatibility?.hilRunnerStateBundle],
+  ['HIL evidence ingestion index',matrix.compatibility?.hilEvidenceIngestionIndex],
+  ['HIL coverage dashboard',matrix.compatibility?.hilCoverageDashboard],
+  ['physical evidence store policy',matrix.compatibility?.physicalEvidenceStorePolicy],
+  ['physical evidence store index',matrix.compatibility?.physicalEvidenceStoreIndex],
+  ['physical evidence review queue',matrix.compatibility?.physicalEvidenceReviewQueue],
+  ['physical evidence review package',matrix.compatibility?.physicalEvidenceReviewPackage],
+  ['closed-track runner state bundle',matrix.compatibility?.closedTrackRunnerStateBundle],
+  ['closed-track evidence ingestion index',matrix.compatibility?.closedTrackEvidenceIngestionIndex],
+  ['closed-track coverage dashboard',matrix.compatibility?.closedTrackCoverageDashboard],
+  ['physical validation portfolio dashboard',matrix.compatibility?.physicalValidationPortfolioDashboard]
 ])expect(`${label} exists`,existsSync(path??''));
+
 expect('configuration revision is required for target hardware',String(matrix.compatibility?.configurationRevisionPolicy??'').includes('explicit external revision required'));
 expect('calibration revision is required for target hardware',String(matrix.compatibility?.calibrationRevisionPolicy??'').includes('explicit external revision required'));
 expect('display classes are defined',Array.isArray(matrix.displayClasses)&&matrix.displayClasses.length>=3);
@@ -61,6 +74,7 @@ for(const display of matrix.displayClasses??[]){
 }
 expect('vehicle-computer targets are explicit',Array.isArray(matrix.vehicleComputerTargets)&&matrix.vehicleComputerTargets.length>=3);
 for(const target of matrix.vehicleComputerTargets??[])expect(`target ${target.id} still requires physical evidence`,target.targetHardwareEvidenceRequired===true);
+
 const gate3=new Set(matrix.gate3RequiredEvidence??[]);
 for(const required of [
   'target vehicle-computer identity and OS image',
@@ -73,6 +87,9 @@ for(const required of [
   'reviewed HIL equipment capability assignment',
   'reviewed cross-device time synchronization evidence',
   'scenario-by-scenario HIL preflight and evidence completeness report',
+  'protected physical evidence store registration with package and evidence digests',
+  'independent per-package review disposition before registry promotion',
+  'HIL and controlled-track lifecycle coverage report',
   'long-duration resource soak',
   'fault injection and degraded-mode evidence',
   'controlled closed-track test record',
@@ -83,4 +100,4 @@ if(failures.length){
   console.error(`KINGMAST release qualification policy failed:\n${failures.map((item)=>`- ${item}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, HIL equipment/time-sync/orchestration contracts present, no target-hardware/public-road qualification claim.`);
+console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, protected evidence store/review lifecycle contracts present, no target-hardware/public-road qualification claim.`);

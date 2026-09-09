@@ -1,0 +1,27 @@
+{
+  "schema": "kingmast-physical-evidence-review-package/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "template",
+  "evidenceClass": null,
+  "scenarioId": null,
+  "sourceSoftwareCommit": null,
+  "capturePackageSha256": null,
+  "operator": null,
+  "independentReviewer": null,
+  "reviewedAt": null,
+  "reviewDisposition": null,
+  "reviewedScenarioResult": null,
+  "findings": [],
+  "reviewEvidenceRefs": [],
+  "automaticQualification": false,
+  "automaticRegistryMutation": false,
+  "targetHardwareQualified": false,
+  "closedTrackApproved": false,
+  "publicRoadApproved": false,
+  "notes": [
+    "Copy this template outside the baseline before completing an independent review.",
+    "The independent reviewer must differ from the physical evidence operator.",
+    "A completed review package is input to a human-controlled registry promotion decision; it does not mutate a registry itself."
+  ]
+}

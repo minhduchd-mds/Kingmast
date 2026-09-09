@@ -1,0 +1,60 @@
+{
+  "schema": "kingmast-closed-track-runner-state-bundle/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "template-only-no-physical-state",
+  "sourceSoftwareCommit": null,
+  "physicalClosedTrackExecuted": false,
+  "automaticQualification": false,
+  "registryMutationByAutomation": false,
+  "closedTrackApproved": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "canTxPathPresent": false,
+  "runner": {
+    "status": "unprovisioned",
+    "runnerIdentitySha256": null,
+    "facilityId": null,
+    "emergencyProcedureRef": null,
+    "operator": null
+  },
+  "prerequisites": {
+    "targetSoakReview": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "requiredHilReview": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "oddScenarioBounds": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "harnessReview": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "readOnlyCanVerification": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "emergencyProcedure": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "independentObserver": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "synchronizedLogging": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "frozenBuildConfigCalibration": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "facilityApproval": {"status": "pending", "evidenceRef": null, "sha256": null}
+  },
+  "scenarioStates": [
+    {"id":"CT-001","state":"blocked","blockers":["physical-gate3-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentObserver":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"CT-002","state":"blocked","blockers":["physical-gate3-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentObserver":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"CT-003","state":"blocked","blockers":["physical-gate3-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentObserver":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"CT-004","state":"blocked","blockers":["physical-gate3-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentObserver":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"CT-005","state":"blocked","blockers":["physical-gate3-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentObserver":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"CT-006","state":"blocked","blockers":["physical-gate3-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentObserver":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"CT-007","state":"blocked","blockers":["physical-gate3-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentObserver":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"CT-008","state":"blocked","blockers":["physical-gate3-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentObserver":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null}
+  ],
+  "statePolicy": {
+    "allowedStates": ["blocked", "ready", "captured-awaiting-review", "reviewed-pass", "reviewed-fail"],
+    "readyRequiresAllEntryPrerequisitesReviewed": true,
+    "capturedRequiresPackageSha256": true,
+    "capturedRequiresIndependentObserver": true,
+    "reviewedRequiresIndependentReviewer": true,
+    "reviewerMustDifferFromOperator": true,
+    "reviewerMustDifferFromIndependentObserver": true,
+    "reviewedRegistryPromotionIsManual": true,
+    "simulationOrCiCannotSetPhysicalState": true
+  },
+  "notes": [
+    "This committed file is a fail-closed template and does not authorize a controlled-track run.",
+    "READY means all bounded entry prerequisites are reviewed; it is not a test result.",
+    "CAPTURED means a source-bound package passed ingestion checks and awaits independent review.",
+    "No lifecycle state grants homologation or public-road authorization."
+  ]
+}
