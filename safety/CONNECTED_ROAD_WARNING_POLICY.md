@@ -1,6 +1,6 @@
 # Connected-road warning safety policy
 
-KINGMAST v0.0.6 connected-road features are advisory only.
+KINGMAST v0.0.7 connected-road features are advisory only. Historical `V006` evidence remains bound to the v0.0.6 evidence campaign.
 
 ## Priority
 1. Existing collision-critical / vulnerable-road-user warnings.
@@ -12,8 +12,9 @@ KINGMAST v0.0.6 connected-road features are advisory only.
 7. Highway exit guidance.
 8. Lane guidance.
 9. General weather context.
+10. Grounded Assistant explanation.
 
-If a collision-critical warning is active, connected-road advisories are suppressed from the driver-attention surface.
+If a collision-critical warning is active, connected-road advisories and Assistant explanation must not compete for the primary driver-attention surface.
 
 ## Prohibited behavior
 - No steering, braking, throttle, torque, drivetrain or gear command.
@@ -22,6 +23,7 @@ If a collision-critical warning is active, connected-road advisories are suppres
 - No treating public-map signal metadata as live SPaT.
 - No claiming school/construction restrictions when source confidence or activity state is unknown.
 - No bypassing protected V2X, traffic-control, dispatch or camera-provider authentication.
+- No allowing an AI/provider response to alter alert severity, suppress an underlying warning, or create actuator authority.
 
 ## Freshness
 - SPaT: 5 s maximum age.
@@ -31,7 +33,7 @@ If a collision-critical warning is active, connected-road advisories are suppres
 - Zone provider snapshot: 6 h maximum age unless an explicit end time expires sooner.
 
 ## Degradation
-Stale or missing provider data degrades to unavailable. The HMI must keep ordinary navigation and perception warnings functional without connected-road data.
+Stale or missing provider data degrades to unavailable. The HMI must keep ordinary navigation and perception warnings functional without connected-road data. Assistant output must state missing live context rather than invent road state.
 
-## Driver wording
-Connected-road messages use advisory language such as `Signal ahead`, `School zone ahead`, `Road works ahead`, `Emergency vehicle approaching`, and `Verify posted signs`. The HMI must not present connected-road data as vehicle-control authority.
+## Driver wording and localization
+Connected-road messages use advisory language such as `Signal ahead`, `School zone ahead`, `Road works ahead`, `Emergency vehicle approaching`, and `Verify posted signs`. Product-owned shell copy may be localized to Vietnamese, but provider-authored road/safety content remains source-authored when no trusted translation path exists. Localization must not change safety severity or vehicle-control authority.
