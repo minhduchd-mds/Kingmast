@@ -15,7 +15,9 @@ on:
       - 'docs/validation/sensors/**'
       - 'docs/validation/hil/**'
       - 'docs/validation/closed-track/**'
+      - 'docs/validation/runtime/P0_P6_PHYSICAL_RUNTIME_V006.md'
       - 'scripts/p3-logical-service-map-check.mjs'
+      - 'scripts/p0-p6-physical-runtime-policy-check.mjs'
       - 'scripts/external-simulator-workflow-policy-check.mjs'
       - 'scripts/hardware-qualification-matrix-check.mjs'
       - 'scripts/sensor-calibration-lifecycle-check.mjs'
@@ -27,6 +29,7 @@ on:
       - 'scripts/closed-track-physical-capture-package.mjs'
       - 'services/risk-engine/src/runtime-health-supervisor*'
       - 'services/risk-engine/src/runtime-health-evidence-cli.ts'
+      - 'services/risk-engine/src/physical-validation-runtime*'
       - 'package.json'
       - '.github/workflows/p3-engineering.yml'
       - '.github/workflows/external-simulator-evidence.yml'
@@ -45,7 +48,9 @@ on:
       - 'docs/validation/sensors/**'
       - 'docs/validation/hil/**'
       - 'docs/validation/closed-track/**'
+      - 'docs/validation/runtime/P0_P6_PHYSICAL_RUNTIME_V006.md'
       - 'scripts/p3-logical-service-map-check.mjs'
+      - 'scripts/p0-p6-physical-runtime-policy-check.mjs'
       - 'scripts/external-simulator-workflow-policy-check.mjs'
       - 'scripts/hardware-qualification-matrix-check.mjs'
       - 'scripts/sensor-calibration-lifecycle-check.mjs'
@@ -57,6 +62,7 @@ on:
       - 'scripts/closed-track-physical-capture-package.mjs'
       - 'services/risk-engine/src/runtime-health-supervisor*'
       - 'services/risk-engine/src/runtime-health-evidence-cli.ts'
+      - 'services/risk-engine/src/physical-validation-runtime*'
       - 'package.json'
       - '.github/workflows/p3-engineering.yml'
       - '.github/workflows/external-simulator-evidence.yml'
@@ -122,6 +128,8 @@ jobs:
           node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.qualification-readiness.json'); if(r.schema!=='kingmast-qualification-readiness-report/v1'||r.controlAuthority!=='none'||r.qualificationClaim!=='software-readiness-dashboard-not-physical-qualification'||r.automaticQualification!==false||r.targetHardwareQualified!==false||r.physicalVehicleComputerQualified!==false||r.closedTrackApproved!==false||r.publicRoadApproved!==false||r.softwarePreparationScorePercent!==100||r.physicalEvidenceCompletionScorePercent<0||r.physicalEvidenceCompletionScorePercent>100||r.coverage?.hil?.total!==12||r.coverage?.closedTrack?.total<8) process.exit(1); console.log('KINGMAST qualification readiness: software preparation '+r.softwarePreparationScorePercent+'%, reviewed physical evidence '+r.physicalEvidenceCompletionScorePercent+'%; qualification remains false.');"
       - name: P3 logical service architecture
         run: pnpm --silent architecture:p3-service-map
+      - name: P0-P6 physical runtime fail-closed gate
+        run: pnpm --silent qualification:p0-p6
       - name: Virtual HIL stimulus plan
         run: node autonomy-lab/hil/validate-virtual-hil-plan.mjs
       - name: Runtime health supervisor unit tests
@@ -146,6 +154,7 @@ jobs:
             docs/validation/QUALIFICATION_READINESS_DASHBOARD_V006.md
             docs/validation/hardware/V006_HARDWARE_QUALIFICATION_MATRIX.json
             docs/validation/sensors/V006_SENSOR_CALIBRATION_LIFECYCLE.json
+            docs/validation/runtime/P0_P6_PHYSICAL_RUNTIME_V006.md
             autonomy-lab/digital-twin/external-simulator-contract.json
             autonomy-lab/digital-twin/runner-contract.json
           if-no-files-found: error
