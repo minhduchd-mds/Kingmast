@@ -1,0 +1,74 @@
+name: HIL Orchestration Preparation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/validation/hil/V006_HIL_BENCH_MATRIX.json'
+      - 'docs/validation/hil/V006_HIL_EQUIPMENT_CAPABILITY_MATRIX.json'
+      - 'docs/validation/hil/V006_HIL_TIME_SYNC_CONTRACT.json'
+      - 'docs/validation/hil/V006_HIL_SCENARIO_EVIDENCE_REQUIREMENTS.json'
+      - 'docs/validation/hil/V006_HIL_ORCHESTRATION_RUNBOOK.md'
+      - 'docs/validation/hil/V006_HIL_EXECUTION_MANIFEST.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json'
+      - 'docs/validation/hardware/V006_HARNESS_MAPPING_TEMPLATE.json'
+      - 'docs/validation/hardware/V006_DEVICE_PROVISIONING_TEMPLATE.json'
+      - 'docs/validation/sensors/V006_CALIBRATION_CAPTURE_TEMPLATE.json'
+      - 'docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json'
+      - 'scripts/hil-execution-orchestrator.mjs'
+      - 'scripts/release-qualification-check.mjs'
+      - '.github/workflows/hil-orchestration-preparation.yml'
+  pull_request:
+    paths:
+      - 'docs/validation/hil/V006_HIL_BENCH_MATRIX.json'
+      - 'docs/validation/hil/V006_HIL_EQUIPMENT_CAPABILITY_MATRIX.json'
+      - 'docs/validation/hil/V006_HIL_TIME_SYNC_CONTRACT.json'
+      - 'docs/validation/hil/V006_HIL_SCENARIO_EVIDENCE_REQUIREMENTS.json'
+      - 'docs/validation/hil/V006_HIL_ORCHESTRATION_RUNBOOK.md'
+      - 'docs/validation/hil/V006_HIL_EXECUTION_MANIFEST.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json'
+      - 'docs/validation/hardware/V006_HARNESS_MAPPING_TEMPLATE.json'
+      - 'docs/validation/hardware/V006_DEVICE_PROVISIONING_TEMPLATE.json'
+      - 'docs/validation/sensors/V006_CALIBRATION_CAPTURE_TEMPLATE.json'
+      - 'docs/validation/V006_RELEASE_QUALIFICATION_MATRIX.json'
+      - 'scripts/hil-execution-orchestrator.mjs'
+      - 'scripts/release-qualification-check.mjs'
+      - '.github/workflows/hil-orchestration-preparation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingmast-hil-orchestration-preparation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hil-orchestration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+      - name: Validate HIL execution orchestration contracts
+        run: |
+          node scripts/hil-execution-orchestrator.mjs --json --source-commit "$GITHUB_SHA" > "$RUNNER_TEMP/kingmast.hil-orchestration-readiness.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/kingmast.hil-orchestration-readiness.json'); if(r.schema!=='kingmast-hil-execution-orchestration-readiness/v1'||r.controlAuthority!=='none'||r.softwareContractValid!==true||r.softwarePreparationScorePercent!==100||r.physicalExecutionReady!==false||r.readyScenarioCount!==0||r.blockedScenarioCount!==12||r.evidenceCompleteScenarioCount!==0||r.physicalHilExecuted!==false||r.automaticQualification!==false||r.registryMutationByAutomation!==false||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.prerequisiteCoverage?.harnessReviewed!==false||r.prerequisiteCoverage?.equipmentRolesAssigned!==0||r.prerequisiteCoverage?.equipmentRolesTotal!==10||r.prerequisiteCoverage?.provisionedTargets!==0||r.prerequisiteCoverage?.provisionTargetsTotal!==7||r.prerequisiteCoverage?.approvedCalibrationGroups!==0||r.prerequisiteCoverage?.calibrationGroupsTotal!==4||r.prerequisiteCoverage?.timeSyncReady!==false||r.failures.length!==0) process.exit(1); console.log('KINGMAST HIL orchestration preparation: software 100%; 0/12 scenarios physically ready; 0/12 evidence complete.');"
+      - name: Release qualification references HIL orchestration contracts
+        run: node scripts/release-qualification-check.mjs
+      - name: Upload HIL orchestration preparation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-hil-orchestration-preparation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/kingmast.hil-orchestration-readiness.json
+            docs/validation/hil/V006_HIL_EQUIPMENT_CAPABILITY_MATRIX.json
+            docs/validation/hil/V006_HIL_TIME_SYNC_CONTRACT.json
+            docs/validation/hil/V006_HIL_SCENARIO_EVIDENCE_REQUIREMENTS.json
+            docs/validation/hil/V006_HIL_ORCHESTRATION_RUNBOOK.md
+          if-no-files-found: error
+          retention-days: 14

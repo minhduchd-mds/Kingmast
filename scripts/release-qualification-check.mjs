@@ -42,10 +42,14 @@ for(const [label,path] of [
   ['qualification readiness dashboard',matrix.compatibility?.qualificationReadinessDashboard],
   ['physical bench execution pack',matrix.compatibility?.physicalBenchExecutionPack],
   ['physical bench runbook',matrix.compatibility?.physicalBenchRunbook],
-  ['harness mapping template',matrix.compatibility?.harnessMappingTemplate],
-  ['device provisioning template',matrix.compatibility?.deviceProvisioningTemplate],
-  ['calibration capture template',matrix.compatibility?.calibrationCaptureTemplate],
-  ['HIL bench matrix',matrix.compatibility?.hilBenchMatrix]
+  ['vehicle harness mapping',matrix.compatibility?.vehicleHarnessMapping],
+  ['physical device provisioning',matrix.compatibility?.physicalDeviceProvisioning],
+  ['physical calibration capture',matrix.compatibility?.physicalCalibrationCapture],
+  ['HIL bench matrix',matrix.compatibility?.hilBenchMatrix],
+  ['HIL equipment capability matrix',matrix.compatibility?.hilEquipmentCapabilityMatrix],
+  ['HIL time synchronization contract',matrix.compatibility?.hilTimeSyncContract],
+  ['HIL scenario evidence requirements',matrix.compatibility?.hilScenarioEvidenceRequirements],
+  ['HIL orchestration runbook',matrix.compatibility?.hilOrchestrationRunbook]
 ])expect(`${label} exists`,existsSync(path??''));
 expect('configuration revision is required for target hardware',String(matrix.compatibility?.configurationRevisionPolicy??'').includes('explicit external revision required'));
 expect('calibration revision is required for target hardware',String(matrix.compatibility?.calibrationRevisionPolicy??'').includes('explicit external revision required'));
@@ -66,6 +70,9 @@ for(const required of [
   'physical bench and harness review',
   'device provisioning identity and source-commit binding',
   'physical sensor calibration capture and independent review',
+  'reviewed HIL equipment capability assignment',
+  'reviewed cross-device time synchronization evidence',
+  'scenario-by-scenario HIL preflight and evidence completeness report',
   'long-duration resource soak',
   'fault injection and degraded-mode evidence',
   'controlled closed-track test record',
@@ -76,4 +83,4 @@ if(failures.length){
   console.error(`KINGMAST release qualification policy failed:\n${failures.map((item)=>`- ${item}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, bench/harness/provisioning/calibration/HIL preparation contracts present, no target-hardware/public-road qualification claim.`);
+console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, HIL equipment/time-sync/orchestration contracts present, no target-hardware/public-road qualification claim.`);
