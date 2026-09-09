@@ -105,6 +105,7 @@ export class ProtectedEvidenceStoreRuntime {
     }
     const failures=validatePhysicalEvidenceRecord(record);
     if(failures.length)return{accepted:false,code:'invalid-record',recordId:null,detail:`invalid fields: ${failures.join(', ')}`,automaticQualification:false};
+    if(this.records.has(record.recordId))return{accepted:false,code:'invalid-record',recordId:null,detail:'recordId already registered',automaticQualification:false};
     if(this.packageDigests.has(record.packageSha256))return{accepted:false,code:'duplicate-package',recordId:null,detail:'package SHA-256 already registered',automaticQualification:false};
     if(this.records.size>=this.config.maxRecords)return{accepted:false,code:'capacity-reached',recordId:null,detail:'bounded metadata index capacity reached',automaticQualification:false};
     const stored=structuredClone(record);
@@ -154,6 +155,7 @@ export class VehicleComputerRuntime {
       if(futureSkew>this.config.maxFutureSkewMs)reasons.push('future-clock-skew');
       if(ageMs>this.config.maxSnapshotAgeMs)reasons.push('stale-vehicle-snapshot');
       if(snapshot.sensors.can!=='ok')reasons.push(`can-${snapshot.sensors.can}`);
+      if(snapshot.sensors.gnssImu!=='ok')reasons.push(`gnss-imu-${snapshot.sensors.gnssImu}`);
       if(snapshot.sensors.ecu!=='ok')reasons.push(`ecu-${snapshot.sensors.ecu}`);
       if(reasons.length)this.note({atMs:nowMs,code:'vehicle-input-degraded',detail:reasons.join(',')});
       return{schema:'kingmast-vehicle-computer-runtime/v1',controlAuthority:'none',readOnly:true,status:reasons.length?'degraded':'live',snapshot,ageMs,reasons};
@@ -174,18 +176,19 @@ export interface TimeSyncAssessment {
 }
 
 function finiteAbs(value:number){return Number.isFinite(value)?Math.abs(value):Number.POSITIVE_INFINITY;}
+function reviewedLimit(value:number|null):value is number{return value!==null&&Number.isFinite(value)&&value>=0;}
 
 export class TimeSyncMonitor {
   readonly controlAuthority=PHYSICAL_RUNTIME_CONTROL_AUTHORITY;
   constructor(private readonly limits:ReviewedTimeSyncLimits){}
   assess(observation:TimeSyncObservation):TimeSyncAssessment{
     if(observation.discontinuityObserved)return{schema:'kingmast-time-sync-assessment/v1',controlAuthority:'none',status:'clock-discontinuity',qualifiedForPhysicalEvidence:false,reasons:['clock-discontinuity']};
-    const complete=this.limits.reviewed&&boundedText(this.limits.reviewRef,256)&&this.limits.maxOffsetMs!==null&&this.limits.maxUncertaintyMs!==null&&this.limits.maxDriftPpm!==null;
+    const complete=this.limits.reviewed&&boundedText(this.limits.reviewRef,256)&&reviewedLimit(this.limits.maxOffsetMs)&&reviewedLimit(this.limits.maxUncertaintyMs)&&reviewedLimit(this.limits.maxDriftPpm);
     if(!complete)return{schema:'kingmast-time-sync-assessment/v1',controlAuthority:'none',status:'unreviewed-limits',qualifiedForPhysicalEvidence:false,reasons:['reviewed numeric time-sync limits are required']};
     const reasons:string[]=[];
-    if(finiteAbs(observation.offsetMs)>this.limits.maxOffsetMs!)reasons.push('offset-outside-reviewed-limit');
-    if(finiteAbs(observation.uncertaintyMs)>this.limits.maxUncertaintyMs!)reasons.push('uncertainty-outside-reviewed-limit');
-    if(finiteAbs(observation.driftPpm)>this.limits.maxDriftPpm!)reasons.push('drift-outside-reviewed-limit');
+    if(finiteAbs(observation.offsetMs)>this.limits.maxOffsetMs)reasons.push('offset-outside-reviewed-limit');
+    if(finiteAbs(observation.uncertaintyMs)>this.limits.maxUncertaintyMs)reasons.push('uncertainty-outside-reviewed-limit');
+    if(finiteAbs(observation.driftPpm)>this.limits.maxDriftPpm)reasons.push('drift-outside-reviewed-limit');
     return{schema:'kingmast-time-sync-assessment/v1',controlAuthority:'none',status:reasons.length?'outside-reviewed-limits':'within-reviewed-limits',qualifiedForPhysicalEvidence:reasons.length===0,reasons};
   }
 }
@@ -239,6 +242,7 @@ export class HilBenchAgent {
   capture(record:PhysicalEvidenceRecord):CaptureLifecycleSnapshot{
     if(this.state!=='READY')throw new Error('HIL scenario must be READY before capture');
     if(record.evidenceClass!=='hil'||record.scenarioId!==this.scenarioId)throw new Error('HIL evidence record does not match scenario');
+    if(record.reviewStatus!=='pending-independent-review')throw new Error('new HIL capture must await independent review');
     const failures=validatePhysicalEvidenceRecord(record);if(failures.length)throw new Error(`invalid HIL evidence record: ${failures.join(', ')}`);
     this.state='CAPTURED';this.captureRecordId=record.recordId;
     return this.snapshot(['captured-awaiting-independent-review']);
@@ -265,6 +269,7 @@ export class ControlledTrackAgent {
   capture(record:PhysicalEvidenceRecord):CaptureLifecycleSnapshot{
     if(this.state!=='READY')throw new Error('controlled-track scenario must be READY before capture');
     if(record.evidenceClass!=='closed-track'||record.scenarioId!==this.scenarioId)throw new Error('controlled-track evidence record does not match scenario');
+    if(record.reviewStatus!=='pending-independent-review')throw new Error('new controlled-track capture must await independent review');
     const failures=validatePhysicalEvidenceRecord(record);if(failures.length)throw new Error(`invalid controlled-track evidence record: ${failures.join(', ')}`);
     this.state='CAPTURED';this.captureRecordId=record.recordId;
     return this.snapshot(['captured-awaiting-independent-review']);
