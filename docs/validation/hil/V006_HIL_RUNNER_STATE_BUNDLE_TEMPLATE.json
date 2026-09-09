@@ -1,0 +1,55 @@
+{
+  "schema": "kingmast-hil-runner-state-bundle/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "template-only-no-physical-state",
+  "sourceSoftwareCommit": null,
+  "physicalHilExecuted": false,
+  "automaticQualification": false,
+  "registryMutationByAutomation": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "canTxPathPresent": false,
+  "runner": {
+    "status": "unprovisioned",
+    "runnerIdentitySha256": null,
+    "osImageRevision": null,
+    "orchestratorRevision": "kingmast-hil-execution-orchestration-readiness/v1",
+    "operator": null
+  },
+  "prerequisites": {
+    "harnessReview": {"status": "pending", "evidenceRef": null, "sha256": null},
+    "equipmentCapabilities": {"status": "pending", "reviewedRoleCount": 0, "totalRoleCount": 10, "evidenceRef": null, "sha256": null},
+    "provisioning": {"status": "pending", "reviewedTargetCount": 0, "totalTargetCount": 7, "evidenceRef": null, "sha256": null},
+    "calibration": {"status": "pending", "reviewedGroupCount": 0, "totalGroupCount": 4, "evidenceRef": null, "sha256": null},
+    "timeSync": {"status": "pending", "sessionRef": null, "sha256": null}
+  },
+  "scenarioStates": [
+    {"id":"HIL-001","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-002","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-003","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-004","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-005","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-006","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-007","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-008","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-009","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-010","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-011","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null},
+    {"id":"HIL-012","state":"blocked","blockers":["physical-prerequisites-pending"],"capturePackageRef":null,"capturePackageSha256":null,"operator":null,"independentReviewer":null,"reviewRef":null,"reviewSha256":null}
+  ],
+  "statePolicy": {
+    "allowedStates": ["blocked", "ready", "captured-awaiting-review", "reviewed-pass", "reviewed-fail"],
+    "capturedRequiresPackageSha256": true,
+    "reviewedRequiresIndependentReviewer": true,
+    "reviewerMustDifferFromOperator": true,
+    "reviewedRegistryPromotionIsManual": true,
+    "simulationOrCiCannotSetPhysicalState": true
+  },
+  "notes": [
+    "This source-controlled file is a fail-closed template. Copy it to the approved HIL runner before recording physical state.",
+    "READY means prerequisites are reviewed for bounded bench execution; it is not a scenario result.",
+    "CAPTURED means evidence was packaged and is awaiting independent review; it is not a pass.",
+    "REVIEWED-PASS or REVIEWED-FAIL must be backed by independent review and does not by itself qualify target hardware or authorize public-road use."
+  ]
+}

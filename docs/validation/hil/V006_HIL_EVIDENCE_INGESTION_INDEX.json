@@ -1,0 +1,25 @@
+{
+  "schema": "kingmast-hil-evidence-ingestion-index/v1",
+  "version": "0.0.6",
+  "controlAuthority": "none",
+  "status": "empty-no-physical-ingestion",
+  "automaticRegistryMutation": false,
+  "targetHardwareQualified": false,
+  "publicRoadApproved": false,
+  "records": [],
+  "recordPolicy": {
+    "sourceCommitBindingRequired": true,
+    "packageSha256Required": true,
+    "evidenceDigestBindingRequired": true,
+    "independentReviewRequiredForRegistryPromotion": true,
+    "duplicatePackageSha256Rejected": true,
+    "duplicateScenarioCaptureRequiresExplicitSupersession": true,
+    "rawHardwareSerialStorageProhibited": true,
+    "secretsProhibited": true
+  },
+  "notes": [
+    "This index begins empty and is not an evidence registry.",
+    "The ingestion validator emits bounded metadata only; it never mutates the HIL registry or grants qualification.",
+    "Physical capture packages remain subject to independent review before any manual registry promotion."
+  ]
+}

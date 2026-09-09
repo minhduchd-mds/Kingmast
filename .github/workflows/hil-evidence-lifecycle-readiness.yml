@@ -1,0 +1,69 @@
+name: HIL Evidence Lifecycle Readiness
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/validation/hil/V006_HIL_RUNNER_STATE_BUNDLE_TEMPLATE.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_INGESTION_INDEX.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json'
+      - 'docs/validation/hil/HIL_COVERAGE_DASHBOARD_V006.md'
+      - 'scripts/hil-runner-state-bundle-check.mjs'
+      - 'scripts/hil-evidence-ingestion-validator.mjs'
+      - 'scripts/hil-coverage-dashboard.mjs'
+      - '.github/workflows/hil-evidence-lifecycle-readiness.yml'
+  pull_request:
+    paths:
+      - 'docs/validation/hil/V006_HIL_RUNNER_STATE_BUNDLE_TEMPLATE.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_INGESTION_INDEX.json'
+      - 'docs/validation/hil/V006_HIL_EVIDENCE_REGISTRY.json'
+      - 'docs/validation/hil/HIL_COVERAGE_DASHBOARD_V006.md'
+      - 'scripts/hil-runner-state-bundle-check.mjs'
+      - 'scripts/hil-evidence-ingestion-validator.mjs'
+      - 'scripts/hil-coverage-dashboard.mjs'
+      - '.github/workflows/hil-evidence-lifecycle-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingmast-hil-evidence-lifecycle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hil-evidence-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+      - name: Validate fail-closed runner state
+        run: |
+          node scripts/hil-runner-state-bundle-check.mjs --json > "$RUNNER_TEMP/runner.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/runner.json'); if(r.schema!=='kingmast-hil-runner-state-validation/v1'||r.counts.blocked!==12||r.counts.ready!==0||r.physicalHilExecuted!==false||r.failures.length!==0) process.exit(1);"
+      - name: Validate ingestion trust boundary
+        run: |
+          node scripts/hil-evidence-ingestion-validator.mjs --selftest --json > "$RUNNER_TEMP/ingestion.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/ingestion.json'); if(r.total<5||r.failed!==0||r.allPassed!==true||r.automaticRegistryMutation!==false||r.publicRoadApproved!==false) process.exit(1);"
+      - name: Generate fail-closed lifecycle dashboard
+        run: |
+          node scripts/hil-coverage-dashboard.mjs --json > "$RUNNER_TEMP/dashboard.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/dashboard.json'); if(r.scenarioCount!==12||r.counts.BLOCKED!==12||r.counts.READY!==0||r.counts.CAPTURED!==0||r.counts.REVIEWED!==0||r.counts.FAILED!==0||r.reviewedEvidenceCoveragePercent!==0||r.targetHardwareQualified!==false||r.publicRoadApproved!==false||r.failures.length!==0) process.exit(1);"
+      - name: Upload lifecycle preparation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kingmast-hil-evidence-lifecycle-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/runner.json
+            ${{ runner.temp }}/ingestion.json
+            ${{ runner.temp }}/dashboard.json
+            docs/validation/hil/V006_HIL_RUNNER_STATE_BUNDLE_TEMPLATE.json
+            docs/validation/hil/V006_HIL_EVIDENCE_INGESTION_INDEX.json
+            docs/validation/hil/HIL_COVERAGE_DASHBOARD_V006.md
+          if-no-files-found: error
+          retention-days: 14
