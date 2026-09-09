@@ -13,6 +13,7 @@ import './hmi-connectivity-recovery.css';
 import './hmi-road-events.css';
 import './hmi-first-run.css';
 import './hmi-system-management.css';
+import './hmi-device-health.css';
 import './hmi-resilience.css';
 import './hmi-capabilities.css';
 import './hmi-driver-capabilities.css';
