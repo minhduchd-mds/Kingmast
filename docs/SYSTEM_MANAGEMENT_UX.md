@@ -1,4 +1,4 @@
-# KINGMAST v0.0.6 — Parked System Management UX
+# KINGMAST v0.0.7 — Parked System Management UX
 
 KINGMAST remains warning-only Level 0. These flows add service, update, privacy, profile and accessibility management without adding steering, braking, throttle, drivetrain, gear, torque or CAN-write authority.
 
@@ -21,7 +21,7 @@ KINGMAST remains warning-only Level 0. These flows add service, update, privacy,
 15. Driver profile preferences restore at startup through a root runtime.
 16. Large text, high contrast and reduced motion apply independently from opening Settings.
 17. Metric/Imperial preference switches driver-facing safety speed and distance presentation atomically; internal risk and routing calculations remain in SI.
-18. Locale preference is persisted without claiming translation coverage that is not implemented.
+18. Locale preference supports `en-US` and `vi-VN`; localized driver-facing static copy is selected at runtime while provider-authored road names, route instructions and external safety text remain source-authored when no trusted translation exists.
 19. Accessibility and service controls maintain large touch targets, focus-visible states, Reduced Motion and Forced Colors support.
 20. Every service/update failure has a deterministic return path to the normal parked Settings screen and cannot suppress critical collision/VRU warnings.
 21. Browser preview never guesses ignition state; native ignition/sleep/wake/recovery status is accepted only from the host lifecycle bridge.
@@ -47,8 +47,7 @@ The embedded host may expose `window.kingmastNative.lifecycle` with `getState()`
 - Validate actual radar/camera/GNSS calibration procedures against the selected hardware datasheets and OEM mounting tolerances.
 - Add signed update manifest format, trust anchors, secure boot/rollback design and hardware-backed key storage.
 - Wire privacy choices to the real backend retention policy once a backend/account model exists.
-- Validate every Metric/Imperial surface and accessibility override on target automotive displays.
-- Complete localization before changing the runtime document language.
+- Validate every Metric/Imperial and `en-US`/`vi-VN` surface plus accessibility overrides on target automotive displays.
 - Map ignition/sleep/wake/watchdog semantics to the actual native vehicle host.
 - Provision V2X certificate rotation/revocation and message-authenticity checks in the authorized provider adapter.
 - Validate all flows on the target automotive display for sunlight, night luminance, glove/knob input and distraction limits.
