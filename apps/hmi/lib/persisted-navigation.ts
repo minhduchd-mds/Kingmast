@@ -18,8 +18,16 @@ function isNavigationStep(value:unknown):value is NavigationStep{
     isGeoPoint(value.location)&&(value.roadName===null||typeof value.roadName==='string');
 }
 
+function isTraffic(value:unknown){
+  if(value===undefined)return true;if(!isRecord(value)||typeof value.aware!=='boolean')return false;
+  if(!['none','google-live','mapbox-live'].includes(String(value.source)))return false;
+  if(value.delayS!==null&&(!isFiniteNumber(value.delayS)||value.delayS<0))return false;
+  if(value.observedAtMs!==null&&(!isFiniteNumber(value.observedAtMs)||value.observedAtMs<=0))return false;
+  return true;
+}
+
 export function isNavigationRoute(value:unknown):value is NavigationRoute{
-  if(!isRecord(value)||value.provider!=='osrm'||!isGeoPoint(value.origin)||!isGeoPoint(value.destination))return false;
+  if(!isRecord(value)||!['osrm','google-routes','mapbox'].includes(String(value.provider))||!isGeoPoint(value.origin)||!isGeoPoint(value.destination)||!isTraffic(value.traffic))return false;
   if(!isFiniteNumber(value.distanceM)||value.distanceM<0||!isFiniteNumber(value.durationS)||value.durationS<0||!isFiniteNumber(value.fetchedAtMs))return false;
   if(!Array.isArray(value.geometry)||value.geometry.length<2||value.geometry.length>50_000||!value.geometry.every(isGeoPoint))return false;
   if(!Array.isArray(value.steps)||value.steps.length>5_000||!value.steps.every(isNavigationStep))return false;
