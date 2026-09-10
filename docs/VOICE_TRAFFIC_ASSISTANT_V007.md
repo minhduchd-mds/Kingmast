@@ -107,3 +107,5 @@ None of these credentials may use a `NEXT_PUBLIC_*` name.
 ## Validation boundary
 
 Software CI can verify parsing, safety boundaries, provider failover, secret placement, route provenance and map integration. It cannot claim target-display 60 FPS, vehicle-computer qualification, physical HIL completion or public-road approval. Those remain separate physical evidence gates.
+
+The merge decision must use CI and CodeQL results produced for the same final pull-request head after the PR targets `main`; results from an earlier stacked base are not promoted to the final feature commit.
