@@ -23,15 +23,17 @@ async function hasHorizontalOverflow(page:Page){
   return page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
 }
 
-test.describe('KINGMAST v0.0.6 automotive HMI',()=>{
-  test('startup experience is branded, calm and completes into Drive for a returning driver',async({page})=>{
+test.describe('KINGMAST v0.0.7 automotive HMI',()=>{
+  test('startup experience is branded, host-grounded and completes into Drive for a returning driver',async({page})=>{
     await page.setViewportSize({width:1366,height:768});
     await primeReturningUser(page);
     await page.goto('/');
     const startup=page.getByTestId('kingmast-startup');
     await expect(startup).toBeVisible();
     await expect(startup.getByRole('heading',{name:'KINGMAST'})).toBeVisible();
-    await expect(startup.getByText('Safety systems active',{exact:false})).toBeVisible();
+    await expect(startup).toHaveAttribute('data-host-mode','checking');
+    await expect(startup.getByTestId('startup-gps-status')).toContainText('Waiting for host');
+    await expect(startup.getByTestId('startup-gps-status')).not.toContainText('Ready');
     await expect(startup.getByRole('status')).toBeVisible();
     await expect(page.locator('.startupProgress')).toBeVisible();
     await expect(page.locator('main.appShell')).toBeVisible({timeout:5_000});

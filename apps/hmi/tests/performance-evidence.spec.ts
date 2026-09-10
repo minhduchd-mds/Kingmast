@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { expect,test } from '@playwright/test';
+import hmiPackage from '../package.json';
 
 const enabled=process.env.KINGMAST_HMI_PERFORMANCE_EVIDENCE==='1';
 const outputPath=process.env.KINGMAST_HMI_PERFORMANCE_OUTPUT??'performance-evidence.json';
@@ -22,17 +23,19 @@ test.describe('KINGMAST HMI performance evidence',()=>{
     await page.goto('/',{waitUntil:'domcontentloaded'});
     await expect(page.getByTestId('kingmast-startup')).toBeVisible({timeout:4_000});
     const startupVisibleMs=performance.now()-startedAt;
-    await expect(page.locator('main.appShell')).toBeVisible({timeout:8_000});
+    await expect(page.locator('main.appShell')).toBeVisible({timeout:4_000});
     const bootToReadyMs=performance.now()-startedAt;
     await expect(page.locator('.speedValue')).toBeVisible();
     await expect(page.getByTestId('driver-action-dock')).toBeVisible();
-    await expect(page.getByTestId('surround-spatial-layer')).toBeVisible({timeout:7_000});
+    await expect(page.getByTestId('surround-spatial-layer')).toBeVisible({timeout:5_000});
     const markerCount=await page.getByTestId('surround-spatial-layer').locator('.surroundMarker').count();
     const firstUsableDrivingSurfaceMs=performance.now()-startedAt;
 
+    // Let browser startup/layout work settle before measuring steady-state animation cadence.
+    await page.waitForTimeout(350);
     const frameDeltas=await page.evaluate(async()=>new Promise<number[]>((resolve)=>{
       const samples:number[]=[];
-      const durationMs=1_500;
+      const durationMs=3_000;
       let previous=performance.now();
       const endAt=previous+durationMs;
       function frame(now:number){
@@ -42,7 +45,9 @@ test.describe('KINGMAST HMI performance evidence',()=>{
       }
       requestAnimationFrame(frame);
     }));
-    const meaningfulFrameDeltas=frameDeltas.slice(1);
+    // Ignore the first few callbacks after the measurement task is scheduled. Linux/Xvfb can
+    // quantize those callbacks while the event loop hands control back to Chromium.
+    const meaningfulFrameDeltas=frameDeltas.slice(Math.min(8,Math.max(1,frameDeltas.length-1)));
     const jankThresholdMs=34;
     const jankFrames=meaningfulFrameDeltas.filter((value)=>value>jankThresholdMs).length;
     const jankRatio=meaningfulFrameDeltas.length===0?1:jankFrames/meaningfulFrameDeltas.length;
@@ -61,7 +66,12 @@ test.describe('KINGMAST HMI performance evidence',()=>{
       webglFallbackMode='renderer-unavailable';
     }
 
-    const budget={bootToReadyMs:8_000,firstUsableDrivingSurfaceMs:8_500,frameP99Ms:180,frameMaxMs:500,jankRatioMax:0.35,minSurroundMarkers:2} as const;
+    // The 60 FPS values below remain the product/target-display goal. GitHub Actions runs Chromium
+    // through a shared Linux/Xvfb environment where occasional callbacks are quantized to 2–4
+    // vsync intervals. CI therefore gates steady-state regression with cadence + bounded jank while
+    // reporting stricter 60 FPS percentiles separately. It must never promote CI to target hardware.
+    const target={frameMs:16.67,frameP50Ms:20,frameP95Ms:24,frameP99Ms:34} as const;
+    const budget={bootToReadyMs:2_000,firstUsableDrivingSurfaceMs:2_200,frameP50Ms:34,frameP95Ms:50.1,frameP99Ms:67,frameMaxMs:120,jankRatioMax:.08,minObservedCadenceHz:28,minSurroundMarkers:2} as const;
     const latency={
       startupVisibleMs:round(startupVisibleMs),
       bootToReadyMs:round(bootToReadyMs),
@@ -76,13 +86,18 @@ test.describe('KINGMAST HMI performance evidence',()=>{
       jankThresholdMs,
       jankFrames,
       jankRatio:round(jankRatio,4),
+      observedCadenceHz:round(1000/Math.max(.1,percentile(meaningfulFrameDeltas,.50)),1),
     };
+    const target60FpsMet=frameTiming.p50Ms<=target.frameP50Ms&&frameTiming.p95Ms<=target.frameP95Ms&&frameTiming.p99Ms<=target.frameP99Ms;
     const checks={
       bootToReady:latency.bootToReadyMs<=budget.bootToReadyMs,
       firstUsableDrivingSurface:latency.firstUsableDrivingSurfaceMs<=budget.firstUsableDrivingSurfaceMs,
+      frameP50:frameTiming.p50Ms<=budget.frameP50Ms,
+      frameP95:frameTiming.p95Ms<=budget.frameP95Ms,
       frameP99:frameTiming.p99Ms<=budget.frameP99Ms,
       frameMax:frameTiming.maxMs<=budget.frameMaxMs,
       jankRatio:frameTiming.jankRatio<=budget.jankRatioMax,
+      observedCadence:frameTiming.observedCadenceHz>=budget.minObservedCadenceHz,
       surroundLoad:markerCount>=budget.minSurroundMarkers,
       webglFallback:webglFallbackMode!=='not-observed',
     };
@@ -90,15 +105,17 @@ test.describe('KINGMAST HMI performance evidence',()=>{
     const report={
       schema:'kingmast-hmi-performance-report/v1',
       generatedAt:new Date().toISOString(),
-      productVersion:'0.0.6',
-      controlAuthority:'none',
-      qualificationClaim:'ci-browser-regression-only-not-target-display-or-vehicle-computer',
+      productVersion:hmiPackage.version,
+      controlAuthority:'none' as const,
+      qualificationClaim:'ci-browser-regression-only-not-target-display-or-vehicle-computer' as const,
       targetHardwareQualified:false,
       physicalVehicleComputerTest:false,
       userStudyEvidence:false,
       browser:browserName,
       viewport:{width:1366,height:768},
       workload:{simulator:true,surroundMarkers:markerCount,mapSurface:true,alertAndSpatialUi:'simulator-driven'},
+      performanceTarget:{name:'60fps-oriented-browser-target',...target,targetHardwareValidated:false,target60FpsMet},
+      ciRunnerAcceptance:{headlessVirtualDisplay:true,target60FpsClaimed:false,steadyStateWarmupMs:350,measurementMs:3_000},
       latency,
       frameTiming,
       rendererFallback:{mode:webglFallbackMode,passed:checks.webglFallback},

@@ -31,33 +31,27 @@ export function usePrefersReducedMotion() {
   return reduced;
 }
 
+/**
+ * Driver values follow telemetry samples instead of interpolating React state on
+ * every animation frame. The previous implementation could re-render the whole
+ * cockpit 20-30 times for one speed/gap/TTC sample. Visual motion belongs on
+ * compositor-friendly transforms; safety-relevant numbers should stay current.
+ */
 export function useAnimatedNumber(target: number, duration: number = MOTION.ms.standard) {
   const reducedMotion = usePrefersReducedMotion();
   const [value, setValue] = useState(target);
   const valueRef = useRef(target);
 
   useEffect(() => {
-    if (reducedMotion) {
-      valueRef.current = target;
+    if (Object.is(valueRef.current, target)) return;
+    valueRef.current = target;
+
+    if (reducedMotion || duration <= MOTION.ms.instant) {
       setValue(target);
       return;
     }
 
-    const from = valueRef.current;
-    const delta = target - from;
-    const startedAt = performance.now();
-    let frame = 0;
-
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const next = from + delta * eased;
-      valueRef.current = next;
-      setValue(next);
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-
-    frame = requestAnimationFrame(tick);
+    let frame = requestAnimationFrame(() => setValue(target));
     return () => cancelAnimationFrame(frame);
   }, [duration, reducedMotion, target]);
 

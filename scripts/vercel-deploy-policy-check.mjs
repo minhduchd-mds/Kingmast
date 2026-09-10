@@ -16,6 +16,12 @@ for(const path of paths){
   if(policy.main!==true)failures.push(`${path}: main must remain deployment-enabled`);
   if(policy['**']!==false)failures.push(`${path}: all non-main branches must be deployment-disabled by the catch-all rule`);
   if(config.ignoreCommand)failures.push(`${path}: ignoreCommand creates ignored deployment records; use git.deploymentEnabled instead`);
+
+  if(path==='apps/hmi/vercel.json'){
+    if(!Array.isArray(config.regions)||config.regions.length!==1||config.regions[0]!=='sin1'){
+      failures.push(`${path}: HMI server functions must run in the Singapore sin1 region for the current Vietnam deployment profile`);
+    }
+  }
 }
 
 if(failures.length){
@@ -23,4 +29,4 @@ if(failures.length){
   process.exit(1);
 }
 
-console.log('KINGMAST Vercel deployment policy passed: automatic Git deployments are main-only.');
+console.log('KINGMAST Vercel deployment policy passed: automatic Git deployments are main-only and HMI functions target sin1.');
