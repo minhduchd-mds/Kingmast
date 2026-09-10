@@ -2,6 +2,7 @@
 
 import { useCallback,useEffect,useMemo,useState } from 'react';
 import type { EvProfile,GeoPoint,NavigationPlace,NavigationRoute,NavigationRouteOption,RoadContext,RouteIntelligence,VehiclePosition } from '@kingmast/contracts';
+import { ASSISTANT_NAVIGATION_REQUEST,publishAssistantNavigationResult,type AssistantNavigationRequestDetail } from './assistant-navigation';
 import { parseRecentPlaces,parseStoredNavigationRoute,sanitizeEvProfile } from './persisted-navigation';
 
 function apiBase(){return(process.env.NEXT_PUBLIC_KINGMAST_API_URL??'http://localhost:4000').replace(/\/$/,'');}
@@ -44,5 +45,8 @@ export function useRoadContext(vehicle:VehiclePosition,radiusM:number):RoadConte
   const selectRouteOption=useCallback((id:string)=>{const option=routeOptions.find((item)=>item.id===id);if(!option||!destination)return;setSelectedRouteId(id);setRoute(option.route);setRouteFromCache(false);persistRoute(option.route,destination);},[destination,persistRoute,routeOptions]);
   const clearRoute=useCallback(()=>{setRoute(null);setDestination(null);setRouteFromCache(false);setRouteOptions([]);setSelectedRouteId(null);setIntelligence(null);try{window.localStorage.removeItem(ROUTE_CACHE_KEY);}catch{}},[]);
   const searchPlaces=useCallback(async(query:string)=>{const trimmed=query.trim();if(trimmed.length<2){setPlaces([]);return[];}setSearchLoading(true);setError(null);try{const url=`${apiBase()}/v4/navigation/search?q=${encodeURIComponent(trimmed)}&lat=${encodeURIComponent(vehicle.lat)}&lng=${encodeURIComponent(vehicle.lng)}`;const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error(`geocoding-${response.status}`);const value=await response.json() as {places?:NavigationPlace[]};const results=value.places??[];setPlaces(results);return results;}catch(errorValue){setError(errorValue instanceof Error?errorValue.message:'geocoding-unavailable');setPlaces([]);return[];}finally{setSearchLoading(false);}},[vehicle.lat,vehicle.lng]);
+
+  useEffect(()=>{let active=true;const onAssistantNavigation=(event:Event)=>{const detail=(event as CustomEvent<AssistantNavigationRequestDetail>).detail;if(!detail?.requestId||!detail.destinationQuery)return;void(async()=>{if(!navigator.onLine){publishAssistantNavigationResult({requestId:detail.requestId,ok:false,destinationName:null,route:null,error:'offline'});return;}const results=await searchPlaces(detail.destinationQuery);if(!active)return;const place=results[0];if(!place){publishAssistantNavigationResult({requestId:detail.requestId,ok:false,destinationName:null,route:null,error:'not-found'});return;}const nextRoute=await navigate(place.position,place);if(!active)return;publishAssistantNavigationResult({requestId:detail.requestId,ok:Boolean(nextRoute),destinationName:place.name,route:nextRoute,error:nextRoute?null:'route-unavailable'});})();};window.addEventListener(ASSISTANT_NAVIGATION_REQUEST,onAssistantNavigation as EventListener);return()=>{active=false;window.removeEventListener(ASSISTANT_NAVIGATION_REQUEST,onAssistantNavigation as EventListener);};},[navigate,searchPlaces]);
+
   return{context,loading,error,route,routeLoading,routeFromCache,destination,routeOptions,selectedRouteId,selectRouteOption,intelligence,intelligenceLoading,intelligenceError,evProfile,setEvProfile,navigate,reroute,clearRoute,places,recentPlaces,searchLoading,searchPlaces};
 }
