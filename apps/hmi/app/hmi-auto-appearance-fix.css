@@ -1,0 +1,38 @@
+/* Auto daytime surfaces are mounted at different DOM levels. Resolve their material directly
+   from the shared ambient marker so descendant theme tokens cannot shadow the light palette. */
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto){
+  color-scheme:light;
+  --hmi-dock-surface:rgba(246,247,250,.95);
+  --hmi-floating-surface:rgba(250,251,252,.97);
+  --hmi-capability-surface:rgba(248,249,251,.96);
+  --hmi-capability-quiet:rgba(248,249,251,.94);
+  --hmi-material-line:rgba(20,24,30,.11);
+  --hmi-material-text:#17191d;
+  --hmi-material-secondary:#5e6670;
+  --hmi-material-shadow:0 14px 34px rgba(36,43,50,.13);
+}
+
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverActionDock{
+  background:rgba(246,247,250,.95);
+  border-color:rgba(20,24,30,.11);
+  box-shadow:0 14px 34px rgba(36,43,50,.13);
+}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverActionDock button{color:#42454b}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverActionDock button:hover:not(:disabled){background:rgba(0,0,0,.045);color:#15171a}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverActionDock button.isActive{color:#15171a;background:rgba(10,132,255,.09);border-color:rgba(10,132,255,.18)}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverActionDock button.hasAlert{color:#24211a;background:rgba(255,188,0,.09);border-color:rgba(155,111,0,.18)}
+
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityRail{
+  background:rgba(248,249,251,.96);
+  border-color:rgba(20,24,30,.11);
+  box-shadow:0 14px 34px rgba(36,43,50,.13);
+}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityRail.isQuiet{background:rgba(248,249,251,.94)}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityIntro strong,
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityTitle strong{color:#17191d}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityIntro span,
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityCopy p{color:#67707a}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityCopy small,
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityTitle em{color:#515a65}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityItem{background:rgba(0,0,0,.025);border-color:rgba(0,0,0,.07)}
+body:has(.kingmastExperience.ambient-day):has(.hmiV5.theme-auto) .driverCapabilityIntro{border-right-color:rgba(0,0,0,.08)}
