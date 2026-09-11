@@ -27,7 +27,7 @@ const roadEvents=read('lib/road-event-presentation.ts');
 const contracts=read('../../packages/contracts/src/index.ts');
 
 const checks=[
-  ['development version remains 0.0.7',pkg.version==='0.0.7'],
+  ['development version remains 0.0.8',pkg.version==='0.0.8'],
   ['Apple-inspired base layer is loaded',layout.includes("import './hmi-apple.css';")],
   ['Apple density layer is loaded after the control system',layout.includes("import './hmi-control-system.css';\nimport './hmi-apple-density.css';")],
   ['calm driver attention layer is loaded after capability styling',layout.includes("import './hmi-driver-capabilities.css';\nimport './hmi-attention.css';")],
