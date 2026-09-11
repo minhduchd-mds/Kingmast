@@ -1,6 +1,6 @@
 import {createHash,createPublicKey,verify as verifySignature} from 'node:crypto';
 
-export type OperatorScope='configuration:geofences';
+export type OperatorScope='configuration:geofences'|'configuration:nextgen';
 export type OperatorKeyState='active'|'revoked';
 
 export interface OperatorKeyRecord {
@@ -56,7 +56,7 @@ function isFiniteTimestamp(value:unknown):value is number {
 
 function parseScopes(value:unknown):OperatorScope[]|null {
   if(!Array.isArray(value)||value.length===0)return null;
-  const scopes=[...new Set(value.filter((item):item is OperatorScope=>item==='configuration:geofences'))];
+  const scopes=[...new Set(value.filter((item):item is OperatorScope=>item==='configuration:geofences'||item==='configuration:nextgen'))];
   return scopes.length===value.length?scopes:null;
 }
 
