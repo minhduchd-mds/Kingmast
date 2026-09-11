@@ -25,6 +25,8 @@ const MAX_ROLE_DURATION_MS:Partial<Record<DriverRole,number>>={
   service:7*24*60*60*1000,
 };
 
+export function roleRank(role:DriverRole){return ROLE_RANK[role];}
+
 function activeIssuer(grants:VehicleAccessGrant[],vehicleId:string,profileId:string,nowMs:number){
   return grants
     .filter((grant)=>grant.vehicleId===vehicleId&&grant.profileId===profileId&&grant.validFromMs<=nowMs&&(grant.validUntilMs===null||grant.validUntilMs>=nowMs)&&(grant.revokedAtMs===null||grant.revokedAtMs>nowMs))
@@ -48,7 +50,7 @@ export function validateGrantIssuance(proposed:VehicleAccessGrant,existing:Vehic
   const issuer=activeIssuer(vehicleGrants,proposed.vehicleId,proposed.issuedByProfileId,nowMs);
   if(!issuer)return{allowed:false,reason:'issuer-not-active',normalizedPermissions};
   if(!roleAllowsPermission(issuer.role,'keys.share')||!issuer.permissions.includes('keys.share'))return{allowed:false,reason:'issuer-cannot-share-keys',normalizedPermissions};
-  if(ROLE_RANK[issuer.role]<=ROLE_RANK[proposed.role])return{allowed:false,reason:'issuer-role-insufficient',normalizedPermissions};
+  if(roleRank(issuer.role)<=roleRank(proposed.role))return{allowed:false,reason:'issuer-role-insufficient',normalizedPermissions};
   const issuerPermissions=new Set(activeVehiclePermissions(issuer,proposed.vehicleId,issuer.profileId,nowMs));
   if(normalizedPermissions.some((permission)=>!issuerPermissions.has(permission)))return{allowed:false,reason:'issuer-permission-exceeded',normalizedPermissions};
   if(proposed.validFromMs<issuer.validFromMs)return{allowed:false,reason:'issuer-validity-exceeded',normalizedPermissions};
@@ -56,4 +58,4 @@ export function validateGrantIssuance(proposed:VehicleAccessGrant,existing:Vehic
   return{allowed:true,reason:'allowed',normalizedPermissions};
 }
 
-export function grantRoleSummary(role:DriverRole){return{role,rank:ROLE_RANK[role],permissionCeiling:rolePermissionCeiling(role),maxDurationMs:MAX_ROLE_DURATION_MS[role]??null};}
+export function grantRoleSummary(role:DriverRole){return{role,rank:roleRank(role),permissionCeiling:rolePermissionCeiling(role),maxDurationMs:MAX_ROLE_DURATION_MS[role]??null};}
