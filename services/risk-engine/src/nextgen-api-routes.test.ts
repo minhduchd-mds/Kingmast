@@ -19,7 +19,8 @@ async function createApp(viewer=true,writer=true){
   const memoryRepository=new ProfileMemoryRepository(persistence);
   const runtime=new NextgenRuntime();
   const app=Fastify();
-  await app.register(nextgenApiRoutes,{runtime,profiles,accessRepository,memoryRepository,requireViewer:(_request,reply)=>{if(viewer)return true;reply.code(401).send({error:'viewer-auth-required'});return false;},requireWrite:(_request,reply)=>{if(writer)return true;reply.code(401).send({error:'configuration-auth-required'});return false;}});
+  const accessActorAuthorizer=()=>({ok:true as const,actor:{actorId:'test-operator',profileId:'owner-1',authMode:'local-dev' as const}});
+  await app.register(nextgenApiRoutes,{runtime,profiles,accessRepository,memoryRepository,accessActorAuthorizer,requireViewer:(_request,reply)=>{if(viewer)return true;reply.code(401).send({error:'viewer-auth-required'});return false;},requireWrite:(_request,reply)=>{if(writer)return true;reply.code(401).send({error:'configuration-auth-required'});return false;}});
   return{app,profiles,accessRepository,memoryRepository,runtime};
 }
 
