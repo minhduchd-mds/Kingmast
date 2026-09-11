@@ -3,7 +3,13 @@ import { issueViewerSession,VIEWER_SESSION_COOKIE,VIEWER_SESSION_TTL_S } from '@
 
 export const runtime='nodejs';
 
-const SECURITY_HEADERS={'cache-control':'no-store','vary':'origin, sec-fetch-site'};
+const SECURITY_HEADERS={
+  'cache-control':'no-store',
+  'vary':'origin, sec-fetch-site',
+  'cross-origin-resource-policy':'same-origin',
+  'x-content-type-options':'nosniff',
+  'referrer-policy':'no-referrer',
+};
 
 function viewerToken(){return(process.env.KINGMAST_VIEWER_TOKEN??'').trim();}
 function cookieDomain(){const value=(process.env.KINGMAST_VIEWER_COOKIE_DOMAIN??'').trim();return value||undefined;}
@@ -12,7 +18,7 @@ function isLoopbackHost(host:string){const normalized=host.toLowerCase();return 
 function sameOrigin(request:NextRequest){
   const origin=request.headers.get('origin');
   if(origin){
-    try{return new URL(origin).host===request.nextUrl.host;}catch{return false;}
+    try{return new URL(origin).origin===request.nextUrl.origin;}catch{return false;}
   }
   const fetchSite=request.headers.get('sec-fetch-site');
   if(fetchSite==='same-origin')return true;
