@@ -123,7 +123,7 @@ export default function StartupExperience({ onComplete }: StartupExperienceProps
 
       <section className="startupHero" aria-labelledby="startup-title">
         <div className="startupBrandMark" aria-hidden="true"><ShieldCheck strokeWidth={1.7}/></div>
-        <p className="startupVersion">KINGMAST · v0.0.7</p>
+        <p className="startupVersion">KINGMAST · v0.0.8</p>
         <h1 id="startup-title">KINGMAST</h1>
         <p className="startupHeadline">{headline}</p>
         <p className="startupStatus" role="status" aria-live="polite">{statusCopy}</p>
