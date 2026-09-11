@@ -22,9 +22,9 @@ describe('camera runtime health',()=>{
 
   it('uses drop ratio only after enough volume to avoid noisy startup classification',()=>{
     const tracker=new CameraPerformanceTracker();
-    for(let index=0;index<9;index+=1){tracker.captured('front');tracker.dropped('front');}
+    for(let index=0;index<10;index+=1){tracker.captured('front');tracker.dropped('front');}
     tracker.processed('front',NOW-50,NOW);
     expect(tracker.health('front').status).toBe('overloaded');
-    expect(tracker.health('front').dropRate).toBe(.9);
+    expect(tracker.health('front').dropRate).toBe(1);
   });
 });
