@@ -11,3 +11,8 @@ export const AccessDecisionSchema=z.object({vehicleId:z.string().trim().min(1).m
 export const ProfileQuerySchema=z.object({profileId:z.string().trim().min(1).max(96)});
 export const VehicleQuerySchema=z.object({vehicleId:z.string().trim().min(1).max(96).optional()});
 export const AuditQuerySchema=z.object({limit:z.coerce.number().int().min(1).max(200).default(100)});
+
+export const CameraMountSchema=z.enum(['front','rear','left','right','cabin']);
+export const CameraIntrinsicsSchema=z.object({widthPx:z.number().int().min(160).max(8192),heightPx:z.number().int().min(120).max(8192),fx:z.number().positive().max(20_000),fy:z.number().positive().max(20_000),cx:z.number().min(-20_000).max(20_000),cy:z.number().min(-20_000).max(20_000),distortion:z.array(z.number().finite()).max(16)});
+export const CameraExtrinsicsSchema=z.object({xM:z.number().min(-10).max(10),yM:z.number().min(-10).max(10),zM:z.number().min(-5).max(5),rollDeg:z.number().min(-180).max(180),pitchDeg:z.number().min(-180).max(180),yawDeg:z.number().min(-180).max(180)});
+export const CameraCalibrationProfileSchema=z.object({cameraId:z.string().trim().min(1).max(96),mount:CameraMountSchema,intrinsics:CameraIntrinsicsSchema,extrinsics:CameraExtrinsicsSchema,calibratedAtMs:z.number().int().positive(),reprojectionErrorPx:z.number().min(0).max(3),calibrationVersion:z.string().trim().min(1).max(64)});
