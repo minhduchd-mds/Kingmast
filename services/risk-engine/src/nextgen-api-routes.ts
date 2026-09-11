@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync,FastifyReply,FastifyRequest } from 'fastify';
-import type { DriverProfile,VehicleAccessGrant } from '@kingmast/contracts/nextgen';
+import type { CameraCalibrationProfile,DriverProfile,VehicleAccessGrant } from '@kingmast/contracts/nextgen';
 import { NextgenRuntime } from './nextgen-runtime.js';
 import { DriverProfileRepository } from './driver-profile-repository.js';
 import { VehicleAccessRepository } from './vehicle-access-repository.js';
-import { AccessDecisionSchema,AuditQuerySchema,DriverIdentitySignalSchema,DriverProfileSchema,VehicleAccessGrantSchema,VehicleQuerySchema } from './nextgen-api-contract.js';
+import { AccessDecisionSchema,AuditQuerySchema,CameraCalibrationProfileSchema,DriverIdentitySignalSchema,DriverProfileSchema,VehicleAccessGrantSchema,VehicleQuerySchema } from './nextgen-api-contract.js';
 
 export interface NextgenApiRouteOptions {
   runtime:NextgenRuntime;
@@ -17,6 +17,20 @@ export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(a
   app.get('/v3/nextgen/runtime',{config:{rateLimit:{max:300,timeWindow:60_000}}},async(request,reply)=>{
     if(!options.requireViewer(request,reply))return;
     return options.runtime.snapshot();
+  });
+
+  app.get('/v3/nextgen/cameras/calibration',{config:{rateLimit:{max:120,timeWindow:60_000}}},async(request,reply)=>{
+    if(!options.requireViewer(request,reply))return;
+    return{calibrations:options.runtime.multiCamera.calibrations.list(),controlAuthority:'none'};
+  });
+
+  app.post('/v3/nextgen/cameras/calibration',{config:{rateLimit:{max:30,timeWindow:60_000}}},async(request,reply)=>{
+    if(!options.requireWrite(request,reply,request.body))return;
+    const parsed=CameraCalibrationProfileSchema.safeParse(request.body);
+    if(!parsed.success)return reply.code(400).send({error:'invalid-camera-calibration',details:parsed.error.flatten()});
+    const decision=options.runtime.configureCamera(parsed.data as CameraCalibrationProfile);
+    if(!decision.accepted)return reply.code(409).send({error:'camera-calibration-rejected',reason:decision.reason});
+    return{accepted:true,calibration:options.runtime.multiCamera.calibrations.get(parsed.data.cameraId),controlAuthority:'none'};
   });
 
   app.post('/v3/nextgen/identity/resolve',{config:{rateLimit:{max:120,timeWindow:60_000}}},async(request,reply)=>{
