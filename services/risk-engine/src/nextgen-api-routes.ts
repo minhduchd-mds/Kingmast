@@ -10,6 +10,7 @@ import { AccessDecisionSchema,AuditQuerySchema,CameraCalibrationProfileSchema,Dr
 import {refreshNextgenNavigation} from './nextgen-navigation-service.js';
 import {createVisionIngressAuthorizer} from './nextgen-vision-ingress-auth.js';
 import {nextgenVisionIngressRoutes} from './nextgen-vision-ingress-routes.js';
+import {validateGrantIssuance} from './vehicle-grant-policy.js';
 
 export interface NextgenApiRouteOptions {
   runtime:NextgenRuntime;
@@ -93,9 +94,13 @@ export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(a
     if(!options.requireWrite(request,reply,request.body))return;
     const parsed=VehicleAccessGrantSchema.safeParse(request.body);
     if(!parsed.success)return reply.code(400).send({error:'invalid-access-grant',details:parsed.error.flatten()});
-    const grant=await options.accessRepository.saveGrant(parsed.data as VehicleAccessGrant);
+    const proposed=parsed.data as VehicleAccessGrant;
+    const existing=await options.accessRepository.listGrants(proposed.vehicleId);
+    const issuance=validateGrantIssuance(proposed,existing,Date.now());
+    if(!issuance.allowed)return reply.code(409).send({error:'access-grant-rejected',reason:issuance.reason,allowedPermissions:issuance.normalizedPermissions});
+    const grant=await options.accessRepository.saveGrant({...proposed,permissions:issuance.normalizedPermissions});
     options.runtime.access.upsert(grant);
-    return{grant};
+    return{grant,controlAuthority:'none'};
   });
 
   app.post('/v3/nextgen/access/decision',{config:{rateLimit:{max:300,timeWindow:60_000}}},async(request,reply)=>{
@@ -116,20 +121,20 @@ export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(a
     const grant=await options.accessRepository.revoke(body.grantId.trim());
     if(!grant)return reply.code(404).send({error:'grant-not-found'});
     options.runtime.access.upsert(grant);
-    return{grant};
+    return{grant,controlAuthority:'none'};
   });
 
   app.get('/v3/nextgen/access/grants',{config:{rateLimit:{max:120,timeWindow:60_000}}},async(request,reply)=>{
     if(!options.requireWrite(request,reply,request.query))return;
     const parsed=VehicleQuerySchema.safeParse(request.query);
     if(!parsed.success)return reply.code(400).send({error:'invalid-vehicle-query'});
-    return{grants:await options.accessRepository.listGrants(parsed.data.vehicleId)};
+    return{grants:await options.accessRepository.listGrants(parsed.data.vehicleId),controlAuthority:'none'};
   });
 
   app.get('/v3/nextgen/access/audit',{config:{rateLimit:{max:120,timeWindow:60_000}}},async(request,reply)=>{
     if(!options.requireWrite(request,reply,request.query))return;
     const parsed=AuditQuerySchema.safeParse(request.query);
     if(!parsed.success)return reply.code(400).send({error:'invalid-audit-query'});
-    return{events:await options.accessRepository.audit(parsed.data.limit)};
+    return{events:await options.accessRepository.audit(parsed.data.limit),controlAuthority:'none'};
   });
 };

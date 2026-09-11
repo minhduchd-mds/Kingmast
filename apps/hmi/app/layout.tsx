@@ -30,11 +30,13 @@ import './hmi-auto-appearance-fix.css';
 import './hmi-performance.css';
 import './hmi-vision-scene.css';
 import './hmi-profile-memory.css';
+import './hmi-vehicle-access.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 import DriverCapabilityRail from '../components/DriverCapabilityRail';
 import SurroundSpatialOverlay from '../components/SurroundSpatialOverlay';
 import AssistantRuntime from '../components/AssistantRuntime';
 import ProfileMemoryPanel from '../components/ProfileMemoryPanel';
+import VehicleAccessPanel from '../components/VehicleAccessPanel';
 
 export const metadata={
   title:'KINGMAST Driver Safety',
@@ -42,5 +44,5 @@ export const metadata={
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){
-  return <html lang="en"><body><DriverProfileRuntime/><DriverCapabilityRail/><SurroundSpatialOverlay/><AssistantRuntime/><ProfileMemoryPanel/>{children}</body></html>;
+  return <html lang="en"><body><DriverProfileRuntime/><DriverCapabilityRail/><SurroundSpatialOverlay/><AssistantRuntime/><ProfileMemoryPanel/><VehicleAccessPanel/>{children}</body></html>;
 }
