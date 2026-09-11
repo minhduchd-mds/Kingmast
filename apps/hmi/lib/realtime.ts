@@ -52,6 +52,7 @@ async function establishViewerSession(signal:AbortSignal):Promise<ViewerSessionR
 
 function finiteNumber(value:unknown):value is number{return typeof value==='number'&&Number.isFinite(value);}
 function objectRecord(value:unknown):value is Record<string,unknown>{return value!==null&&typeof value==='object'&&!Array.isArray(value);}
+function nullableFiniteNumber(value:unknown){return value===null||finiteNumber(value);}
 function validVehicle(value:unknown){
   if(!objectRecord(value))return false;
   const source=value.source;
@@ -63,6 +64,16 @@ function validTelemetryFrame(value:unknown):value is TelemetryFrame{
   if(!Array.isArray(value.alerts)||value.alerts.length>MAX_REALTIME_ALERTS)return false;
   return true;
 }
+function validDiagnostics(value:unknown):value is EdgeDiagnostics{
+  if(!objectRecord(value)||!objectRecord(value.sensorAgesMs))return false;
+  if(value.status!=='live'&&value.status!=='degraded'&&value.status!=='offline')return false;
+  if(value.deviceId!==null&&typeof value.deviceId!=='string')return false;
+  if(value.bootId!==null&&typeof value.bootId!=='string')return false;
+  if(!Number.isInteger(value.lastSequence)||!nullableFiniteNumber(value.lastIngressAtMs)||!nullableFiniteNumber(value.lastPublishAtMs))return false;
+  if(!Number.isInteger(value.connectedClients)||Number(value.connectedClients)<0||!Number.isInteger(value.rejectedPackets)||Number(value.rejectedPackets)<0)return false;
+  const ages=value.sensorAgesMs;
+  return nullableFiniteNumber(ages.gnss)&&nullableFiniteNumber(ages.radarFront)&&nullableFiniteNumber(ages.camera);
+}
 function parseRealtimeMessage(raw:unknown):RealtimeMessage|null{
   if(typeof raw!=='string'||raw.length===0||raw.length>MAX_REALTIME_PAYLOAD_CHARS)return null;
   try{
@@ -70,13 +81,15 @@ function parseRealtimeMessage(raw:unknown):RealtimeMessage|null{
     if(!objectRecord(parsed)||!finiteNumber(parsed.receivedAtMs))return null;
     if(parsed.type==='heartbeat'){
       if(!Number.isInteger(parsed.lastSequence)||Number(parsed.lastSequence)<-1||!Number.isInteger(parsed.connectedClients)||Number(parsed.connectedClients)<0)return null;
-      return parsed as RealtimeMessage;
+      return {type:'heartbeat',receivedAtMs:parsed.receivedAtMs,lastSequence:Number(parsed.lastSequence),connectedClients:Number(parsed.connectedClients)};
     }
     if(parsed.type!=='telemetry'||(parsed.source!=='edge'&&parsed.source!=='simulator')||!validTelemetryFrame(parsed.frame))return null;
-    const frame=parsed.frame as TelemetryFrame;
-    if(parsed.source==='edge'&&frame.vehicle.source!=='gnss')return null;
-    if(parsed.source==='simulator'&&frame.vehicle.source!=='simulator')return null;
-    return parsed as RealtimeMessage;
+    if(parsed.diagnostics!==undefined&&!validDiagnostics(parsed.diagnostics))return null;
+    const frame=parsed.frame;
+    const source=parsed.source==='edge'?'edge':'simulator';
+    if(source==='edge'&&frame.vehicle.source!=='gnss')return null;
+    if(source==='simulator'&&frame.vehicle.source!=='simulator')return null;
+    return {type:'telemetry',source,receivedAtMs:parsed.receivedAtMs,frame,diagnostics:parsed.diagnostics as EdgeDiagnostics|undefined};
   }catch{return null;}
 }
 
