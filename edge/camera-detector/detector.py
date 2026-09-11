@@ -15,8 +15,10 @@ from ultralytics import YOLO
 
 from capture_runtime import CaptureRecovery
 from frame_runtime import LatestFrameBuffer
+from inference_runtime import InferenceRuntimeConfig
 from publisher_runtime import PublishBackoff, classify_http_response, transport_failure
 from runtime_metrics import RollingLatency
+from thermal_runtime import ThermalGuard, ThermalSnapshot, read_temperature_c
 
 SUPPORTED = {
     'person': 'person', 'bicycle': 'bicycle', 'car': 'car',
@@ -63,9 +65,10 @@ def frame_payload(
     confidence_floor: float,
     max_detections: int,
     timestamp_ms: int,
+    inference: InferenceRuntimeConfig,
 ) -> dict[str, Any]:
     detections: list[dict[str, Any]] = []
-    result = model.predict(frame, verbose=False)[0]
+    result = model.predict(frame, **inference.predict_kwargs())[0]
     names = result.names
     candidates: list[tuple[float, dict[str, Any]]] = []
 
@@ -129,6 +132,9 @@ def runtime_report(
     publish_outcomes: dict[str, int],
     inference_latency: RollingLatency,
     publish_latency: RollingLatency,
+    inference: InferenceRuntimeConfig,
+    thermal: ThermalSnapshot,
+    target_fps: float,
 ) -> dict[str, Any]:
     captured = buffer.captured
     dropped = buffer.dropped
@@ -148,6 +154,17 @@ def runtime_report(
             'reconnects': capture_state.reconnects,
             'consecutiveFailures': capture_state.consecutive_failures,
         },
+        'inferenceRuntime': {
+            'imageSize': inference.image_size,
+            'device': inference.device or 'auto',
+            'halfPrecision': inference.half_precision,
+            'targetFps': round(target_fps, 2),
+        },
+        'thermal': {
+            'state': thermal.state,
+            'temperatureC': thermal.temperature_c,
+            'cadenceFactor': thermal.cadence_factor,
+        },
         'publishFailures': publish_failures,
         'publishOutcomes': dict(sorted(publish_outcomes.items())),
         'inference': inference_latency.snapshot(),
@@ -163,6 +180,9 @@ def main() -> None:
     parser.add_argument('--camera-id', default='front-camera')
     parser.add_argument('--fov', type=float, default=78.0)
     parser.add_argument('--fps', type=float, default=10.0)
+    parser.add_argument('--imgsz', type=int, default=640)
+    parser.add_argument('--device', default='', help='Ultralytics device, e.g. cpu, 0, cuda:0')
+    parser.add_argument('--half', action='store_true', help='Enable FP16 on an explicitly selected accelerator')
     parser.add_argument('--confidence', type=float, default=0.45)
     parser.add_argument('--max-detections', type=int, default=48)
     parser.add_argument('--queue-size', type=int, default=2)
@@ -172,6 +192,11 @@ def main() -> None:
     parser.add_argument('--capture-failure-threshold', type=int, default=10)
     parser.add_argument('--capture-reconnect-base-s', type=float, default=0.25)
     parser.add_argument('--capture-reconnect-max-s', type=float, default=2.0)
+    parser.add_argument('--thermal-path', default='/sys/class/thermal/thermal_zone0/temp')
+    parser.add_argument('--thermal-warm-c', type=float, default=75.0)
+    parser.add_argument('--thermal-hot-c', type=float, default=82.0)
+    parser.add_argument('--thermal-recovery-c', type=float, default=70.0)
+    parser.add_argument('--thermal-sample-interval-s', type=float, default=2.0)
     parser.add_argument('--token', default=os.getenv('KINGMAST_EDGE_TOKEN', ''))
     parser.add_argument('--device-id', default=os.getenv('KINGMAST_DEVICE_ID', ''))
     parser.add_argument('--device-key-id', default=os.getenv('KINGMAST_DEVICE_KEY_ID', ''))
@@ -185,6 +210,17 @@ def main() -> None:
         raise RuntimeError('--capture-failure-threshold must be between 1 and 120')
     if args.capture_reconnect_base_s <= 0 or args.capture_reconnect_max_s < args.capture_reconnect_base_s or args.capture_reconnect_max_s > 10:
         raise RuntimeError('invalid capture reconnect bounds')
+    if args.thermal_sample_interval_s < 0.5 or args.thermal_sample_interval_s > 30:
+        raise RuntimeError('--thermal-sample-interval-s must be between 0.5 and 30')
+
+    inference = InferenceRuntimeConfig(
+        image_size=args.imgsz,
+        device=args.device.strip() or None,
+        half_precision=bool(args.half),
+    )
+    thermal_guard = ThermalGuard(args.thermal_warm_c, args.thermal_hot_c, args.thermal_recovery_c)
+    thermal_snapshot = thermal_guard.observe(read_temperature_c(args.thermal_path))
+    last_thermal_at = time.monotonic()
 
     device_secret = os.getenv('KINGMAST_DEVICE_SECRET', '')
     device_auth_fields = (args.device_id.strip(), args.device_key_id.strip(), device_secret)
@@ -199,7 +235,6 @@ def main() -> None:
         raise RuntimeError(f'Unable to open camera source: {args.source}')
 
     model = YOLO(args.model)
-    period = 1.0 / max(args.fps, 1.0)
     frame_buffer = LatestFrameBuffer(args.queue_size)
     capture_recovery = CaptureRecovery(
         failure_threshold=args.capture_failure_threshold,
@@ -223,7 +258,6 @@ def main() -> None:
     last_metrics_at = time.monotonic()
 
     session = requests.Session()
-    # A signed frame is submitted at most once. Fresh capture replaces transport retries.
     adapter = HTTPAdapter(max_retries=0, pool_connections=2, pool_maxsize=2)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
@@ -236,6 +270,13 @@ def main() -> None:
     try:
         while True:
             loop_started = time.monotonic()
+            now_monotonic = loop_started
+            if now_monotonic - last_thermal_at >= args.thermal_sample_interval_s:
+                thermal_snapshot = thermal_guard.observe(read_temperature_c(args.thermal_path))
+                last_thermal_at = now_monotonic
+            target_fps = max(1.0, args.fps * thermal_snapshot.cadence_factor)
+            period = 1.0 / target_fps
+
             captured = frame_buffer.get_latest(timeout_s=0.5)
             if captured is None:
                 if stop_event.is_set():
@@ -256,6 +297,7 @@ def main() -> None:
                 max(0.0, min(1.0, args.confidence)),
                 max(1, args.max_detections),
                 captured.captured_at_ms,
+                inference,
             )
             inference_latency.observe((time.monotonic() - inference_started) * 1000)
             processed_frames += 1
@@ -294,7 +336,6 @@ def main() -> None:
             finally:
                 publish_latency.observe((time.monotonic() - publish_started) * 1000)
 
-            # Capture keeps running during backoff; the next inference consumes only the newest frame.
             if delay_s > 0:
                 stop_event.wait(delay_s)
 
@@ -309,6 +350,9 @@ def main() -> None:
                     publish_outcomes,
                     inference_latency,
                     publish_latency,
+                    inference,
+                    thermal_snapshot,
+                    target_fps,
                 ), separators=(',', ':')))
                 last_metrics_at = now_monotonic
 
