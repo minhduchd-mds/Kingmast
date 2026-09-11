@@ -48,6 +48,18 @@ describe('nextgen API routes',()=>{
     await app.close();
   });
 
+  it('refreshes predictive horizon from existing connected-road context without control authority',async()=>{
+    const{app,runtime}=await createApp();
+    const response=await app.inject({method:'POST',url:'/v3/nextgen/navigation/horizon/refresh',payload:{vehicleId:'vehicle-sim',vehicle:{lat:21.03,lng:105.84,speedKmh:42,headingDeg:0,accuracyM:4,timestampMs:NOW,source:'simulator'},route:null,collisionCritical:false,lookaheadM:3000}});
+    expect(response.statusCode).toBe(200);
+    const body=response.json();
+    expect(body.controlAuthority).toBe('none');
+    expect(body.horizon.vehicleId).toBe('vehicle-sim');
+    expect(body.horizon.events.length).toBeGreaterThan(0);
+    expect(runtime.snapshot().navigationHorizon?.vehicleId).toBe('vehicle-sim');
+    await app.close();
+  });
+
   it('sanitizes home and work when location history is disabled',async()=>{
     const{app,profiles}=await createApp();
     const response=await app.inject({method:'POST',url:'/v3/nextgen/profiles',payload:profile});
