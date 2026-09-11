@@ -1,0 +1,69 @@
+/* KINGMAST v0.0.8 approved visual assets.
+   The bitmap vehicle and glyphs are presentation only. Spatial/risk semantics remain data-driven. */
+
+.hmiV5 .navAssetIcon{
+  width:21px;
+  height:21px;
+  flex:0 0 21px;
+  object-fit:contain;
+  pointer-events:none;
+  user-select:none;
+  opacity:.88;
+  filter:drop-shadow(0 0 7px rgba(104,184,255,.08));
+  transition:transform .16s ease,opacity .16s ease,filter .16s ease;
+}
+.hmiV5 .navItem:hover .navAssetIcon{opacity:1;transform:translateY(-1px);filter:drop-shadow(0 0 8px rgba(104,184,255,.18))}
+.hmiV5 .navItem.selected .navAssetIcon{opacity:1;filter:drop-shadow(0 0 10px rgba(82,165,255,.24))}
+.hmiV5 .navItem:active .navAssetIcon{transform:scale(.96)}
+.hmiV5 .navItem.navDisabled .navAssetIcon{opacity:.62}
+
+/* Replace the CSS-drawn host silhouette without changing the host element's geometry.
+   Keeping .egoVehicle intact preserves the spatial-overlay positioning contract and tests. */
+.hmiV5 .v5RoadScene .egoVehicle{isolation:isolate;filter:none}
+.hmiV5 .v5RoadScene .egoVehicle::before,
+.hmiV5 .v5RoadScene .egoVehicle::after{content:none!important;display:none!important}
+.hmiV5 .v5RoadScene .egoVehicleAsset{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:100%;
+  height:100%;
+  transform:translate(-50%,-50%);
+  object-fit:contain;
+  z-index:3;
+  pointer-events:none;
+  user-select:none;
+  filter:drop-shadow(0 16px 22px rgba(0,0,0,.50)) drop-shadow(0 0 10px rgba(91,194,255,.10));
+}
+.hmiV5 .v5RoadScene .egoVehiclePulse{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:128%;
+  height:72%;
+  transform:translate(-50%,-50%) scale(.82);
+  z-index:2;
+  border:1px solid rgba(85,215,255,.26);
+  border-radius:50%;
+  box-shadow:0 0 22px rgba(85,215,255,.08),inset 0 0 18px rgba(85,215,255,.05);
+  opacity:.55;
+  pointer-events:none;
+  animation:kingmastAssetPulse 2.8s cubic-bezier(.16,1,.3,1) infinite;
+}
+.hmiV5 .v5RoadScene .egoVehicle i{z-index:1}
+
+@keyframes kingmastAssetPulse{
+  0%{opacity:.42;transform:translate(-50%,-50%) scale(.72)}
+  62%{opacity:.10}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.18)}
+}
+
+@media(max-width:900px){.hmiV5 .navAssetIcon{width:20px;height:20px;flex-basis:20px}}
+@media(prefers-reduced-motion:reduce){
+  .hmiV5 .navAssetIcon{transition:none!important}
+  .hmiV5 .v5RoadScene .egoVehiclePulse{animation:none!important;opacity:.18;transform:translate(-50%,-50%) scale(1)}
+}
+@media(prefers-contrast:more){
+  .hmiV5 .navAssetIcon{opacity:1;filter:none}
+  .hmiV5 .v5RoadScene .egoVehiclePulse{border-width:2px;opacity:.28}
+}

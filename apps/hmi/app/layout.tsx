@@ -24,6 +24,7 @@ import './hmi-apple-density.css';
 import './hmi-surround-v2.css';
 import './hmi-surround-v2-compat.css';
 import './hmi-surround-effects-v3.css';
+import './hmi-assets-v0.0.8.css';
 import './hmi-assistant.css';
 import './hmi-auto-appearance-fix.css';
 import './hmi-performance.css';

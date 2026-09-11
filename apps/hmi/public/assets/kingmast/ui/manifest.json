@@ -1,0 +1,52 @@
+[
+  {
+    "file": "/assets/kingmast/ui/01-vehicle-exterior.png",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "file": "/assets/kingmast/ui/02-key-icons-line.png",
+    "width": 1448,
+    "height": 1086
+  },
+  {
+    "file": "/assets/kingmast/ui/03-key-icons-filled.png",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "file": "/assets/kingmast/ui/04-vehicle-status.png",
+    "width": 2172,
+    "height": 724
+  },
+  {
+    "file": "/assets/kingmast/ui/05-speed-hud.png",
+    "width": 1774,
+    "height": 887
+  },
+  {
+    "file": "/assets/kingmast/ui/06-alert-banners.png",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "file": "/assets/kingmast/ui/07-dms-surround.png",
+    "width": 2172,
+    "height": 724
+  },
+  {
+    "file": "/assets/kingmast/ui/08-navigation-climate-media.png",
+    "width": 2172,
+    "height": 724
+  },
+  {
+    "file": "/assets/kingmast/ui/09-ui-notifications.png",
+    "width": 2172,
+    "height": 724
+  },
+  {
+    "file": "/assets/kingmast/ui/10-additional-icons.png",
+    "width": 2172,
+    "height": 724
+  }
+]

@@ -39,6 +39,9 @@ test.describe('Surround visualization v3',()=>{
     await expect(page.locator('.v5DriveSide')).toBeHidden();
 
     const sceneBox=await scene.boundingBox();
+    const vehicleAsset=page.locator('.v5RoadScene .egoVehicleAsset');
+    await expect(vehicleAsset).toBeVisible();
+    await expect(vehicleAsset).toHaveAttribute('src',/kingmast-front-520\.png$/);
     const vehicleBox=await page.locator('.v5RoadScene .egoVehicle').boundingBox();
     expect(sceneBox).not.toBeNull();
     expect(vehicleBox).not.toBeNull();
