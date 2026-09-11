@@ -12,7 +12,7 @@ describe('multi-camera runtime',()=>{
   it('requires unique calibrated physical mounts before surround becomes live',()=>{
     const runtime=new MultiCameraRuntime();
     for(const [id,mount,yaw] of [['front','front',0],['rear','rear',180],['left','left',-90],['right','right',90]] as const)expect(runtime.configure(calibration(id,mount,yaw)).accepted).toBe(true);
-    runtime.ingest(observation('front',1,2));runtime.ingest(observation('rear',1,178));runtime.ingest(observation('left',1,-88));runtime.ingest(observation('right',1,92));
+    runtime.ingest(observation('front',1,2),NOW);runtime.ingest(observation('rear',1,178),NOW);runtime.ingest(observation('left',1,-88),NOW);runtime.ingest(observation('right',1,92),NOW);
     const surround=runtime.surround('vehicle-1',NOW);
     expect(surround.availability).toBe('live');
     expect(surround.missingMounts).toEqual([]);
@@ -24,13 +24,13 @@ describe('multi-camera runtime',()=>{
     const runtime=new MultiCameraRuntime();
     expect(runtime.configure(calibration('front-a','front')).accepted).toBe(true);
     expect(runtime.configure(calibration('front-b','front')).reason).toBe('mount-conflict');
-    expect(runtime.ingest(observation('front-a',2,0)).accepted).toBe(true);
-    expect(runtime.ingest(observation('front-a',2,0)).reason).toBe('sequence-replay');
+    expect(runtime.ingest(observation('front-a',2,0),NOW).accepted).toBe(true);
+    expect(runtime.ingest(observation('front-a',2,0),NOW).reason).toBe('sequence-replay');
   });
 
   it('never reports stale camera observations as live surround',()=>{
     const runtime=new MultiCameraRuntime();runtime.configure(calibration('front','front'));
-    runtime.ingest({...observation('front',1,0),capturedAtMs:NOW-5_000,receivedAtMs:NOW-4_900});
+    expect(runtime.ingest({...observation('front',1,0),capturedAtMs:NOW-5_000,receivedAtMs:NOW-4_900},NOW).reason).toBe('stale-frame');
     expect(runtime.surround('vehicle-1',NOW).availability).toBe('unavailable');
   });
 });
