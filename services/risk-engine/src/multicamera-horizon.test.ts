@@ -37,7 +37,7 @@ describe('multi-camera runtime',()=>{
 
 describe('navigation horizon',()=>{
   it('derives a speed-limit event from route intelligence and expires stale horizons',()=>{
-    const horizon=buildNavigationHorizonFromRoad({vehicleId:'vehicle-1',vehicle:{lat:21,lng:105,speedKmh:70,headingDeg:0,accuracyM:3,timestampMs:NOW,source:'gnss'},intelligence:{speedZones:[{id:'z1',position:{lat:21.001,lng:105},distanceAlongRouteM:300,limitKmh:50,roadName:'Road',source:'map',confidence:.9}],junctions:[],chargingStations:[],coverage:'partial-public-map',generatedAtMs:NOW},connected:null,nowMs:NOW});
+    const horizon=buildNavigationHorizonFromRoad({vehicleId:'vehicle-1',vehicle:{lat:21,lng:105,speedKmh:70,headingDeg:0,accuracyM:3,timestampMs:NOW,source:'gnss'},intelligence:{speedZones:[{id:'z1',position:{lat:21.001,lng:105},distanceAlongRouteM:300,limitKmh:50,roadName:'Road',source:'map',confidence:.9}],junctions:[],chargingStations:[],coverage:'partial-public-map',generatedAtMs:NOW,notes:[]},connected:null,nowMs:NOW});
     expect(horizon.events[0]?.kind).toBe('speed-limit');
     const store=new NavigationHorizonStore();store.upsert(horizon);
     expect(store.snapshot('vehicle-1',NOW+5_000).fresh).toBe(true);
