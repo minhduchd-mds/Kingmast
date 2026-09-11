@@ -11,10 +11,10 @@ from typing import Any
 import cv2
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from ultralytics import YOLO
 
 from frame_runtime import LatestFrameBuffer
+from publisher_runtime import PublishBackoff, classify_http_response, transport_failure
 from runtime_metrics import RollingLatency
 
 SUPPORTED = {
@@ -107,6 +107,7 @@ def runtime_report(
     processed_frames: int,
     stale_frames: int,
     publish_failures: int,
+    publish_outcomes: dict[str, int],
     inference_latency: RollingLatency,
     publish_latency: RollingLatency,
 ) -> dict[str, Any]:
@@ -122,6 +123,7 @@ def runtime_report(
         'dropRate': drop_rate,
         'queueDepth': buffer.depth,
         'publishFailures': publish_failures,
+        'publishOutcomes': dict(sorted(publish_outcomes.items())),
         'inference': inference_latency.snapshot(),
         'publish': publish_latency.snapshot(),
     }
@@ -175,15 +177,18 @@ def main() -> None:
     )
     inference_latency = RollingLatency()
     publish_latency = RollingLatency()
+    publish_backoff = PublishBackoff(base_s=0.1, max_s=2.0)
     processed_frames = 0
     stale_frames = 0
     publish_failures = 0
+    publish_outcomes: dict[str, int] = {}
     last_metrics_at = time.monotonic()
 
     session = requests.Session()
-    retry = Retry(total=2, connect=2, read=1, backoff_factor=0.15, status_forcelist=(429, 500, 502, 503, 504), allowed_methods=frozenset({'POST'}))
-    session.mount('http://', HTTPAdapter(max_retries=retry))
-    session.mount('https://', HTTPAdapter(max_retries=retry))
+    # A signed frame is submitted at most once. Fresh capture replaces transport retries.
+    adapter = HTTPAdapter(max_retries=0, pool_connections=2, pool_maxsize=2)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
     if args.token:
         session.headers.update({'x-kingmast-edge-token': args.token})
     if device_secret:
@@ -226,19 +231,34 @@ def main() -> None:
                     payload,
                     device_secret,
                 )
+
             publish_started = time.monotonic()
+            delay_s = 0.0
             try:
-                session.post(
+                response = session.post(
                     args.api,
                     json=payload,
                     headers=headers,
                     timeout=max(0.1, args.publish_timeout_s),
-                ).raise_for_status()
+                )
+                outcome = classify_http_response(response.status_code, response.headers.get('retry-after'))
+                publish_outcomes[outcome.disposition] = publish_outcomes.get(outcome.disposition, 0) + 1
+                if not outcome.accepted:
+                    publish_failures += 1
+                    print(f'camera publish rejected: status={response.status_code} disposition={outcome.disposition}')
+                delay_s = publish_backoff.delay_for(outcome)
             except requests.RequestException as exc:
+                outcome = transport_failure()
+                publish_outcomes[outcome.disposition] = publish_outcomes.get(outcome.disposition, 0) + 1
                 publish_failures += 1
+                delay_s = publish_backoff.delay_for(outcome)
                 print(f'camera publish warning: {exc}')
             finally:
                 publish_latency.observe((time.monotonic() - publish_started) * 1000)
+
+            # Capture keeps running during backoff; the next inference consumes only the newest frame.
+            if delay_s > 0:
+                stop_event.wait(delay_s)
 
             now_monotonic = time.monotonic()
             if now_monotonic - last_metrics_at >= args.metrics_interval_s:
@@ -247,6 +267,7 @@ def main() -> None:
                     processed_frames,
                     stale_frames,
                     publish_failures,
+                    publish_outcomes,
                     inference_latency,
                     publish_latency,
                 ), separators=(',', ':')))
