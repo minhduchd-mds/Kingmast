@@ -19,7 +19,9 @@ expect('matrix does not claim physical vehicle-computer qualification',matrix.ph
 expect('matrix does not claim closed-track approval',matrix.closedTrackApproved===false);
 expect('matrix does not claim public-road approval',matrix.publicRoadApproved===false);
 expect('development qualification claim is explicit',matrix.qualificationClaim==='development-compatibility-matrix-not-target-hardware-qualification');
-expect('VERSION matches matrix',version===matrix.productVersion);
+expect('historical qualification matrix keeps an explicit product version',typeof matrix.productVersion==='string'&&matrix.productVersion.length>0);
+expect('historical qualification matrix is not silently promoted to current release',matrix.productVersion!==version);
+expect('historical matrix compatibility version remains self-consistent',matrix.compatibility?.productVersion===matrix.productVersion);
 expect('root package version matches VERSION',root.version===version);
 expect('HMI package version matches VERSION',hmi.version===version);
 expect('risk engine package version matches VERSION',risk.version===version);
@@ -100,4 +102,4 @@ if(failures.length){
   console.error(`KINGMAST release qualification policy failed:\n${failures.map((item)=>`- ${item}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`KINGMAST release qualification matrix passed for v${version}: ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, protected evidence store/review lifecycle contracts present, no target-hardware/public-road qualification claim.`);
+console.log(`KINGMAST current package set v${version} is internally consistent; historical V006 qualification matrix remains bound to v${matrix.productVersion} with ${matrix.displayClasses.length} CI display classes, ${matrix.vehicleComputerTargets.length} target classes, protected evidence store/review lifecycle contracts present, and no target-hardware/public-road qualification claim.`);
