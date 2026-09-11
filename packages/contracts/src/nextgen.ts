@@ -220,3 +220,56 @@ export interface PredictiveAdvisory {
   generatedAtMs:number;
   advisoryOnly:true;
 }
+
+export interface CameraIntrinsics {
+  widthPx:number;
+  heightPx:number;
+  fx:number;
+  fy:number;
+  cx:number;
+  cy:number;
+  distortion:number[];
+}
+
+export interface CameraExtrinsics {
+  xM:number;
+  yM:number;
+  zM:number;
+  rollDeg:number;
+  pitchDeg:number;
+  yawDeg:number;
+}
+
+export interface CameraCalibrationProfile {
+  cameraId:string;
+  mount:CameraMount;
+  intrinsics:CameraIntrinsics;
+  extrinsics:CameraExtrinsics;
+  calibratedAtMs:number;
+  reprojectionErrorPx:number;
+  calibrationVersion:string;
+}
+
+export interface CalibratedCameraObservation {
+  cameraId:string;
+  capturedAtMs:number;
+  receivedAtMs:number;
+  sequence:number;
+  detections:PerceptionObjectTrack[];
+  lanes:LanePerception[];
+  freeSpace:FreeSpaceSector[];
+}
+
+export interface SurroundFusionSnapshot {
+  vehicleId:string;
+  generatedAtMs:number;
+  availability:'live'|'degraded'|'unavailable';
+  uniqueCameraCount:number;
+  readyMounts:CameraMount[];
+  missingMounts:CameraMount[];
+  synchronized:boolean;
+  geometryConfidence:number;
+  objects:PerceptionObjectTrack[];
+  degradedReasons:string[];
+  visualizationOnly:true;
+}
