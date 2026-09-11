@@ -1,6 +1,6 @@
 # Connected-road warning safety policy
 
-KINGMAST v0.0.7 connected-road features are advisory only. Historical `V006` evidence remains bound to the v0.0.6 evidence campaign.
+KINGMAST v0.0.8 connected-road features are advisory only. Historical `V006` and prior v0.0.7 evidence remain bound to their original evidence campaigns.
 
 ## Priority
 1. Existing collision-critical / vulnerable-road-user warnings.
