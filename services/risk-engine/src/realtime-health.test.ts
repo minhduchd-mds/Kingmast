@@ -26,6 +26,13 @@ describe('RealtimeLinkAccumulator',()=>{
     expect(link.snapshot().sequenceRegressions).toBe(1);
   });
 
+  it('rejects duplicate sequence replay inside the same device boot session',()=>{
+    const link=new RealtimeLinkAccumulator();
+    expect(link.observeTelemetry({serverEnvelopeAtMs:1_000,ingressAtMs:990,clientAtMs:1_010,session:'ecu-a:boot-a',sequence:12}).accepted).toBe(true);
+    expect(link.observeTelemetry({serverEnvelopeAtMs:1_020,ingressAtMs:1_015,clientAtMs:1_030,session:'ecu-a:boot-a',sequence:12}).accepted).toBe(false);
+    expect(link.snapshot()).toMatchObject({messages:1,sequenceRegressions:1,lastSequence:12});
+  });
+
   it('accepts a sequence reset only when the device boot session changes',()=>{
     const link=new RealtimeLinkAccumulator();
     link.observeTelemetry({serverEnvelopeAtMs:1_000,ingressAtMs:990,clientAtMs:1_010,session:'ecu-a:boot-a',sequence:200});
