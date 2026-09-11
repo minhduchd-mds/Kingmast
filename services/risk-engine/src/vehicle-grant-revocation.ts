@@ -19,7 +19,11 @@ export function validateGrantRevocation(input:{grantId:string;actorProfileId:str
   if(!actor)return{allowed:false,reason:'actor-not-active',target};
   const permissions=activeVehiclePermissions(actor,target.vehicleId,input.actorProfileId,nowMs);
   if(!permissions.includes('keys.share'))return{allowed:false,reason:'actor-cannot-share-keys',target};
+  if(target.role==='owner'){
+    const owners=activeOwners(input.grants,target.vehicleId,nowMs);
+    if(actor.role!=='owner'||actor.profileId===target.profileId||owners.length<=1)return{allowed:false,reason:owners.length<=1?'last-owner-protected':'actor-role-insufficient',target};
+    return{allowed:true,reason:'allowed',target};
+  }
   if(roleRank(actor.role)<=roleRank(target.role))return{allowed:false,reason:'actor-role-insufficient',target};
-  if(target.role==='owner'&&activeOwners(input.grants,target.vehicleId,nowMs).length<=1)return{allowed:false,reason:'last-owner-protected',target};
   return{allowed:true,reason:'allowed',target};
 }
