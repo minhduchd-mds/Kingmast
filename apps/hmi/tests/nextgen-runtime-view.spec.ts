@@ -26,3 +26,20 @@ test('unknown driver and perception state never render as safe',()=>{
   expect(driver?.tone).toBe('unavailable');
   expect(perception?.tone).toBe('unavailable');
 });
+
+test('server-classified camera overload renders as caution',()=>{
+  const value=snapshot();
+  value.cameraRuntimeHealth=[{cameraId:'front-1',status:'overloaded',dropRate:.54,p50LatencyMs:420,p95LatencyMs:810}];
+  const camera=buildNextgenStatusCards(value,false).find((card)=>card.id==='camera');
+  expect(camera?.tone).toBe('caution');
+  expect(camera?.title).toContain('overloaded');
+  expect(camera?.detail).toContain('54%');
+});
+
+test('healthy camera runtime stays informational and never claims vehicle control',()=>{
+  const value=snapshot();
+  value.cameraRuntimeHealth=[{cameraId:'front-1',status:'ok',dropRate:.02,p50LatencyMs:42,p95LatencyMs:78}];
+  const camera=buildNextgenStatusCards(value,false).find((card)=>card.id==='camera');
+  expect(camera?.tone).toBe('good');
+  expect(value.controlAuthority).toBe('none');
+});
