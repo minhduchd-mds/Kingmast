@@ -13,6 +13,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from ultralytics import YOLO
 
+from capture_runtime import CaptureRecovery
 from frame_runtime import LatestFrameBuffer
 from publisher_runtime import PublishBackoff, classify_http_response, transport_failure
 from runtime_metrics import RollingLatency
@@ -92,18 +93,36 @@ def frame_payload(
     return normalize_json_numbers({'cameraId': camera_id, 'timestampMs': timestamp_ms, 'detections': detections})
 
 
-def capture_loop(capture: Any, buffer: LatestFrameBuffer, stop_event: threading.Event) -> None:
+def capture_loop(
+    capture: Any,
+    source: int | str,
+    buffer: LatestFrameBuffer,
+    stop_event: threading.Event,
+    recovery: CaptureRecovery,
+) -> None:
     while not stop_event.is_set():
         ok, frame = capture.read()
         if not ok:
-            stop_event.wait(0.05)
+            delay_s = recovery.read_failure()
+            if delay_s is None:
+                stop_event.wait(0.05)
+                continue
+            capture.release()
+            if stop_event.wait(delay_s):
+                return
+            opened = bool(capture.open(source))
+            recovery.reconnect_result(opened)
+            if not opened:
+                continue
             continue
+        recovery.success()
         if not buffer.push(frame, int(time.time() * 1000)):
             return
 
 
 def runtime_report(
     buffer: LatestFrameBuffer,
+    capture_recovery: CaptureRecovery,
     processed_frames: int,
     stale_frames: int,
     publish_failures: int,
@@ -114,6 +133,7 @@ def runtime_report(
     captured = buffer.captured
     dropped = buffer.dropped
     drop_rate = round(dropped / captured, 4) if captured else 0.0
+    capture_state = capture_recovery.snapshot()
     return {
         'event': 'kingmast-camera-runtime',
         'capturedFrames': captured,
@@ -122,6 +142,12 @@ def runtime_report(
         'staleFrames': stale_frames,
         'dropRate': drop_rate,
         'queueDepth': buffer.depth,
+        'capture': {
+            'readFailures': capture_state.read_failures,
+            'reconnectAttempts': capture_state.reconnect_attempts,
+            'reconnects': capture_state.reconnects,
+            'consecutiveFailures': capture_state.consecutive_failures,
+        },
         'publishFailures': publish_failures,
         'publishOutcomes': dict(sorted(publish_outcomes.items())),
         'inference': inference_latency.snapshot(),
@@ -168,10 +194,11 @@ def main() -> None:
     model = YOLO(args.model)
     period = 1.0 / max(args.fps, 1.0)
     frame_buffer = LatestFrameBuffer(args.queue_size)
+    capture_recovery = CaptureRecovery(failure_threshold=10, base_delay_s=0.25, max_delay_s=2.0)
     stop_event = threading.Event()
     capture_thread = threading.Thread(
         target=capture_loop,
-        args=(capture, frame_buffer, stop_event),
+        args=(capture, source, frame_buffer, stop_event, capture_recovery),
         name=f'kingmast-capture-{args.camera_id}',
         daemon=True,
     )
@@ -264,6 +291,7 @@ def main() -> None:
             if now_monotonic - last_metrics_at >= args.metrics_interval_s:
                 print(json.dumps(runtime_report(
                     frame_buffer,
+                    capture_recovery,
                     processed_frames,
                     stale_frames,
                     publish_failures,
