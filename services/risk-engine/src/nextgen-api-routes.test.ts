@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { describe,expect,it } from 'vitest';
-import type { DriverProfile,VehicleAccessGrant } from '@kingmast/contracts/nextgen';
+import type { CameraCalibrationProfile,DriverProfile,VehicleAccessGrant } from '@kingmast/contracts/nextgen';
 import { nextgenApiRoutes } from './nextgen-api-routes.js';
 import { NextgenRuntime } from './nextgen-runtime.js';
 import { InMemoryNextgenPersistence } from './nextgen-persistence.js';
@@ -9,6 +9,7 @@ import { VehicleAccessRepository } from './vehicle-access-repository.js';
 
 const NOW=1_800_000_000_000;
 const profile:DriverProfile={id:'owner-1',displayName:'Owner',role:'owner',trustedDeviceIds:['phone-1'],privacy:{locationHistory:false,cameraHistory:false,personalization:true,diagnosticsUpload:false},ui:{language:'vi',theme:'auto',mapZoom:15,warningVolume:70},home:{lat:21,lng:105},work:{lat:20.9,lng:105.8},updatedAtMs:NOW};
+const calibration=(cameraId:string,mount:CameraCalibrationProfile['mount']):CameraCalibrationProfile=>({cameraId,mount,intrinsics:{widthPx:1920,heightPx:1080,fx:1200,fy:1200,cx:960,cy:540,distortion:[]},extrinsics:{xM:0,yM:0,zM:1.3,rollDeg:0,pitchDeg:0,yawDeg:0},calibratedAtMs:NOW-1_000,reprojectionErrorPx:.5,calibrationVersion:'bench-1'});
 
 async function createApp(viewer=true,writer=true){
   const persistence=new InMemoryNextgenPersistence();
@@ -25,6 +26,25 @@ describe('nextgen API routes',()=>{
     const{app}=await createApp(false,true);
     const response=await app.inject({method:'GET',url:'/v3/nextgen/runtime'});
     expect(response.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('requires configuration authority to write calibration and exposes read-only viewer state',async()=>{
+    const denied=await createApp(true,false);
+    expect((await denied.app.inject({method:'POST',url:'/v3/nextgen/cameras/calibration',payload:calibration('front-1','front')})).statusCode).toBe(401);
+    await denied.app.close();
+    const allowed=await createApp(true,true);
+    expect((await allowed.app.inject({method:'POST',url:'/v3/nextgen/cameras/calibration',payload:calibration('front-1','front')})).statusCode).toBe(200);
+    const listing=await allowed.app.inject({method:'GET',url:'/v3/nextgen/cameras/calibration'});
+    expect(listing.statusCode).toBe(200);expect(listing.json().calibrations).toHaveLength(1);expect(listing.json().controlAuthority).toBe('none');
+    await allowed.app.close();
+  });
+
+  it('rejects two camera identities claiming the same physical mount',async()=>{
+    const{app}=await createApp();
+    expect((await app.inject({method:'POST',url:'/v3/nextgen/cameras/calibration',payload:calibration('front-a','front')})).statusCode).toBe(200);
+    const conflict=await app.inject({method:'POST',url:'/v3/nextgen/cameras/calibration',payload:calibration('front-b','front')});
+    expect(conflict.statusCode).toBe(409);expect(conflict.json().reason).toBe('mount-conflict');
     await app.close();
   });
 
