@@ -22,6 +22,7 @@ export interface NextgenRuntimeSnapshot {
   activeProfileId:string|null;
   advisories:PredictiveAdvisory[];
   cameraPerformance:ReturnType<CameraPerformanceTracker['all']>;
+  cameraRuntimeHealth:ReturnType<CameraPerformanceTracker['healthAll']>;
   controlAuthority:'none';
 }
 
@@ -107,6 +108,7 @@ export class NextgenRuntime{
       activeProfileId:this.activeProfile?.id??null,
       advisories:this.advisories.map((item)=>({...item})),
       cameraPerformance:this.cameraPerformance.all(),
+      cameraRuntimeHealth:this.cameraPerformance.healthAll(),
       controlAuthority:'none',
     };
   }
