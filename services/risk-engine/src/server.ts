@@ -35,7 +35,7 @@ import { BoundedFixedWindowRateLimiter,BoundedMonotonicTimestampStore } from './
 import {OperatorReplayGuard,operatorAuthSummary,parseOperatorKeyRegistry,verifyOperatorRequest,type OperatorScope} from './operator-auth.js';
 import {ConfigurationAuditBuffer,type ConfigurationAuthMode} from './configuration-audit.js';
 import {nextgenApiRoutes} from './nextgen-api-routes.js';
-import {hydrateNextgenRuntime,nextgenAccessRepository,nextgenProfiles,nextgenRuntime} from './nextgen-server-runtime.js';
+import {hydrateNextgenRuntime,nextgenAccessRepository,nextgenProfiles,nextgenRuntime,nextgenMemoryRepository,nextgenPersistence} from './nextgen-server-runtime.js';
 import {ingestLegacyDms,ingestLegacyFrontCamera} from './nextgen-ingress-adapter.js';
 
 const HOST=(process.env.HOST??'127.0.0.1').trim();
@@ -174,10 +174,12 @@ function requirePublicComputeBudget(request:FastifyRequest,reply:FastifyReply,ro
 }
 
 await hydrateNextgenRuntime();
+app.addHook('onClose',async()=>{if('close' in nextgenPersistence)nextgenPersistence.close();});
 await app.register(nextgenApiRoutes,{
   runtime:nextgenRuntime,
   profiles:nextgenProfiles,
   accessRepository:nextgenAccessRepository,
+  memoryRepository:nextgenMemoryRepository,
   requireViewer:(request,reply)=>requireViewerAuth(request,reply),
   requireWrite:(request,reply,payload)=>Boolean(requireConfigurationAuthority(request,reply,'configuration:nextgen',payload)),
 });

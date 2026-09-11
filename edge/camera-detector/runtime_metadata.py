@@ -19,6 +19,16 @@ def source_kind(source: str) -> str:
     return 'file-or-device'
 
 
+def camera_open_error() -> str:
+    # Do not include source URLs, paths, userinfo or token-bearing query strings.
+    return 'Unable to open camera source; check camera connectivity and credentials'
+
+
+def publish_error_label(error: Exception) -> str:
+    # Exception messages can contain credential-bearing URLs and request headers.
+    return type(error).__name__
+
+
 def build_startup_record(
     *,
     camera_id: str,

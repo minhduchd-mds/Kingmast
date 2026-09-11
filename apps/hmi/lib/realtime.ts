@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { EdgeDiagnostics, RealtimeMessage, TelemetryFrame } from '@kingmast/contracts';
 import { RealtimeLinkAccumulator,type RealtimeLinkSnapshot } from '@kingmast/contracts/realtime-health';
+import { RealtimeHeartbeatWatchdog } from '@kingmast/contracts/realtime-watchdog';
 
 export type RealtimeState='disabled'|'connecting'|'live'|'stale'|'offline';
 export type RealtimeQuality='excellent'|'good'|'degraded'|'none';
@@ -68,6 +69,18 @@ export function useRealtimeTelemetry(enabled=true){
       retryTimer=window.setTimeout(()=>{retryTimer=null;void connect();},Math.round(reconnectMs*jitter));
       reconnectMs=Math.min(12_000,Math.round(reconnectMs*1.8));
     };
+    const watchdog=new RealtimeHeartbeatWatchdog(()=>{
+      const expired=socket;
+      socket=null;
+      if(expired){
+        // A half-open transport may never emit close. Retire its callbacks now.
+        expired.onopen=null;expired.onmessage=null;expired.onerror=null;expired.onclose=null;
+        expired.close();
+      }
+      telemetryAt=null;heartbeatAt=null;
+      link.recordDisconnect();publishTransport();setState('offline');setQuality('none');
+      scheduleReconnect();
+    });
     const connect=async()=>{
       if(disposed||sessionUnavailable||connecting)return;
       if(!navigator.onLine){setState('offline');setQuality('none');return;}
@@ -82,12 +95,16 @@ export function useRealtimeTelemetry(enabled=true){
         if(sessionResult==='retryable'){
           setState('offline');setQuality('none');scheduleReconnect();return;
         }
+        telemetryAt=null;heartbeatAt=null;
         socket=new WebSocket(targetUrl);
+        watchdog.arm(Date.now());
         socket.onopen=()=>{reconnectMs=800;heartbeatAt=Date.now();link.recordConnected();publishTransport();};
         socket.onmessage=(event)=>{
           try{
             const message=JSON.parse(String(event.data)) as RealtimeMessage;
-            const receivedNow=Date.now();heartbeatAt=receivedNow;
+            const receivedNow=Date.now();
+            if(message.type!=='heartbeat'&&message.type!=='telemetry')throw new Error('invalid-realtime-message');
+            heartbeatAt=receivedNow;watchdog.pulse(receivedNow);
             if(message.type==='heartbeat')return;
             const nextDiagnostics=message.diagnostics??null;
             const session=nextDiagnostics?.deviceId&&nextDiagnostics.bootId?`${nextDiagnostics.deviceId}:${nextDiagnostics.bootId}`:message.source;
@@ -100,7 +117,7 @@ export function useRealtimeTelemetry(enabled=true){
           }catch{link.recordMalformed();publishTransport();}
         };
         socket.onerror=()=>{setState('offline');setQuality('none');};
-        socket.onclose=()=>{socket=null;if(disposed)return;link.recordDisconnect();publishTransport();setState('offline');setQuality('none');scheduleReconnect();};
+        socket.onclose=()=>{socket=null;watchdog.disarm();if(disposed)return;link.recordDisconnect();publishTransport();setState('offline');setQuality('none');scheduleReconnect();};
       }catch(error){
         if(!disposed&&(error as Error).name!=='AbortError'){setState('offline');setQuality('none');scheduleReconnect();}
       }finally{connecting=false;}
@@ -113,6 +130,7 @@ export function useRealtimeTelemetry(enabled=true){
 
     const freshnessTimer=window.setInterval(()=>{
       if(sessionUnavailable)return;
+      watchdog.check(Date.now());
       const now=Date.now();const telemetryAge=telemetryAt===null?Number.POSITIVE_INFINITY:now-telemetryAt;const heartbeatAge=heartbeatAt===null?Number.POSITIVE_INFINITY:now-heartbeatAt;
       if(heartbeatAge>5_000){setState('offline');setQuality('none');return;}
       if(telemetryAge>2_500){setState('stale');setQuality('degraded');return;}
@@ -120,7 +138,7 @@ export function useRealtimeTelemetry(enabled=true){
       if(telemetryAge<Number.POSITIVE_INFINITY){setState('live');setQuality('excellent');}
     },500);
 
-    return()=>{disposed=true;sessionAbort.abort();if(retryTimer!==null)window.clearTimeout(retryTimer);window.clearInterval(freshnessTimer);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);socket?.close();};
+    return()=>{disposed=true;watchdog.disarm();sessionAbort.abort();if(retryTimer!==null)window.clearTimeout(retryTimer);window.clearInterval(freshnessTimer);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);socket?.close();};
   },[enabled,targetUrl]);
 
   return{frame,state,quality,lastReceivedAt,diagnostics,transport,url:targetUrl};

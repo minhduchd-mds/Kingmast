@@ -64,7 +64,7 @@ autonomy-lab/              Simulation-only R&D boundary
 ```
 
 ## Quick start
-Requires Node.js 22+, pnpm 10+, PostgreSQL 16+.
+Requires Node.js 22.13+, pnpm 10+, PostgreSQL 16+ for the SQL migration examples.
 ```bash
 pnpm install
 cp .env.example .env
@@ -110,6 +110,11 @@ NEXT_PUBLIC_MAP_STYLE_URL=https://your-approved-style/style.json
 If blank, KINGMAST falls back to `NEXT_PUBLIC_MAP_RASTER_TILE_URL` for demo use. Public tile endpoints must not be treated as a production SLA.
 
 ## Database
+Driver profiles, privacy settings, profile memory and access grants now use local SQLite
+by default, including revocations across backend restarts. Configure
+`KINGMAST_NEXTGEN_SQLITE_PATH` on a persistent volume for deployment. Memory-only mode
+is an explicit local-development option. See [runtime recovery and storage](docs/RUNTIME_RECOVERY_STORAGE.md).
+
 Run migrations in order:
 ```text
 database/001_init.sql

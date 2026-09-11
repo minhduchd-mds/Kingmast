@@ -7,6 +7,9 @@ coverage
 .env.*.local
 .DS_Store
 *.log
+.kingmast-data/
+__pycache__/
+*.tsbuildinfo
 
 # Edge/native secrets must never be committed.
 edge/esp32/**/config.h

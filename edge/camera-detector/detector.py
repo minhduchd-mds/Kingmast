@@ -14,10 +14,10 @@ from requests.adapters import HTTPAdapter
 from ultralytics import YOLO
 
 from capture_runtime import CaptureRecovery
-from frame_runtime import LatestFrameBuffer
+from frame_runtime import LatestFrameBuffer, frame_is_fresh
 from inference_runtime import InferenceRuntimeConfig
 from publisher_runtime import PublishBackoff, classify_http_response, transport_failure
-from runtime_metadata import build_startup_record
+from runtime_metadata import build_startup_record, camera_open_error, publish_error_label
 from runtime_metrics import RollingLatency
 from thermal_runtime import ThermalGuard, ThermalSnapshot, read_temperature_c
 
@@ -129,6 +129,7 @@ def runtime_report(
     capture_recovery: CaptureRecovery,
     processed_frames: int,
     stale_frames: int,
+    stale_after_inference: int,
     publish_failures: int,
     publish_outcomes: dict[str, int],
     inference_latency: RollingLatency,
@@ -147,6 +148,7 @@ def runtime_report(
         'processedFrames': processed_frames,
         'droppedFrames': dropped,
         'staleFrames': stale_frames,
+        'staleAfterInference': stale_after_inference,
         'dropRate': drop_rate,
         'queueDepth': buffer.depth,
         'capture': {
@@ -233,7 +235,8 @@ def main() -> None:
     source: int | str = int(args.source) if args.source.isdigit() else args.source
     capture = cv2.VideoCapture(source)
     if not capture.isOpened():
-        raise RuntimeError(f'Unable to open camera source: {args.source}')
+        capture.release()
+        raise RuntimeError(camera_open_error())
 
     model = YOLO(args.model)
     frame_buffer = LatestFrameBuffer(args.queue_size)
@@ -254,6 +257,7 @@ def main() -> None:
     publish_backoff = PublishBackoff(base_s=0.1, max_s=2.0)
     processed_frames = 0
     stale_frames = 0
+    stale_after_inference = 0
     publish_failures = 0
     publish_outcomes: dict[str, int] = {}
     last_metrics_at = time.monotonic()
@@ -293,8 +297,7 @@ def main() -> None:
                     break
                 continue
 
-            frame_age_ms = int(time.time() * 1000) - captured.captured_at_ms
-            if frame_age_ms > args.max_frame_age_ms:
+            if not frame_is_fresh(captured, args.max_frame_age_ms):
                 stale_frames += 1
                 continue
 
@@ -311,6 +314,14 @@ def main() -> None:
             )
             inference_latency.observe((time.monotonic() - inference_started) * 1000)
             processed_frames += 1
+
+            # Inference can exceed the freshness budget even when its input was fresh.
+            # Drop it before signing or publishing; retain the original capture timestamp.
+            if not frame_is_fresh(captured, args.max_frame_age_ms):
+                stale_frames += 1
+                stale_after_inference += 1
+                print(json.dumps({'event': 'kingmast-camera-stale-after-inference', 'staleAfterInference': stale_after_inference}))
+                continue
 
             headers: dict[str, str] = {}
             if device_secret:
@@ -342,7 +353,7 @@ def main() -> None:
                 publish_outcomes[outcome.disposition] = publish_outcomes.get(outcome.disposition, 0) + 1
                 publish_failures += 1
                 delay_s = publish_backoff.delay_for(outcome)
-                print(f'camera publish warning: {exc}')
+                print(f'camera publish warning: {publish_error_label(exc)}')
             finally:
                 publish_latency.observe((time.monotonic() - publish_started) * 1000)
 
@@ -356,6 +367,7 @@ def main() -> None:
                     capture_recovery,
                     processed_frames,
                     stale_frames,
+                    stale_after_inference,
                     publish_failures,
                     publish_outcomes,
                     inference_latency,
