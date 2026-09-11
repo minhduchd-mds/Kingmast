@@ -28,6 +28,7 @@ import './hmi-assets-v0.0.8.css';
 import './hmi-assistant.css';
 import './hmi-auto-appearance-fix.css';
 import './hmi-performance.css';
+import './hmi-vision-scene.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 import DriverCapabilityRail from '../components/DriverCapabilityRail';
 import SurroundSpatialOverlay from '../components/SurroundSpatialOverlay';
