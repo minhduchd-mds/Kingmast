@@ -1,5 +1,5 @@
 import type { NavigationRoute,VehiclePosition } from '@kingmast/contracts';
-import type { CameraPerformanceSnapshot,DriverIdentitySignal,DriverPrivacyPreferences,DriverRole,DriverStateAssessment,DriverUiPreferences,NavigationHorizon,PerceptionFrame,PredictiveAdvisory,ProfileMemoryEntry,SurroundFusionSnapshot,VehicleAccessGrant } from '@kingmast/contracts/nextgen';
+import type { CameraPerformanceSnapshot,DriverIdentitySignal,DriverPrivacyPreferences,DriverRole,DriverStateAssessment,DriverUiPreferences,NavigationHorizon,PerceptionFrame,PredictiveAdvisory,ProfileMemoryEntry,SurroundFusionSnapshot,VehicleAccessGrant,VehiclePermission } from '@kingmast/contracts/nextgen';
 import type {VisionSceneSnapshot} from '@kingmast/contracts/vision-nextgen';
 
 function apiBase(){return(process.env.NEXT_PUBLIC_KINGMAST_API_URL??'http://localhost:4000').replace(/\/$/,'');}
@@ -44,8 +44,10 @@ export interface ProfileMemoryView {
   controlAuthority:'none';
 }
 
-export interface VehicleAccessListView {
-  grants:VehicleAccessGrant[];
+export interface VehicleSelfAccessView {
+  profileId:string|null;
+  grant:VehicleAccessGrant|null;
+  permissions:VehiclePermission[];
   controlAuthority:'none';
 }
 
@@ -62,16 +64,10 @@ export async function fetchProfileMemory(profileId:string,signal?:AbortSignal):P
   return parseJson<ProfileMemoryView>(response);
 }
 
-export async function fetchVehicleAccessGrants(vehicleId:string,signal?:AbortSignal):Promise<VehicleAccessListView>{
+export async function fetchVehicleSelfAccess(vehicleId:string,signal?:AbortSignal):Promise<VehicleSelfAccessView>{
   const normalized=vehicleId.trim();if(!normalized)throw new Error('vehicle-id-required');
-  const response=await fetch(`${apiBase()}/v3/nextgen/access/grants?vehicleId=${encodeURIComponent(normalized)}`,{credentials:'include',cache:'no-store',signal});
-  return parseJson<VehicleAccessListView>(response);
-}
-
-export async function revokeVehicleAccessGrant(grantId:string,signal?:AbortSignal):Promise<{grant:VehicleAccessGrant;controlAuthority:'none'}>{
-  const normalized=grantId.trim();if(!normalized)throw new Error('grant-id-required');
-  const response=await fetch(`${apiBase()}/v3/nextgen/access/revoke`,{method:'POST',credentials:'include',cache:'no-store',headers:{'content-type':'application/json'},body:JSON.stringify({grantId:normalized}),signal});
-  return parseJson<{grant:VehicleAccessGrant;controlAuthority:'none'}>(response);
+  const response=await fetch(`${apiBase()}/v3/nextgen/access/self?vehicleId=${encodeURIComponent(normalized)}`,{credentials:'include',cache:'no-store',signal});
+  return parseJson<VehicleSelfAccessView>(response);
 }
 
 export async function refreshNextgenNavigation(input:NextgenNavigationRefreshInput,signal?:AbortSignal):Promise<NextgenNavigationRefreshResult>{
