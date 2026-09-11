@@ -3,6 +3,7 @@ import {join} from 'node:path';
 import {expect,test} from '@playwright/test';
 
 const component=readFileSync(join(process.cwd(),'components/VehicleAccessPanel.tsx'),'utf8');
+const client=readFileSync(join(process.cwd(),'lib/nextgen-client.ts'),'utf8');
 const layout=readFileSync(join(process.cwd(),'app/layout.tsx'),'utf8');
 
 test('vehicle access summary mounts only behind parked and active-profile gates',()=>{
@@ -10,12 +11,14 @@ test('vehicle access summary mounts only behind parked and active-profile gates'
   expect(layout).toContain('<VehicleAccessPanel/>');
   expect(component).toContain('speedKmh<=PARKED_MAX_KMH');
   expect(component).toContain('snapshot?.activeProfileId');
-  expect(component).toContain('fetchVehicleAccessGrants(vehicleId');
+  expect(component).toContain('fetchVehicleSelfAccess(vehicleId');
 });
 
-test('cockpit access summary stays read-only and has no actuator authority',()=>{
+test('cockpit reads only self access and exposes no access mutation path',()=>{
+  expect(client).toContain('/v3/nextgen/access/self?vehicleId=');
+  expect(client).not.toContain('/v3/nextgen/access/grants?vehicleId=');
+  expect(client).not.toContain('/v3/nextgen/access/revoke');
   expect(component).toContain('data-control-authority="none"');
-  expect(component).not.toContain('revokeVehicleAccessGrant');
   expect(component).not.toMatch(/onClick=/);
   expect(component).not.toMatch(/brake|steer|throttle|gear/i);
 });
