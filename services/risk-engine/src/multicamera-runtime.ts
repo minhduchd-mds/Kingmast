@@ -3,6 +3,8 @@ import {CameraCalibrationRegistry} from './camera-calibration-registry.js';
 import {buildSurroundFusion} from './surround-fusion.js';
 
 const MAX_CAMERAS=8;
+const MAX_FRAME_AGE_MS=1_000;
+const MAX_FUTURE_SKEW_MS=250;
 
 export class MultiCameraRuntime{
   readonly calibrations=new CameraCalibrationRegistry();
@@ -11,11 +13,13 @@ export class MultiCameraRuntime{
 
   configure(profile:CameraCalibrationProfile){return this.calibrations.upsert(profile);}
 
-  ingest(observation:CalibratedCameraObservation){
+  ingest(observation:CalibratedCameraObservation,nowMs=Date.now()){
     if(!this.calibrations.get(observation.cameraId))return{accepted:false as const,reason:'calibration-missing' as const};
     const previous=this.lastSequence.get(observation.cameraId);
     if(previous!==undefined&&observation.sequence<=previous)return{accepted:false as const,reason:'sequence-replay' as const};
     if(observation.receivedAtMs<observation.capturedAtMs)return{accepted:false as const,reason:'invalid-clock' as const};
+    if(observation.capturedAtMs>nowMs+MAX_FUTURE_SKEW_MS)return{accepted:false as const,reason:'future-frame' as const};
+    if(nowMs-observation.capturedAtMs>MAX_FRAME_AGE_MS)return{accepted:false as const,reason:'stale-frame' as const};
     if(!this.observations.has(observation.cameraId)&&this.observations.size>=MAX_CAMERAS)return{accepted:false as const,reason:'capacity' as const};
     const bounded:CalibratedCameraObservation={...structuredClone(observation),detections:observation.detections.slice(0,256),lanes:observation.lanes.slice(0,16),freeSpace:observation.freeSpace.slice(0,72)};
     this.observations.set(observation.cameraId,bounded);
