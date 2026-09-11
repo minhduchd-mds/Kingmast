@@ -18,9 +18,31 @@ describe('EdgePacketGuard',()=>{
     expect(guard.accept(packet(0,'boot-b'),now).ok).toBe(true);
   });
 
+  it('rejects replay of a previously seen boot id after a boot transition',()=>{
+    const guard=new EdgePacketGuard();
+    expect(guard.accept(packet(10,'boot-a'),now).ok).toBe(true);
+    expect(guard.accept(packet(0,'boot-b','edge-1',now+1_000),now+1_000).ok).toBe(true);
+    expect(guard.accept(packet(11,'boot-a','edge-1',now+2_000),now+2_000)).toEqual({ok:false,reason:'boot-replay'});
+  });
+
+  it('rate limits repeated unique boot-id changes for one device',()=>{
+    const guard=new EdgePacketGuard();
+    expect(guard.accept(packet(1,'boot-a'),now).ok).toBe(true);
+    expect(guard.accept(packet(0,'boot-b','edge-1',now+1_000),now+1_000).ok).toBe(true);
+    expect(guard.accept(packet(0,'boot-c','edge-1',now+2_000),now+2_000).ok).toBe(true);
+    expect(guard.accept(packet(0,'boot-d','edge-1',now+3_000),now+3_000).ok).toBe(true);
+    expect(guard.accept(packet(0,'boot-e','edge-1',now+4_000),now+4_000)).toEqual({ok:false,reason:'boot-churn'});
+  });
+
   it('rejects packets with an invalid wall clock',()=>{
     const guard=new EdgePacketGuard();
     expect(guard.accept(packet(1,'boot-a','edge-1',now-60_000),now)).toEqual({ok:false,reason:'clock-skew'});
+  });
+
+  it('rejects clock regression across boot transitions',()=>{
+    const guard=new EdgePacketGuard();
+    expect(guard.accept(packet(1,'boot-a','edge-1',now),now).ok).toBe(true);
+    expect(guard.accept(packet(0,'boot-b','edge-1',now-3_000),now)).toEqual({ok:false,reason:'clock-regression'});
   });
 
   it('bounds device-session memory and fails closed for new devices at capacity',()=>{
