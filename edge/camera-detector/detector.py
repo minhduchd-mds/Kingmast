@@ -11,10 +11,11 @@ from typing import Any
 import cv2
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from ultralytics import YOLO
 
+from capture_runtime import CaptureRecovery
 from frame_runtime import LatestFrameBuffer
+from publisher_runtime import PublishBackoff, classify_http_response, transport_failure
 from runtime_metrics import RollingLatency
 
 SUPPORTED = {
@@ -92,27 +93,47 @@ def frame_payload(
     return normalize_json_numbers({'cameraId': camera_id, 'timestampMs': timestamp_ms, 'detections': detections})
 
 
-def capture_loop(capture: Any, buffer: LatestFrameBuffer, stop_event: threading.Event) -> None:
+def capture_loop(
+    capture: Any,
+    source: int | str,
+    buffer: LatestFrameBuffer,
+    stop_event: threading.Event,
+    recovery: CaptureRecovery,
+) -> None:
     while not stop_event.is_set():
         ok, frame = capture.read()
         if not ok:
-            stop_event.wait(0.05)
+            delay_s = recovery.read_failure()
+            if delay_s is None:
+                stop_event.wait(0.05)
+                continue
+            capture.release()
+            if stop_event.wait(delay_s):
+                return
+            opened = bool(capture.open(source))
+            recovery.reconnect_result(opened)
+            if not opened:
+                continue
             continue
+        recovery.success()
         if not buffer.push(frame, int(time.time() * 1000)):
             return
 
 
 def runtime_report(
     buffer: LatestFrameBuffer,
+    capture_recovery: CaptureRecovery,
     processed_frames: int,
     stale_frames: int,
     publish_failures: int,
+    publish_outcomes: dict[str, int],
     inference_latency: RollingLatency,
     publish_latency: RollingLatency,
 ) -> dict[str, Any]:
     captured = buffer.captured
     dropped = buffer.dropped
     drop_rate = round(dropped / captured, 4) if captured else 0.0
+    capture_state = capture_recovery.snapshot()
     return {
         'event': 'kingmast-camera-runtime',
         'capturedFrames': captured,
@@ -121,7 +142,14 @@ def runtime_report(
         'staleFrames': stale_frames,
         'dropRate': drop_rate,
         'queueDepth': buffer.depth,
+        'capture': {
+            'readFailures': capture_state.read_failures,
+            'reconnectAttempts': capture_state.reconnect_attempts,
+            'reconnects': capture_state.reconnects,
+            'consecutiveFailures': capture_state.consecutive_failures,
+        },
         'publishFailures': publish_failures,
+        'publishOutcomes': dict(sorted(publish_outcomes.items())),
         'inference': inference_latency.snapshot(),
         'publish': publish_latency.snapshot(),
     }
@@ -141,6 +169,9 @@ def main() -> None:
     parser.add_argument('--max-frame-age-ms', type=int, default=350)
     parser.add_argument('--metrics-interval-s', type=float, default=5.0)
     parser.add_argument('--publish-timeout-s', type=float, default=0.8)
+    parser.add_argument('--capture-failure-threshold', type=int, default=10)
+    parser.add_argument('--capture-reconnect-base-s', type=float, default=0.25)
+    parser.add_argument('--capture-reconnect-max-s', type=float, default=2.0)
     parser.add_argument('--token', default=os.getenv('KINGMAST_EDGE_TOKEN', ''))
     parser.add_argument('--device-id', default=os.getenv('KINGMAST_DEVICE_ID', ''))
     parser.add_argument('--device-key-id', default=os.getenv('KINGMAST_DEVICE_KEY_ID', ''))
@@ -150,6 +181,10 @@ def main() -> None:
         raise RuntimeError('--max-frame-age-ms must be between 50 and 5000')
     if args.metrics_interval_s < 1 or args.metrics_interval_s > 60:
         raise RuntimeError('--metrics-interval-s must be between 1 and 60')
+    if args.capture_failure_threshold < 1 or args.capture_failure_threshold > 120:
+        raise RuntimeError('--capture-failure-threshold must be between 1 and 120')
+    if args.capture_reconnect_base_s <= 0 or args.capture_reconnect_max_s < args.capture_reconnect_base_s or args.capture_reconnect_max_s > 10:
+        raise RuntimeError('invalid capture reconnect bounds')
 
     device_secret = os.getenv('KINGMAST_DEVICE_SECRET', '')
     device_auth_fields = (args.device_id.strip(), args.device_key_id.strip(), device_secret)
@@ -166,24 +201,32 @@ def main() -> None:
     model = YOLO(args.model)
     period = 1.0 / max(args.fps, 1.0)
     frame_buffer = LatestFrameBuffer(args.queue_size)
+    capture_recovery = CaptureRecovery(
+        failure_threshold=args.capture_failure_threshold,
+        base_delay_s=args.capture_reconnect_base_s,
+        max_delay_s=args.capture_reconnect_max_s,
+    )
     stop_event = threading.Event()
     capture_thread = threading.Thread(
         target=capture_loop,
-        args=(capture, frame_buffer, stop_event),
+        args=(capture, source, frame_buffer, stop_event, capture_recovery),
         name=f'kingmast-capture-{args.camera_id}',
         daemon=True,
     )
     inference_latency = RollingLatency()
     publish_latency = RollingLatency()
+    publish_backoff = PublishBackoff(base_s=0.1, max_s=2.0)
     processed_frames = 0
     stale_frames = 0
     publish_failures = 0
+    publish_outcomes: dict[str, int] = {}
     last_metrics_at = time.monotonic()
 
     session = requests.Session()
-    retry = Retry(total=2, connect=2, read=1, backoff_factor=0.15, status_forcelist=(429, 500, 502, 503, 504), allowed_methods=frozenset({'POST'}))
-    session.mount('http://', HTTPAdapter(max_retries=retry))
-    session.mount('https://', HTTPAdapter(max_retries=retry))
+    # A signed frame is submitted at most once. Fresh capture replaces transport retries.
+    adapter = HTTPAdapter(max_retries=0, pool_connections=2, pool_maxsize=2)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
     if args.token:
         session.headers.update({'x-kingmast-edge-token': args.token})
     if device_secret:
@@ -226,27 +269,44 @@ def main() -> None:
                     payload,
                     device_secret,
                 )
+
             publish_started = time.monotonic()
+            delay_s = 0.0
             try:
-                session.post(
+                response = session.post(
                     args.api,
                     json=payload,
                     headers=headers,
                     timeout=max(0.1, args.publish_timeout_s),
-                ).raise_for_status()
+                )
+                outcome = classify_http_response(response.status_code, response.headers.get('retry-after'))
+                publish_outcomes[outcome.disposition] = publish_outcomes.get(outcome.disposition, 0) + 1
+                if not outcome.accepted:
+                    publish_failures += 1
+                    print(f'camera publish rejected: status={response.status_code} disposition={outcome.disposition}')
+                delay_s = publish_backoff.delay_for(outcome)
             except requests.RequestException as exc:
+                outcome = transport_failure()
+                publish_outcomes[outcome.disposition] = publish_outcomes.get(outcome.disposition, 0) + 1
                 publish_failures += 1
+                delay_s = publish_backoff.delay_for(outcome)
                 print(f'camera publish warning: {exc}')
             finally:
                 publish_latency.observe((time.monotonic() - publish_started) * 1000)
+
+            # Capture keeps running during backoff; the next inference consumes only the newest frame.
+            if delay_s > 0:
+                stop_event.wait(delay_s)
 
             now_monotonic = time.monotonic()
             if now_monotonic - last_metrics_at >= args.metrics_interval_s:
                 print(json.dumps(runtime_report(
                     frame_buffer,
+                    capture_recovery,
                     processed_frames,
                     stale_frames,
                     publish_failures,
+                    publish_outcomes,
                     inference_latency,
                     publish_latency,
                 ), separators=(',', ':')))
