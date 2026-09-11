@@ -169,6 +169,9 @@ def main() -> None:
     parser.add_argument('--max-frame-age-ms', type=int, default=350)
     parser.add_argument('--metrics-interval-s', type=float, default=5.0)
     parser.add_argument('--publish-timeout-s', type=float, default=0.8)
+    parser.add_argument('--capture-failure-threshold', type=int, default=10)
+    parser.add_argument('--capture-reconnect-base-s', type=float, default=0.25)
+    parser.add_argument('--capture-reconnect-max-s', type=float, default=2.0)
     parser.add_argument('--token', default=os.getenv('KINGMAST_EDGE_TOKEN', ''))
     parser.add_argument('--device-id', default=os.getenv('KINGMAST_DEVICE_ID', ''))
     parser.add_argument('--device-key-id', default=os.getenv('KINGMAST_DEVICE_KEY_ID', ''))
@@ -178,6 +181,10 @@ def main() -> None:
         raise RuntimeError('--max-frame-age-ms must be between 50 and 5000')
     if args.metrics_interval_s < 1 or args.metrics_interval_s > 60:
         raise RuntimeError('--metrics-interval-s must be between 1 and 60')
+    if args.capture_failure_threshold < 1 or args.capture_failure_threshold > 120:
+        raise RuntimeError('--capture-failure-threshold must be between 1 and 120')
+    if args.capture_reconnect_base_s <= 0 or args.capture_reconnect_max_s < args.capture_reconnect_base_s or args.capture_reconnect_max_s > 10:
+        raise RuntimeError('invalid capture reconnect bounds')
 
     device_secret = os.getenv('KINGMAST_DEVICE_SECRET', '')
     device_auth_fields = (args.device_id.strip(), args.device_key_id.strip(), device_secret)
@@ -194,7 +201,11 @@ def main() -> None:
     model = YOLO(args.model)
     period = 1.0 / max(args.fps, 1.0)
     frame_buffer = LatestFrameBuffer(args.queue_size)
-    capture_recovery = CaptureRecovery(failure_threshold=10, base_delay_s=0.25, max_delay_s=2.0)
+    capture_recovery = CaptureRecovery(
+        failure_threshold=args.capture_failure_threshold,
+        base_delay_s=args.capture_reconnect_base_s,
+        max_delay_s=args.capture_reconnect_max_s,
+    )
     stop_event = threading.Event()
     capture_thread = threading.Thread(
         target=capture_loop,
