@@ -16,6 +16,8 @@ describe('nextgen ingress adapter',()=>{
   it('does not promote uncalibrated legacy camera ingress to trusted alerts',()=>{
     const runtime=new NextgenRuntime();
     const result=ingestLegacyFrontCamera(runtime,'vehicle-1',{cameraId:'legacy-front',timestampMs:NOW-100,detections:[{id:'car-1',kind:'car',confidence:.95,bearingDeg:0,estimatedDistanceM:15,timestampMs:NOW-100}]},NOW);
+    expect('trust' in result).toBe(true);
+    if(!('trust' in result))throw new Error('expected legacy perception trust result');
     expect(result.trust.eligibleForAlerts).toBe(false);
     expect(result.trust.reasons).toContain('camera-input-untrusted');
   });
