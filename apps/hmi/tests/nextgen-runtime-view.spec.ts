@@ -2,7 +2,7 @@ import { expect,test } from '@playwright/test';
 import type { NextgenRuntimeClientSnapshot } from '../lib/nextgen-client';
 import { buildNextgenStatusCards } from '../lib/nextgen-view-model';
 
-function snapshot():NextgenRuntimeClientSnapshot{return{perception:null,perceptionTrust:null,surround:null,navigationHorizon:null,driver:{state:'driver-unavailable',confidence:0,observedAtMs:null,ageMs:null,reason:'stale-driver-observation',advisoryOnly:true},activeProfileId:null,advisories:[],cameraPerformance:[],controlAuthority:'none'};}
+function snapshot():NextgenRuntimeClientSnapshot{return{perception:null,perceptionTrust:null,surround:null,visionScene:{generatedAtMs:1_800_000_000_000,lane:{available:false,confidence:0,leftBoundaryM:null,rightBoundaryM:null,laneWidthM:null,curvature1pm:null,observedAtMs:null,sourceCameraIds:[],reason:'camera-unavailable',advisoryOnly:true},freeSpace:{available:false,confidence:0,forwardClearanceM:null,minimumClearanceM:null,sectorCount:0,observedAtMs:null,sourceCameraIds:[],reason:'camera-unavailable',visualizationOnly:true},trafficControls:{speedLimitKmh:null,speedLimitConfidence:0,signalState:null,signalConfidence:0,stopSignDistanceM:null,yieldSignDistanceM:null,observedAtMs:null,sourceCameraIds:[],degradedReasons:[],advisoryOnly:true},freshnessMs:null,advisoryOnly:true,controlAuthority:'none'},navigationHorizon:null,driver:{state:'driver-unavailable',confidence:0,observedAtMs:null,ageMs:null,reason:'stale-driver-observation',advisoryOnly:true},activeProfileId:null,advisories:[],cameraPerformance:[],controlAuthority:'none'};}
 
 test('nextgen view fails closed when runtime is unavailable',()=>{
   const cards=buildNextgenStatusCards(null,true);
