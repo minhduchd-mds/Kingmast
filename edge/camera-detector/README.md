@@ -9,7 +9,7 @@ The live camera path is intentionally bounded:
 1. A capture thread timestamps frames at acquisition time.
 2. `LatestFrameBuffer` keeps at most 1–8 frames (default: 2) and drops the oldest frame under pressure.
 3. Inference consumes the newest available frame rather than replaying an accumulated queue.
-4. Frames older than `--max-frame-age-ms` are discarded locally before inference.
+4. Frames older than `--max-frame-age-ms` are discarded before inference and checked again before signing/publishing, using both monotonic and wall-clock age.
 5. Each signed HTTP payload is submitted **at most once**. The publisher does not automatically retry the same signed frame because the backend replay guard may already have accepted it even when the response was lost.
 6. HTTP errors back off **between fresh frames** while capture continues in the background.
 7. Repeated camera/RTSP read failures trigger a bounded reconnect cycle.
@@ -56,6 +56,7 @@ The signature covers scope, device ID, key ID, capture timestamp, and canonical 
 Every `--metrics-interval-s` (default 5 s) the process emits one compact JSON line with:
 
 - captured / processed / dropped / stale frame counts;
+- `staleAfterInference` counts results that exceeded the age budget during inference;
 - drop rate and current queue depth;
 - capture read failures, reconnect attempts, and successful reconnects;
 - publisher outcome counts (`accepted`, `backpressure`, `rejected-current-frame`, `authentication-rejected`, `server-unavailable`, `transport-error`, etc.);
@@ -69,7 +70,7 @@ The runtime helpers use standard-library `unittest` and do not require the YOLO/
 
 ```bash
 cd edge/camera-detector
-python -m unittest test_frame_runtime.py test_runtime_metrics.py test_publisher_runtime.py test_capture_runtime.py
+python runtime_selftest.py
 ```
 
 Physical camera, target-compute, thermal, and long-duration validation remain separate bench/HIL evidence tasks.

@@ -5,7 +5,6 @@ import { NextgenRuntime } from './nextgen-runtime.js';
 import { DriverProfileRepository } from './driver-profile-repository.js';
 import { VehicleAccessRepository } from './vehicle-access-repository.js';
 import {ProfileMemoryRepository} from './profile-memory-repository.js';
-import {nextgenMemoryRepository} from './nextgen-server-runtime.js';
 import { AccessDecisionSchema,AuditQuerySchema,CameraCalibrationProfileSchema,DriverIdentitySignalSchema,DriverProfileSchema,MemoryDeleteSchema,MemoryQuerySchema,NavigationHorizonRefreshSchema,ProfileMemoryEntrySchema,VehicleAccessGrantSchema,VehicleQuerySchema } from './nextgen-api-contract.js';
 import {refreshNextgenNavigation} from './nextgen-navigation-service.js';
 import {createVisionIngressAuthorizer} from './nextgen-vision-ingress-auth.js';
@@ -19,7 +18,7 @@ export interface NextgenApiRouteOptions {
   runtime:NextgenRuntime;
   profiles:DriverProfileRepository;
   accessRepository:VehicleAccessRepository;
-  memoryRepository?:ProfileMemoryRepository;
+  memoryRepository:ProfileMemoryRepository;
   requireViewer:(request:FastifyRequest,reply:FastifyReply)=>boolean;
   requireWrite:(request:FastifyRequest,reply:FastifyReply,payload:unknown)=>boolean;
   accessActorAuthorizer?:ReturnType<typeof createNextgenAccessActorAuthorizer>;
@@ -31,7 +30,7 @@ function accessAuthError(reply:FastifyReply,result:Exclude<ReturnType<ReturnType
 }
 
 export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(app,options)=>{
-  const memory=options.memoryRepository??nextgenMemoryRepository;
+  const memory=options.memoryRepository;
   const authorizeAccessActor=options.accessActorAuthorizer??createNextgenAccessActorAuthorizer();
   await app.register(nextgenVisionIngressRoutes,{runtime:options.runtime,requireDevice:createVisionIngressAuthorizer()});
 

@@ -76,6 +76,8 @@ jobs:
         run: pnpm vercel:policy
       - name: Python syntax
         run: python -m py_compile edge/camera-detector/detector.py edge/camera-detector/speed_sign_detector.py
+      - name: Camera runtime regression tests
+        run: python edge/camera-detector/runtime_selftest.py
       - name: Lint quality gate
         run: pnpm lint
       - name: TypeScript

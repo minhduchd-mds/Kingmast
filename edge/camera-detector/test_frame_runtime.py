@@ -1,9 +1,15 @@
 import unittest
+from unittest.mock import patch
 
-from frame_runtime import LatestFrameBuffer
+from frame_runtime import LatestFrameBuffer, CapturedFrame, frame_is_fresh
 
 
 class LatestFrameBufferTests(unittest.TestCase):
+    def test_clock_rollback_does_not_refresh_old_frame(self) -> None:
+        frame = CapturedFrame('frame', 100_000, 10.0)
+        with patch('frame_runtime.time.time', return_value=100.1), patch('frame_runtime.time.monotonic', return_value=11.0):
+            self.assertFalse(frame_is_fresh(frame, 350))
+
     def test_drops_oldest_when_full(self) -> None:
         buffer = LatestFrameBuffer(capacity=2)
         self.assertTrue(buffer.push('frame-1', 1000))

@@ -14,6 +14,13 @@ class CapturedFrame:
     captured_monotonic: float
 
 
+def frame_is_fresh(frame: CapturedFrame, max_age_ms: int) -> bool:
+    # Monotonic age prevents a backwards wall-clock adjustment from refreshing old data.
+    monotonic_age_ms = (time.monotonic() - frame.captured_monotonic) * 1000
+    wall_age_ms = int(time.time() * 1000) - frame.captured_at_ms
+    return 0 <= monotonic_age_ms <= max_age_ms and 0 <= wall_age_ms <= max_age_ms
+
+
 class LatestFrameBuffer:
     """Small drop-oldest buffer so inference stays close to the live camera."""
 

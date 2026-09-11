@@ -6,6 +6,7 @@ from typing import Any
 import cv2
 import requests
 from ultralytics import YOLO
+from runtime_metadata import camera_open_error, publish_error_label
 
 SPEED_LABEL = re.compile(r'(?:speed[_ -]?limit|limit|speed)[_ -]?(\d{1,3})', re.IGNORECASE)
 
@@ -55,7 +56,8 @@ def main() -> None:
     source: int | str = int(args.source) if args.source.isdigit() else args.source
     capture = cv2.VideoCapture(source)
     if not capture.isOpened():
-        raise RuntimeError(f'Unable to open camera source: {args.source}')
+        capture.release()
+        raise RuntimeError(camera_open_error())
     model = YOLO(args.model)
     period = 1.0 / max(args.fps, 1.0)
     session = requests.Session()
@@ -72,7 +74,7 @@ def main() -> None:
                     try:
                         session.post(args.api, json=observation, timeout=0.8).raise_for_status()
                     except requests.RequestException as exc:
-                        print(f'speed-sign publish warning: {exc}')
+                        print(f'speed-sign publish warning: {publish_error_label(exc)}')
             sleep_for = period - (time.monotonic() - started)
             if sleep_for > 0:
                 time.sleep(sleep_for)
