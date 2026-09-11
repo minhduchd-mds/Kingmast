@@ -38,6 +38,10 @@ def classify_http_response(status_code: int, retry_after: str | None = None) -> 
     return PublishOutcome('request-rejected', status_code, 0.0, False)
 
 
+def transport_failure() -> PublishOutcome:
+    return PublishOutcome('transport-error', None, 0.0, False)
+
+
 class PublishBackoff:
     """Back off between fresh frames; never retry the same signed payload."""
 
@@ -55,7 +59,7 @@ class PublishBackoff:
         if outcome.accepted:
             self.success()
             return 0.0
-        if outcome.disposition in ('authentication-rejected', 'request-rejected', 'rejected-current-frame'):
+        if outcome.disposition == 'rejected-current-frame':
             return 0.0
         self.failures = min(8, self.failures + 1)
         exponential = min(self.max_s, self.base_s * (2 ** (self.failures - 1)))
