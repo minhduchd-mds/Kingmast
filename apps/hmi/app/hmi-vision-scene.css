@@ -1,0 +1,28 @@
+.visionSceneStrip{
+  position:fixed;
+  left:224px;
+  bottom:84px;
+  z-index:26;
+  display:flex;
+  align-items:stretch;
+  gap:8px;
+  max-width:min(760px,calc(100vw - 260px));
+  padding:8px;
+  border:1px solid var(--hmi-material-line,rgba(255,255,255,.1));
+  border-radius:18px;
+  background:var(--hmi-capability-quiet,rgba(14,16,20,.86));
+  color:var(--hmi-material-text,#f7f7f9);
+  box-shadow:0 10px 28px rgba(0,0,0,.16);
+  pointer-events:none;
+}
+.visionSceneLead,.visionSceneMetric{display:flex;align-items:center;gap:7px;min-height:40px;padding:5px 9px;border-radius:12px}
+.visionSceneLead{padding-inline:8px 12px;border-right:1px solid var(--hmi-material-line,rgba(255,255,255,.1));border-radius:10px 0 0 10px}
+.visionSceneLead svg,.visionSceneMetric svg{width:18px;height:18px;flex:0 0 auto;opacity:.78}
+.visionSceneLead small,.visionSceneMetric small{font-size:12px;line-height:1.2;color:var(--hmi-material-secondary,#a6aab3);white-space:nowrap}
+.visionSceneMetric{background:var(--hmi-row-surface,rgba(255,255,255,.022))}
+.visionSceneMetric b{font-size:15px;line-height:1;font-weight:650;letter-spacing:-.01em;white-space:nowrap}
+.visionSignalDot{width:9px;height:9px;border-radius:999px;background:currentColor;opacity:.65}
+body:has(.hmiV5.severity-critical) .visionSceneStrip{display:none}
+@media(max-width:1180px){.visionSceneStrip{left:204px;max-width:calc(100vw - 228px)}.visionSceneLead small{display:none}}
+@media(max-height:720px){.visionSceneStrip{display:none}}
+@media(prefers-reduced-motion:reduce){.visionSceneStrip,.visionSceneStrip *{transition:none!important;animation:none!important}}

@@ -9,6 +9,7 @@ import {buildNextgenStatusCards,type NextgenStatusCard} from '../lib/nextgen-vie
 import {useI18n} from '../lib/i18n';
 import {isNavigationRoute} from '../lib/persisted-navigation';
 import type {KingmastTelemetryEventDetail} from '../lib/realtime';
+import VisionSceneStrip from './VisionSceneStrip';
 
 const ROUTE_KEYS=['kingmast:v006:route','kingmast:v25:route'];
 const HORIZON_SYNC_MS=30_000;
@@ -63,7 +64,8 @@ export default function NextgenIntelligenceHud(){
   const{snapshot,loading,error}=useNextgenRuntime(true,2_000);
   const{isVietnamese}=useI18n();
   const card=useMemo(()=>buildNextgenStatusCards(snapshot,isVietnamese).find((item)=>item.tone==='critical'||item.tone==='caution')??null,[snapshot,isVietnamese]);
-  if((loading&&!snapshot)||error||!card)return null;
+  if((loading&&!snapshot)||error)return null;
+  if(!card)return <VisionSceneStrip scene={snapshot?.visionScene}/>;
   const Icon=iconFor(card);
   const critical=card.tone==='critical';
   return <aside className={`connectedRoadHud connectedRoadCompact nextgenIntelligenceHud severity-${critical?'critical':'caution'}`} role={critical?'alert':'status'} aria-label={isVietnamese?'Trí tuệ dự báo KINGMAST':'KINGMAST predictive intelligence'} data-testid="nextgen-intelligence" data-attention={critical?'critical':'transient'}>

@@ -6,6 +6,8 @@ import { DriverProfileRepository } from './driver-profile-repository.js';
 import { VehicleAccessRepository } from './vehicle-access-repository.js';
 import { AccessDecisionSchema,AuditQuerySchema,CameraCalibrationProfileSchema,DriverIdentitySignalSchema,DriverProfileSchema,NavigationHorizonRefreshSchema,VehicleAccessGrantSchema,VehicleQuerySchema } from './nextgen-api-contract.js';
 import {refreshNextgenNavigation} from './nextgen-navigation-service.js';
+import {createVisionIngressAuthorizer} from './nextgen-vision-ingress-auth.js';
+import {nextgenVisionIngressRoutes} from './nextgen-vision-ingress-routes.js';
 
 export interface NextgenApiRouteOptions {
   runtime:NextgenRuntime;
@@ -16,6 +18,8 @@ export interface NextgenApiRouteOptions {
 }
 
 export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(app,options)=>{
+  await app.register(nextgenVisionIngressRoutes,{runtime:options.runtime,requireDevice:createVisionIngressAuthorizer()});
+
   app.get('/v3/nextgen/runtime',{config:{rateLimit:{max:300,timeWindow:60_000}}},async(request,reply)=>{
     if(!options.requireViewer(request,reply))return;
     return options.runtime.snapshot();

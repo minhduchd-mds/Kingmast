@@ -1,5 +1,6 @@
 import type { NavigationRoute,VehiclePosition } from '@kingmast/contracts';
 import type { CameraPerformanceSnapshot,DriverIdentitySignal,DriverPrivacyPreferences,DriverRole,DriverStateAssessment,DriverUiPreferences,NavigationHorizon,PerceptionFrame,PredictiveAdvisory,SurroundFusionSnapshot } from '@kingmast/contracts/nextgen';
+import type {VisionSceneSnapshot} from '@kingmast/contracts/vision-nextgen';
 
 function apiBase(){return(process.env.NEXT_PUBLIC_KINGMAST_API_URL??'http://localhost:4000').replace(/\/$/,'');}
 
@@ -7,6 +8,7 @@ export interface NextgenRuntimeClientSnapshot {
   perception:PerceptionFrame|null;
   perceptionTrust:{eligibleForAlerts:boolean;reasons:string[];surroundReady:boolean;uniqueCameraCount:number}|null;
   surround:SurroundFusionSnapshot|null;
+  visionScene:VisionSceneSnapshot;
   navigationHorizon:NavigationHorizon|null;
   driver:DriverStateAssessment;
   activeProfileId:string|null;
