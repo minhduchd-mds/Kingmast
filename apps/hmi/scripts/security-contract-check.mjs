@@ -23,6 +23,8 @@ expect('viewer session is short lived and read-only scoped',viewerSession.includ
 expect('viewer session signature uses HMAC SHA-256 and constant-time verification',viewerSession.includes("createHmac('sha256'")&&viewerSession.includes('timingSafeEqual'));
 expect('viewer session exposes verified expiry claims for realtime enforcement',viewerSession.includes('readViewerSession')&&viewerSession.includes('expiresAtMs:expiresAtS*1000'));
 expect('session bootstrap rejects cross-origin issuance',sessionRoute.includes("error:'viewer-session-origin-rejected'")&&sessionRoute.includes('sameOrigin(request)'));
+expect('session bootstrap fails closed when origin metadata is absent',sessionRoute.includes("request.headers.get('sec-fetch-site')")&&sessionRoute.includes("fetchSite==='same-origin'")&&sessionRoute.includes('return false;'));
+expect('loopback development bypass remains host scoped',sessionRoute.includes('isLoopbackHost(request.nextUrl.host)')&&sessionRoute.includes("KINGMAST_ALLOW_INSECURE_LOCAL_DEV==='1'"));
 expect('session bootstrap refuses missing production token',sessionRoute.includes("error:'viewer-session-unavailable'")&&sessionRoute.includes('status:503'));
 expect('session bootstrap supports explicit loopback development',sessionRoute.includes("KINGMAST_ALLOW_INSECURE_LOCAL_DEV==='1'")&&sessionRoute.includes("mode:'loopback-dev'"));
 expect('viewer cookie domain is explicitly configurable',sessionRoute.includes('KINGMAST_VIEWER_COOKIE_DOMAIN'));
