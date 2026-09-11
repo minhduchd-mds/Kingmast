@@ -9,13 +9,17 @@ const activeCodeRoots=['apps','services','packages','edge','.github'];
 const documentationFiles=[];
 const activeCodeFiles=[];
 const textExtensions=/\.(?:md|mjs|js|ts|tsx|json|css|py|ya?ml)$/i;
+const generatedDirectories=new Set(['node_modules','.next','dist','coverage','playwright-report','test-results']);
 
 function walk(path,target){
   const full=resolve(root,path);
   if(!existsSync(full))return;
   const stat=statSync(full);
   if(stat.isFile()){if(textExtensions.test(path))target.push(path);return;}
-  for(const entry of readdirSync(full))walk(join(path,entry),target);
+  for(const entry of readdirSync(full)){
+    if(generatedDirectories.has(entry))continue;
+    walk(join(path,entry),target);
+  }
 }
 for(const path of documentationRoots)walk(path,documentationFiles);
 for(const path of activeCodeRoots)walk(path,activeCodeFiles);
