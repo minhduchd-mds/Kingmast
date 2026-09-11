@@ -1,6 +1,6 @@
 import unittest
 
-from publisher_runtime import PublishBackoff, classify_http_response
+from publisher_runtime import PublishBackoff, classify_http_response, transport_failure
 
 
 class PublisherRuntimeTests(unittest.TestCase):
@@ -11,12 +11,19 @@ class PublisherRuntimeTests(unittest.TestCase):
         self.assertEqual(backoff.delay_for(classify_http_response(204)), 0.0)
         self.assertEqual(backoff.failures, 0)
 
-    def test_replay_or_auth_rejection_never_retries_same_payload(self) -> None:
+    def test_replay_rejection_drops_current_frame_without_backoff(self) -> None:
         backoff = PublishBackoff()
-        for status in (409, 401, 403, 400):
-            outcome = classify_http_response(status)
-            self.assertFalse(outcome.accepted)
-            self.assertEqual(backoff.delay_for(outcome), 0.0)
+        outcome = classify_http_response(409)
+        self.assertEqual(outcome.disposition, 'rejected-current-frame')
+        self.assertEqual(backoff.delay_for(outcome), 0.0)
+        self.assertEqual(backoff.failures, 0)
+
+    def test_auth_and_request_failures_back_off_before_a_fresh_frame(self) -> None:
+        backoff = PublishBackoff(base_s=0.1, max_s=1.0)
+        self.assertEqual(backoff.delay_for(classify_http_response(401)), 0.1)
+        self.assertEqual(backoff.delay_for(classify_http_response(403)), 0.2)
+        self.assertEqual(backoff.delay_for(classify_http_response(400)), 0.4)
+        self.assertEqual(backoff.delay_for(transport_failure()), 0.8)
 
     def test_backpressure_honors_bounded_retry_after(self) -> None:
         backoff = PublishBackoff(base_s=0.1, max_s=2.0)
