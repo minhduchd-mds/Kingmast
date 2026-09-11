@@ -12,6 +12,11 @@ export const ProfileQuerySchema=z.object({profileId:z.string().trim().min(1).max
 export const VehicleQuerySchema=z.object({vehicleId:z.string().trim().min(1).max(96).optional()});
 export const AuditQuerySchema=z.object({limit:z.coerce.number().int().min(1).max(200).default(100)});
 
+export const ProfileMemoryKindSchema=z.enum(['recent-place','preferred-route','ui-preference']);
+export const ProfileMemoryEntrySchema=z.object({id:z.string().trim().min(1).max(96),profileId:z.string().trim().min(1).max(96),kind:ProfileMemoryKindSchema,label:z.string().trim().min(1).max(120),position:NextgenGeoPointSchema.nullable(),routeKey:z.string().trim().min(1).max(120).nullable(),createdAtMs:z.number().int().positive(),lastUsedAtMs:z.number().int().positive()});
+export const MemoryQuerySchema=z.object({profileId:z.string().trim().min(1).max(96)});
+export const MemoryDeleteSchema=z.object({profileId:z.string().trim().min(1).max(96),id:z.string().trim().min(1).max(96)});
+
 export const CameraMountSchema=z.enum(['front','rear','left','right','cabin']);
 export const CameraIntrinsicsSchema=z.object({widthPx:z.number().int().min(160).max(8192),heightPx:z.number().int().min(120).max(8192),fx:z.number().positive().max(20_000),fy:z.number().positive().max(20_000),cx:z.number().min(-20_000).max(20_000),cy:z.number().min(-20_000).max(20_000),distortion:z.array(z.number().finite()).max(16)});
 export const CameraExtrinsicsSchema=z.object({xM:z.number().min(-10).max(10),yM:z.number().min(-10).max(10),zM:z.number().min(-5).max(5),rollDeg:z.number().min(-180).max(180),pitchDeg:z.number().min(-180).max(180),yawDeg:z.number().min(-180).max(180)});

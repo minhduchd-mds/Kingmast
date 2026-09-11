@@ -1,0 +1,5 @@
+.profileMemoryPanel{position:fixed;right:24px;bottom:92px;z-index:34;width:min(360px,calc(100vw - 48px));padding:14px;border:1px solid var(--hmi-material-line);border-radius:18px;background:var(--hmi-floating-surface);box-shadow:var(--hmi-material-shadow);color:var(--hmi-material-text)}
+.profileMemoryPanel header,.profileMemoryItem{display:flex;align-items:center;gap:10px}.profileMemoryPanel header>svg,.profileMemoryItem>svg{width:20px;height:20px;flex:0 0 auto}.profileMemoryPanel header span,.profileMemoryItem span{display:grid;gap:2px;min-width:0}.profileMemoryPanel strong,.profileMemoryItem b{font-size:14px}.profileMemoryPanel small,.profileMemoryPanel p{font-size:12px;color:var(--hmi-material-secondary)}.profileMemoryPanel p{margin:10px 0 0;line-height:1.45}.profileMemoryItems{display:grid;gap:8px;margin-top:12px}.profileMemoryItem{padding:8px 10px;border-radius:12px;background:var(--hmi-row-surface)}
+body:has(.hmiV5.severity-critical) .profileMemoryPanel{opacity:.12;pointer-events:none}
+@media(max-height:760px){.profileMemoryPanel{display:none}}
+@media(prefers-reduced-motion:reduce){.profileMemoryPanel{transition:none}}

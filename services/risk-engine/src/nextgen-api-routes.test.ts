@@ -6,6 +6,7 @@ import { NextgenRuntime } from './nextgen-runtime.js';
 import { InMemoryNextgenPersistence } from './nextgen-persistence.js';
 import { DriverProfileRepository } from './driver-profile-repository.js';
 import { VehicleAccessRepository } from './vehicle-access-repository.js';
+import {ProfileMemoryRepository} from './profile-memory-repository.js';
 
 const NOW=1_800_000_000_000;
 const profile:DriverProfile={id:'owner-1',displayName:'Owner',role:'owner',trustedDeviceIds:['phone-1'],privacy:{locationHistory:false,cameraHistory:false,personalization:true,diagnosticsUpload:false},ui:{language:'vi',theme:'auto',mapZoom:15,warningVolume:70},home:{lat:21,lng:105},work:{lat:20.9,lng:105.8},updatedAtMs:NOW};
@@ -15,10 +16,11 @@ async function createApp(viewer=true,writer=true){
   const persistence=new InMemoryNextgenPersistence();
   const profiles=new DriverProfileRepository(persistence);
   const accessRepository=new VehicleAccessRepository(persistence);
+  const memoryRepository=new ProfileMemoryRepository(persistence);
   const runtime=new NextgenRuntime();
   const app=Fastify();
-  await app.register(nextgenApiRoutes,{runtime,profiles,accessRepository,requireViewer:(_request,reply)=>{if(viewer)return true;reply.code(401).send({error:'viewer-auth-required'});return false;},requireWrite:(_request,reply)=>{if(writer)return true;reply.code(401).send({error:'configuration-auth-required'});return false;}});
-  return{app,profiles,accessRepository,runtime};
+  await app.register(nextgenApiRoutes,{runtime,profiles,accessRepository,memoryRepository,requireViewer:(_request,reply)=>{if(viewer)return true;reply.code(401).send({error:'viewer-auth-required'});return false;},requireWrite:(_request,reply)=>{if(writer)return true;reply.code(401).send({error:'configuration-auth-required'});return false;}});
+  return{app,profiles,accessRepository,memoryRepository,runtime};
 }
 
 describe('nextgen API routes',()=>{
@@ -68,6 +70,22 @@ describe('nextgen API routes',()=>{
     expect(stored?.home).toBeNull();
     expect(stored?.work).toBeNull();
     await app.close();
+  });
+
+  it('persists memory only with write authority and purges location memory when privacy closes',async()=>{
+    const open:DriverProfile={...profile,privacy:{...profile.privacy,locationHistory:true},home:null,work:null};
+    const{app}=await createApp();
+    expect((await app.inject({method:'POST',url:'/v3/nextgen/profiles',payload:open})).statusCode).toBe(200);
+    const memory={id:'place:cafe',profileId:'owner-1',kind:'recent-place',label:'Cafe',position:{lat:21.03,lng:105.84},routeKey:null,createdAtMs:NOW,lastUsedAtMs:NOW};
+    expect((await app.inject({method:'POST',url:'/v3/nextgen/memory',payload:memory})).statusCode).toBe(200);
+    expect((await app.inject({method:'GET',url:'/v3/nextgen/memory?profileId=owner-1'})).json().entries).toHaveLength(1);
+    expect((await app.inject({method:'POST',url:'/v3/nextgen/profiles',payload:profile})).statusCode).toBe(200);
+    const after=(await app.inject({method:'GET',url:'/v3/nextgen/memory?profileId=owner-1'})).json();
+    expect(after.entries).toEqual([]);expect(after.privacy.locationHistory).toBe(false);expect(after.controlAuthority).toBe('none');
+    await app.close();
+
+    const denied=await createApp(true,false);await denied.profiles.save(open,NOW);
+    expect((await denied.app.inject({method:'POST',url:'/v3/nextgen/memory',payload:memory})).statusCode).toBe(401);await denied.app.close();
   });
 
   it('resolves a trusted device but never needs face-only authorization',async()=>{
