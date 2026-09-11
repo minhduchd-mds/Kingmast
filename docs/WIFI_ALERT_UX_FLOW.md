@@ -1,4 +1,4 @@
-# KINGMAST v0.0.7 — Wi-Fi and Alert UX Flow
+# KINGMAST v0.0.8 — Wi-Fi and Alert UX Flow
 
 KINGMAST remains a warning-only Level 0 driver-assistance HMI. This flow does not add steering, braking, throttle, drivetrain, gear, torque, or CAN-write authority.
 
@@ -37,7 +37,7 @@ In a normal web/Vercel preview, the browser cannot control the operating system 
 
 ## Flow audit
 
-The current v0.0.7 driving loop covers startup/self-check, bilingual first-run, Drive, navigation, route alternatives, active alerts, optional advisory settings, Wi-Fi host integration, parked settings, degraded connected-road state, sensor fallback, camera warning interaction, reroute interaction, voice mute, route arrival, Vietnamese Assistant/voice surfaces, and reduced-motion/high-contrast modes.
+The current v0.0.8 driving loop covers startup/self-check, bilingual first-run, Drive, navigation, route alternatives, active alerts, optional advisory settings, Wi-Fi host integration, parked settings, degraded connected-road state, sensor fallback, camera warning interaction, reroute interaction, voice mute, route arrival, Vietnamese Assistant/voice surfaces, and reduced-motion/high-contrast modes.
 
 The following flows are still required before calling the UX complete for an embedded vehicle product:
 
