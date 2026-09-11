@@ -22,6 +22,7 @@ export interface NextgenRuntimeSnapshot {
   activeProfileId:string|null;
   advisories:PredictiveAdvisory[];
   cameraPerformance:ReturnType<CameraPerformanceTracker['all']>;
+  cameraRuntimeHealth:ReturnType<CameraPerformanceTracker['healthAll']>;
   controlAuthority:'none';
 }
 
@@ -43,7 +44,7 @@ export class NextgenRuntime{
 
   ingestPerception(input:RawPerceptionInput,nowMs=Date.now()){
     const frame=buildPerceptionFrame(input);
-    for(const camera of frame.cameras){this.cameraPerformance.captured(camera.cameraId);this.cameraPerformance.processed(camera.cameraId,frame.capturedAtMs,frame.receivedAtMs);}
+    for(const camera of frame.cameras){this.cameraPerformance.captured(camera.cameraId);this.cameraPerformance.processed(camera.cameraId,frame.capturedAtMs,nowMs);}
     this.perception=frame;
     this.activeVehicleId=frame.vehicleId;
     this.perceptionTrust=assessPerceptionTrust(frame,nowMs);
@@ -53,12 +54,15 @@ export class NextgenRuntime{
   configureCamera(profile:CameraCalibrationProfile){return this.multiCamera.configure(profile);}
 
   ingestCalibratedCamera(vehicleId:string,observation:CalibratedCameraObservation,nowMs=Date.now()){
-    const accepted=this.multiCamera.ingest(observation);
-    if(!accepted.accepted)return{...accepted,surround:this.surround,visionScene:this.vision.snapshot(this.multiCamera.calibrations,nowMs)};
+    this.cameraPerformance.captured(observation.cameraId);
+    const accepted=this.multiCamera.ingest(observation,nowMs);
+    if(!accepted.accepted){
+      this.cameraPerformance.dropped(observation.cameraId);
+      return{...accepted,surround:this.surround,visionScene:this.vision.snapshot(this.multiCamera.calibrations,nowMs)};
+    }
     this.vision.ingestCamera(observation);
     this.activeVehicleId=vehicleId;
-    this.cameraPerformance.captured(observation.cameraId);
-    this.cameraPerformance.processed(observation.cameraId,observation.capturedAtMs,observation.receivedAtMs);
+    this.cameraPerformance.processed(observation.cameraId,observation.capturedAtMs,nowMs);
     this.surround=this.multiCamera.surround(vehicleId,nowMs);
     return{...accepted,surround:this.surround,visionScene:this.vision.snapshot(this.multiCamera.calibrations,nowMs)};
   }
@@ -104,6 +108,7 @@ export class NextgenRuntime{
       activeProfileId:this.activeProfile?.id??null,
       advisories:this.advisories.map((item)=>({...item})),
       cameraPerformance:this.cameraPerformance.all(),
+      cameraRuntimeHealth:this.cameraPerformance.healthAll(),
       controlAuthority:'none',
     };
   }

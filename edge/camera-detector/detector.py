@@ -4,6 +4,7 @@ import hmac
 import json
 import math
 import os
+import threading
 import time
 from typing import Any
 
@@ -12,6 +13,9 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from ultralytics import YOLO
+
+from frame_runtime import LatestFrameBuffer
+from runtime_metrics import RollingLatency
 
 SUPPORTED = {
     'person': 'person', 'bicycle': 'bicycle', 'car': 'car',
@@ -50,8 +54,15 @@ def sign_ingress_hmac(device_id: str, key_id: str, timestamp_ms: int, payload: d
     return hmac.new(secret.encode('utf-8'), canonical_ingress_message(device_id, key_id, timestamp_ms, payload), hashlib.sha256).hexdigest()
 
 
-def frame_payload(model: YOLO, frame: Any, camera_id: str, horizontal_fov_deg: float, confidence_floor: float, max_detections: int) -> dict[str, Any]:
-    timestamp_ms = int(time.time() * 1000)
+def frame_payload(
+    model: YOLO,
+    frame: Any,
+    camera_id: str,
+    horizontal_fov_deg: float,
+    confidence_floor: float,
+    max_detections: int,
+    timestamp_ms: int,
+) -> dict[str, Any]:
     detections: list[dict[str, Any]] = []
     result = model.predict(frame, verbose=False)[0]
     names = result.names
@@ -81,6 +92,41 @@ def frame_payload(model: YOLO, frame: Any, camera_id: str, horizontal_fov_deg: f
     return normalize_json_numbers({'cameraId': camera_id, 'timestampMs': timestamp_ms, 'detections': detections})
 
 
+def capture_loop(capture: Any, buffer: LatestFrameBuffer, stop_event: threading.Event) -> None:
+    while not stop_event.is_set():
+        ok, frame = capture.read()
+        if not ok:
+            stop_event.wait(0.05)
+            continue
+        if not buffer.push(frame, int(time.time() * 1000)):
+            return
+
+
+def runtime_report(
+    buffer: LatestFrameBuffer,
+    processed_frames: int,
+    stale_frames: int,
+    publish_failures: int,
+    inference_latency: RollingLatency,
+    publish_latency: RollingLatency,
+) -> dict[str, Any]:
+    captured = buffer.captured
+    dropped = buffer.dropped
+    drop_rate = round(dropped / captured, 4) if captured else 0.0
+    return {
+        'event': 'kingmast-camera-runtime',
+        'capturedFrames': captured,
+        'processedFrames': processed_frames,
+        'droppedFrames': dropped,
+        'staleFrames': stale_frames,
+        'dropRate': drop_rate,
+        'queueDepth': buffer.depth,
+        'publishFailures': publish_failures,
+        'inference': inference_latency.snapshot(),
+        'publish': publish_latency.snapshot(),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description='KINGMAST camera detection publisher')
     parser.add_argument('--api', default='http://127.0.0.1:4000/v3/perception/camera')
@@ -91,10 +137,19 @@ def main() -> None:
     parser.add_argument('--fps', type=float, default=10.0)
     parser.add_argument('--confidence', type=float, default=0.45)
     parser.add_argument('--max-detections', type=int, default=48)
+    parser.add_argument('--queue-size', type=int, default=2)
+    parser.add_argument('--max-frame-age-ms', type=int, default=350)
+    parser.add_argument('--metrics-interval-s', type=float, default=5.0)
+    parser.add_argument('--publish-timeout-s', type=float, default=0.8)
     parser.add_argument('--token', default=os.getenv('KINGMAST_EDGE_TOKEN', ''))
     parser.add_argument('--device-id', default=os.getenv('KINGMAST_DEVICE_ID', ''))
     parser.add_argument('--device-key-id', default=os.getenv('KINGMAST_DEVICE_KEY_ID', ''))
     args = parser.parse_args()
+
+    if args.max_frame_age_ms < 50 or args.max_frame_age_ms > 5_000:
+        raise RuntimeError('--max-frame-age-ms must be between 50 and 5000')
+    if args.metrics_interval_s < 1 or args.metrics_interval_s > 60:
+        raise RuntimeError('--metrics-interval-s must be between 1 and 60')
 
     device_secret = os.getenv('KINGMAST_DEVICE_SECRET', '')
     device_auth_fields = (args.device_id.strip(), args.device_key_id.strip(), device_secret)
@@ -110,6 +165,21 @@ def main() -> None:
 
     model = YOLO(args.model)
     period = 1.0 / max(args.fps, 1.0)
+    frame_buffer = LatestFrameBuffer(args.queue_size)
+    stop_event = threading.Event()
+    capture_thread = threading.Thread(
+        target=capture_loop,
+        args=(capture, frame_buffer, stop_event),
+        name=f'kingmast-capture-{args.camera_id}',
+        daemon=True,
+    )
+    inference_latency = RollingLatency()
+    publish_latency = RollingLatency()
+    processed_frames = 0
+    stale_frames = 0
+    publish_failures = 0
+    last_metrics_at = time.monotonic()
+
     session = requests.Session()
     retry = Retry(total=2, connect=2, read=1, backoff_factor=0.15, status_forcelist=(429, 500, 502, 503, 504), allowed_methods=frozenset({'POST'}))
     session.mount('http://', HTTPAdapter(max_retries=retry))
@@ -119,26 +189,77 @@ def main() -> None:
     if device_secret:
         session.headers.update({'x-kingmast-device-id': args.device_id.strip(), 'x-kingmast-device-key-id': args.device_key_id.strip()})
 
+    capture_thread.start()
     try:
         while True:
-            started = time.monotonic()
-            ok, frame = capture.read()
-            if not ok:
-                time.sleep(0.1)
+            loop_started = time.monotonic()
+            captured = frame_buffer.get_latest(timeout_s=0.5)
+            if captured is None:
+                if stop_event.is_set():
+                    break
                 continue
-            payload = frame_payload(model, frame, args.camera_id, args.fov, max(0.0, min(1.0, args.confidence)), max(1, args.max_detections))
+
+            frame_age_ms = int(time.time() * 1000) - captured.captured_at_ms
+            if frame_age_ms > args.max_frame_age_ms:
+                stale_frames += 1
+                continue
+
+            inference_started = time.monotonic()
+            payload = frame_payload(
+                model,
+                captured.frame,
+                args.camera_id,
+                args.fov,
+                max(0.0, min(1.0, args.confidence)),
+                max(1, args.max_detections),
+                captured.captured_at_ms,
+            )
+            inference_latency.observe((time.monotonic() - inference_started) * 1000)
+            processed_frames += 1
+
             headers: dict[str, str] = {}
             if device_secret:
-                headers['x-kingmast-device-signature'] = sign_ingress_hmac(args.device_id.strip(), args.device_key_id.strip(), int(payload['timestampMs']), payload, device_secret)
+                headers['x-kingmast-device-signature'] = sign_ingress_hmac(
+                    args.device_id.strip(),
+                    args.device_key_id.strip(),
+                    int(payload['timestampMs']),
+                    payload,
+                    device_secret,
+                )
+            publish_started = time.monotonic()
             try:
-                session.post(args.api, json=payload, headers=headers, timeout=0.8).raise_for_status()
+                session.post(
+                    args.api,
+                    json=payload,
+                    headers=headers,
+                    timeout=max(0.1, args.publish_timeout_s),
+                ).raise_for_status()
             except requests.RequestException as exc:
+                publish_failures += 1
                 print(f'camera publish warning: {exc}')
-            sleep_for = period - (time.monotonic() - started)
+            finally:
+                publish_latency.observe((time.monotonic() - publish_started) * 1000)
+
+            now_monotonic = time.monotonic()
+            if now_monotonic - last_metrics_at >= args.metrics_interval_s:
+                print(json.dumps(runtime_report(
+                    frame_buffer,
+                    processed_frames,
+                    stale_frames,
+                    publish_failures,
+                    inference_latency,
+                    publish_latency,
+                ), separators=(',', ':')))
+                last_metrics_at = now_monotonic
+
+            sleep_for = period - (time.monotonic() - loop_started)
             if sleep_for > 0:
-                time.sleep(sleep_for)
+                stop_event.wait(sleep_for)
     finally:
+        stop_event.set()
+        frame_buffer.close()
         capture.release()
+        capture_thread.join(timeout=1.0)
         session.close()
 
 
