@@ -1,9 +1,9 @@
-/* KINGMAST v0.0.7 performance layer.
+/* KINGMAST v0.0.8 performance layer.
    Keep continuously visible driver surfaces compositor-friendly while preserving
    warning-only authority and existing semantic colors. */
 
 /* Current software identity overrides legacy visual text without rewriting V006 evidence. */
-.hmiV5 .hmiTopbar::after{content:"v0.0.7"}
+.hmiV5 .hmiTopbar::after{content:"v0.0.8"}
 
 /* Avoid large full-surface backdrop sampling on every frame. The surfaces remain
    visually opaque enough to preserve the Apple-inspired material hierarchy. */
