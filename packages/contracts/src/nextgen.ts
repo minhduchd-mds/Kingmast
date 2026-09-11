@@ -142,3 +142,81 @@ export interface VehicleAccessDecision {
   permission:VehiclePermission;
   reason:'allowed'|'grant-not-active'|'grant-expired'|'grant-revoked'|'permission-missing'|'role-restricted';
 }
+
+export type TrafficSignalState='red'|'amber'|'green'|'flashing'|'off'|'unknown';
+export type TrafficControlKind='speed-limit'|'stop-sign'|'yield-sign'|'traffic-light';
+export interface TrafficControlObservation {
+  id:string;
+  cameraId:string;
+  kind:TrafficControlKind;
+  speedLimitKmh:number|null;
+  signalState:TrafficSignalState|null;
+  confidence:number;
+  relativeBearingDeg:number;
+  estimatedDistanceM:number|null;
+  capturedAtMs:number;
+  receivedAtMs:number;
+}
+
+export type DriverState='attentive'|'distracted'|'drowsy'|'driver-unavailable'|'unknown';
+export interface DriverStateObservation {
+  observedAtMs:number;
+  faceDetected:boolean;
+  eyesClosed:boolean;
+  gazeAway:boolean;
+  headYawDeg:number;
+  headPitchDeg:number;
+  confidence:number;
+}
+export interface DriverStateAssessment {
+  state:DriverState;
+  confidence:number;
+  observedAtMs:number|null;
+  ageMs:number|null;
+  reason:string;
+  advisoryOnly:true;
+}
+
+export type ProfileMemoryKind='recent-place'|'preferred-route'|'ui-preference';
+export interface ProfileMemoryEntry {
+  id:string;
+  profileId:string;
+  kind:ProfileMemoryKind;
+  label:string;
+  position:GeoPoint|null;
+  routeKey:string|null;
+  createdAtMs:number;
+  lastUsedAtMs:number;
+}
+
+export interface VehicleAccessAuditEvent {
+  id:string;
+  vehicleId:string;
+  profileId:string;
+  permission:VehiclePermission;
+  allowed:boolean;
+  reason:VehicleAccessDecision['reason'];
+  timestampMs:number;
+}
+
+export interface CameraPerformanceSnapshot {
+  cameraId:string;
+  capturedFrames:number;
+  processedFrames:number;
+  droppedFrames:number;
+  latestLatencyMs:number|null;
+  averageLatencyMs:number|null;
+  p95LatencyMs:number|null;
+}
+
+export interface PredictiveAdvisory {
+  id:string;
+  kind:NavigationHorizonKind;
+  severity:Severity;
+  title:string;
+  message:string;
+  distanceM:number;
+  confidence:number;
+  generatedAtMs:number;
+  advisoryOnly:true;
+}
