@@ -90,11 +90,11 @@ export class RealtimeLinkAccumulator {
     }
     const sessionChanged=this.lastSession!==''&&this.lastSession!==input.session;
     if(this.lastSession!==input.session){if(sessionChanged)this.sessionChanges+=1;this.lastSession=input.session;this.lastSequence=-1;}
-    if(input.sequence<this.lastSequence){
+    if(input.sequence<=this.lastSequence){
       this.sequenceRegressions+=1;
       return{accepted:false,sessionChanged,serverToClientMs:null,ingressToClientMs:null};
     }
-    this.lastSequence=Math.max(this.lastSequence,input.sequence);
+    this.lastSequence=input.sequence;
     this.messages+=1;
 
     let serverToClientMs:number|null=null;
