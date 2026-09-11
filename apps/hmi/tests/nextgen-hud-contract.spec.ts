@@ -1,9 +1,9 @@
 import {readFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 import {expect,test} from '@playwright/test';
 
-const hud=readFileSync(fileURLToPath(new URL('../components/NextgenIntelligenceHud.tsx',import.meta.url)),'utf8');
-const page=readFileSync(fileURLToPath(new URL('../app/page.tsx',import.meta.url)),'utf8');
+const hud=readFileSync(join(process.cwd(),'components','NextgenIntelligenceHud.tsx'),'utf8');
+const page=readFileSync(join(process.cwd(),'app','page.tsx'),'utf8');
 
 test('main HMI mounts the nextgen intelligence HUD',()=>{
   expect(page).toContain("import NextgenIntelligenceHud");
