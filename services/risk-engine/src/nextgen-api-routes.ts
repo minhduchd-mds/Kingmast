@@ -11,6 +11,9 @@ import {refreshNextgenNavigation} from './nextgen-navigation-service.js';
 import {createVisionIngressAuthorizer} from './nextgen-vision-ingress-auth.js';
 import {nextgenVisionIngressRoutes} from './nextgen-vision-ingress-routes.js';
 import {validateGrantIssuance} from './vehicle-grant-policy.js';
+import {validateGrantRevocation} from './vehicle-grant-revocation.js';
+import {createNextgenAccessActorAuthorizer} from './nextgen-access-actor-auth.js';
+import {activeVehiclePermissions} from './vehicle-access.js';
 
 export interface NextgenApiRouteOptions {
   runtime:NextgenRuntime;
@@ -19,10 +22,17 @@ export interface NextgenApiRouteOptions {
   memoryRepository?:ProfileMemoryRepository;
   requireViewer:(request:FastifyRequest,reply:FastifyReply)=>boolean;
   requireWrite:(request:FastifyRequest,reply:FastifyReply,payload:unknown)=>boolean;
+  accessActorAuthorizer?:ReturnType<typeof createNextgenAccessActorAuthorizer>;
+}
+
+function accessAuthError(reply:FastifyReply,result:Exclude<ReturnType<ReturnType<typeof createNextgenAccessActorAuthorizer>>,{ok:true}>){
+  const status=result.reason==='operator-auth-failed'?401:403;
+  return reply.code(status).send({error:'access-actor-auth-required',reason:result.reason,detail:result.detail});
 }
 
 export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(app,options)=>{
   const memory=options.memoryRepository??nextgenMemoryRepository;
+  const authorizeAccessActor=options.accessActorAuthorizer??createNextgenAccessActorAuthorizer();
   await app.register(nextgenVisionIngressRoutes,{runtime:options.runtime,requireDevice:createVisionIngressAuthorizer()});
 
   app.get('/v3/nextgen/runtime',{config:{rateLimit:{max:300,timeWindow:60_000}}},async(request,reply)=>{
@@ -90,17 +100,28 @@ export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(a
     await memory.remove(parsed.data.profileId,parsed.data.id);return{deleted:true,controlAuthority:'none'};
   });
 
+  app.get('/v3/nextgen/access/self',{config:{rateLimit:{max:120,timeWindow:60_000}}},async(request,reply)=>{
+    if(!options.requireViewer(request,reply))return;
+    const parsed=VehicleQuerySchema.safeParse(request.query);if(!parsed.success||!parsed.data.vehicleId)return reply.code(400).send({error:'invalid-vehicle-query'});
+    const profileId=options.runtime.snapshot().activeProfileId;
+    if(!profileId)return{profileId:null,grant:null,permissions:[],controlAuthority:'none'};
+    const nowMs=Date.now();
+    const grant=(await options.accessRepository.listGrants(parsed.data.vehicleId)).filter((item)=>item.profileId===profileId&&item.validFromMs<=nowMs&&(item.validUntilMs===null||item.validUntilMs>=nowMs)&&(item.revokedAtMs===null||item.revokedAtMs>nowMs)).sort((a,b)=>b.validFromMs-a.validFromMs)[0]??null;
+    return{profileId,grant,permissions:activeVehiclePermissions(grant,parsed.data.vehicleId,profileId,nowMs),controlAuthority:'none'};
+  });
+
   app.post('/v3/nextgen/access/grants',{config:{rateLimit:{max:30,timeWindow:60_000}}},async(request,reply)=>{
-    if(!options.requireWrite(request,reply,request.body))return;
+    const actorAuth=authorizeAccessActor(request,request.body);if(!actorAuth.ok)return accessAuthError(reply,actorAuth);
     const parsed=VehicleAccessGrantSchema.safeParse(request.body);
     if(!parsed.success)return reply.code(400).send({error:'invalid-access-grant',details:parsed.error.flatten()});
     const proposed=parsed.data as VehicleAccessGrant;
+    if(proposed.issuedByProfileId!==actorAuth.actor.profileId)return reply.code(403).send({error:'access-actor-profile-mismatch'});
     const existing=await options.accessRepository.listGrants(proposed.vehicleId);
     const issuance=validateGrantIssuance(proposed,existing,Date.now());
     if(!issuance.allowed)return reply.code(409).send({error:'access-grant-rejected',reason:issuance.reason,allowedPermissions:issuance.normalizedPermissions});
     const grant=await options.accessRepository.saveGrant({...proposed,permissions:issuance.normalizedPermissions});
     options.runtime.access.upsert(grant);
-    return{grant,controlAuthority:'none'};
+    return{grant,actorProfileId:actorAuth.actor.profileId,controlAuthority:'none'};
   });
 
   app.post('/v3/nextgen/access/decision',{config:{rateLimit:{max:300,timeWindow:60_000}}},async(request,reply)=>{
@@ -115,13 +136,16 @@ export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(a
   });
 
   app.post('/v3/nextgen/access/revoke',{config:{rateLimit:{max:30,timeWindow:60_000}}},async(request,reply)=>{
-    if(!options.requireWrite(request,reply,request.body))return;
+    const actorAuth=authorizeAccessActor(request,request.body);if(!actorAuth.ok)return accessAuthError(reply,actorAuth);
     const body=request.body as {grantId?:unknown};
     if(typeof body?.grantId!=='string'||body.grantId.trim().length<1||body.grantId.length>128)return reply.code(400).send({error:'invalid-grant-id'});
-    const grant=await options.accessRepository.revoke(body.grantId.trim());
-    if(!grant)return reply.code(404).send({error:'grant-not-found'});
+    const target=await options.accessRepository.getGrant(body.grantId.trim());if(!target)return reply.code(404).send({error:'grant-not-found'});
+    const grants=await options.accessRepository.listGrants(target.vehicleId);
+    const decision=validateGrantRevocation({grantId:target.grantId,actorProfileId:actorAuth.actor.profileId,grants});
+    if(!decision.allowed)return reply.code(409).send({error:'access-revoke-rejected',reason:decision.reason});
+    const grant=await options.accessRepository.revoke(target.grantId);if(!grant)return reply.code(404).send({error:'grant-not-found'});
     options.runtime.access.upsert(grant);
-    return{grant,controlAuthority:'none'};
+    return{grant,actorProfileId:actorAuth.actor.profileId,controlAuthority:'none'};
   });
 
   app.get('/v3/nextgen/access/grants',{config:{rateLimit:{max:120,timeWindow:60_000}}},async(request,reply)=>{
