@@ -1,5 +1,5 @@
 import type { CameraDetectionFrame } from '@kingmast/contracts';
-import type { DriverStateObservation } from '@kingmast/contracts/nextgen';
+import type { CalibratedCameraObservation,DriverStateObservation,PerceptionObjectTrack } from '@kingmast/contracts/nextgen';
 import { NextgenRuntime } from './nextgen-runtime.js';
 
 export interface LegacyDmsSample {
@@ -20,7 +20,16 @@ export function ingestLegacyDms(runtime:NextgenRuntime,sample:LegacyDmsSample,no
   return runtime.ingestDriverObservation(adaptLegacyDmsSample(sample),nowMs);
 }
 
+function mappedTrack(detection:CameraDetectionFrame['detections'][number]):PerceptionObjectTrack{
+  return{id:`camera:${detection.id}`,kind:detection.kind==='obstacle'?'unknown':detection.kind,confidence:detection.confidence,distanceM:detection.estimatedDistanceM,relativeBearingDeg:Math.max(-180,Math.min(180,detection.bearingDeg)),relativeSpeedMps:null,position:null,firstSeenAtMs:detection.timestampMs,lastSeenAtMs:detection.timestampMs,sources:['camera']};
+}
+
 export function ingestLegacyFrontCamera(runtime:NextgenRuntime,vehicleId:string,frame:CameraDetectionFrame,receivedAtMs=Date.now()){
+  const calibration=runtime.multiCamera.calibrations.get(frame.cameraId);
+  if(calibration){
+    const observation:CalibratedCameraObservation={cameraId:frame.cameraId,capturedAtMs:frame.timestampMs,receivedAtMs,sequence:frame.timestampMs,detections:frame.detections.map(mappedTrack),lanes:[],freeSpace:[]};
+    return runtime.ingestCalibratedCamera(vehicleId,observation,receivedAtMs);
+  }
   return runtime.ingestPerception({
     vehicleId,
     frameId:`legacy-camera:${frame.cameraId}:${frame.timestampMs}`,
@@ -28,7 +37,7 @@ export function ingestLegacyFrontCamera(runtime:NextgenRuntime,vehicleId:string,
     capturedAtMs:frame.timestampMs,
     receivedAtMs,
     cameras:[{cameraId:frame.cameraId,mount:'front',calibration:'degraded',synchronized:false,frameAgeMs:Math.max(0,receivedAtMs-frame.timestampMs),reprojectionErrorPx:null,health:'degraded'}],
-    objects:frame.detections.map((detection)=>({id:`camera:${detection.id}`,kind:detection.kind==='obstacle'?'unknown':detection.kind,confidence:detection.confidence,distanceM:detection.estimatedDistanceM,relativeBearingDeg:Math.max(-180,Math.min(180,detection.bearingDeg)),relativeSpeedMps:null,position:null,firstSeenAtMs:detection.timestampMs,lastSeenAtMs:detection.timestampMs,sources:['camera']})),
+    objects:frame.detections.map(mappedTrack),
     lanes:[],
     freeSpace:[],
   },receivedAtMs);
