@@ -4,6 +4,14 @@ import type {VisionSceneSnapshot} from '@kingmast/contracts/vision-nextgen';
 
 function apiBase(){return(process.env.NEXT_PUBLIC_KINGMAST_API_URL??'http://localhost:4000').replace(/\/$/,'');}
 
+export interface CameraRuntimeHealthView {
+  cameraId:string;
+  status:'ok'|'degraded'|'overloaded'|'unavailable';
+  dropRate:number;
+  p50LatencyMs:number|null;
+  p95LatencyMs:number|null;
+}
+
 export interface NextgenRuntimeClientSnapshot {
   perception:PerceptionFrame|null;
   perceptionTrust:{eligibleForAlerts:boolean;reasons:string[];surroundReady:boolean;uniqueCameraCount:number}|null;
@@ -14,6 +22,7 @@ export interface NextgenRuntimeClientSnapshot {
   activeProfileId:string|null;
   advisories:PredictiveAdvisory[];
   cameraPerformance:CameraPerformanceSnapshot[];
+  cameraRuntimeHealth?:CameraRuntimeHealthView[];
   controlAuthority:'none';
 }
 
