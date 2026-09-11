@@ -1,4 +1,5 @@
-import type { CalibratedCameraObservation,CameraCalibrationProfile,NavigationHorizon,PerceptionFrame,PredictiveAdvisory,DriverIdentitySignal,DriverProfile,DriverStateAssessment,DriverStateObservation,SurroundFusionSnapshot,VehiclePermission } from '@kingmast/contracts/nextgen';
+import type { CalibratedCameraObservation,CameraCalibrationProfile,NavigationHorizon,PerceptionFrame,PredictiveAdvisory,DriverIdentitySignal,DriverProfile,DriverStateAssessment,DriverStateObservation,SurroundFusionSnapshot,TrafficControlObservation,VehiclePermission } from '@kingmast/contracts/nextgen';
+import type { VisionSceneSnapshot } from '@kingmast/contracts/vision-nextgen';
 import { buildPerceptionFrame,type RawPerceptionInput } from './perception-pipeline.js';
 import { assessPerceptionTrust,type PerceptionTrustResult } from './perception-trust.js';
 import { DriverStateEstimator } from './driver-state-estimator.js';
@@ -9,11 +10,13 @@ import { CameraPerformanceTracker } from './camera-performance.js';
 import { buildPredictiveAdvisories } from './navigation-predictor.js';
 import {MultiCameraRuntime} from './multicamera-runtime.js';
 import {NavigationHorizonStore} from './navigation-horizon-store.js';
+import {VisionSceneRuntime} from './vision-scene-runtime.js';
 
 export interface NextgenRuntimeSnapshot {
   perception:PerceptionFrame|null;
   perceptionTrust:PerceptionTrustResult|null;
   surround:SurroundFusionSnapshot|null;
+  visionScene:VisionSceneSnapshot;
   navigationHorizon:NavigationHorizon|null;
   driver:DriverStateAssessment;
   activeProfileId:string|null;
@@ -28,6 +31,7 @@ export class NextgenRuntime{
   readonly cameraPerformance=new CameraPerformanceTracker();
   readonly multiCamera=new MultiCameraRuntime();
   readonly horizons=new NavigationHorizonStore();
+  readonly vision=new VisionSceneRuntime();
   private readonly driverEstimator=new DriverStateEstimator();
   private perception:PerceptionFrame|null=null;
   private perceptionTrust:PerceptionTrustResult|null=null;
@@ -50,12 +54,17 @@ export class NextgenRuntime{
 
   ingestCalibratedCamera(vehicleId:string,observation:CalibratedCameraObservation,nowMs=Date.now()){
     const accepted=this.multiCamera.ingest(observation);
-    if(!accepted.accepted)return{...accepted,surround:this.surround};
+    if(!accepted.accepted)return{...accepted,surround:this.surround,visionScene:this.vision.snapshot(this.multiCamera.calibrations,nowMs)};
+    this.vision.ingestCamera(observation);
     this.activeVehicleId=vehicleId;
     this.cameraPerformance.captured(observation.cameraId);
     this.cameraPerformance.processed(observation.cameraId,observation.capturedAtMs,observation.receivedAtMs);
     this.surround=this.multiCamera.surround(vehicleId,nowMs);
-    return{...accepted,surround:this.surround};
+    return{...accepted,surround:this.surround,visionScene:this.vision.snapshot(this.multiCamera.calibrations,nowMs)};
+  }
+
+  ingestTrafficControl(observation:TrafficControlObservation,nowMs=Date.now()){
+    return this.vision.ingestTrafficControl(observation,nowMs);
   }
 
   ingestDriverObservation(observation:DriverStateObservation,nowMs=Date.now()){
@@ -89,6 +98,7 @@ export class NextgenRuntime{
       perception:this.perception?{...this.perception,cameras:this.perception.cameras.map((item)=>({...item})),objects:this.perception.objects.map((item)=>({...item,sources:[...item.sources]})),lanes:this.perception.lanes.map((item)=>({...item})),freeSpace:this.perception.freeSpace.map((item)=>({...item})),degradedReasons:[...this.perception.degradedReasons]}:null,
       perceptionTrust:this.perceptionTrust?{...this.perceptionTrust,reasons:[...this.perceptionTrust.reasons],objects:this.perceptionTrust.objects.map((item)=>({...item,sources:[...item.sources]}))}:null,
       surround:surround?structuredClone(surround):null,
+      visionScene:this.vision.snapshot(this.multiCamera.calibrations,nowMs),
       navigationHorizon:horizon,
       driver:{...this.driver},
       activeProfileId:this.activeProfile?.id??null,
