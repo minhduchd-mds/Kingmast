@@ -1,4 +1,4 @@
-# KINGMAST v0.0.7 — Parked System Management UX
+# KINGMAST v0.0.8 — Parked System Management UX
 
 KINGMAST remains warning-only Level 0. These flows add service, update, privacy, profile and accessibility management without adding steering, braking, throttle, drivetrain, gear, torque or CAN-write authority.
 
