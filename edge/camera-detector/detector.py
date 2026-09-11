@@ -17,6 +17,7 @@ from capture_runtime import CaptureRecovery
 from frame_runtime import LatestFrameBuffer
 from inference_runtime import InferenceRuntimeConfig
 from publisher_runtime import PublishBackoff, classify_http_response, transport_failure
+from runtime_metadata import build_startup_record
 from runtime_metrics import RollingLatency
 from thermal_runtime import ThermalGuard, ThermalSnapshot, read_temperature_c
 
@@ -265,6 +266,15 @@ def main() -> None:
         session.headers.update({'x-kingmast-edge-token': args.token})
     if device_secret:
         session.headers.update({'x-kingmast-device-id': args.device_id.strip(), 'x-kingmast-device-key-id': args.device_key_id.strip()})
+
+    print(json.dumps(build_startup_record(
+        camera_id=args.camera_id,
+        source=args.source,
+        model=args.model,
+        requested_fps=args.fps,
+        inference=inference,
+        thermal=thermal_snapshot,
+    ), separators=(',', ':')))
 
     capture_thread.start()
     try:
