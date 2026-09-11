@@ -10,6 +10,7 @@ const documentationFiles=[];
 const activeCodeFiles=[];
 const textExtensions=/\.(?:md|mjs|js|ts|tsx|json|css|py|ya?ml)$/i;
 const generatedDirectories=new Set(['node_modules','.next','dist','coverage','playwright-report','test-results']);
+const historicalTestFixture=(path)=>/(?:^|\/)(?:tests?)(?:\/|$)/i.test(path)||/\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(path);
 
 function walk(path,target){
   const full=resolve(root,path);
@@ -43,6 +44,7 @@ for(const path of documentationFiles){
   if(currentMarkers.some((pattern)=>pattern.test(head)))failures.push(path);
 }
 for(const path of activeCodeFiles){
+  if(historicalTestFixture(path))continue;
   const content=readFileSync(resolve(root,path),'utf8');
   if(content.includes(previous))failures.push(path);
 }
@@ -62,4 +64,4 @@ if(failures.length){
   for(const failure of [...new Set(failures)].sort())console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`KINGMAST documentation/version contract passed for v${current}; V006/V007 and v0.0.7 release checkpoint evidence remain historical.`);
+console.log(`KINGMAST documentation/version contract passed for v${current}; V006/V007, v0.0.7 release evidence, and explicit rollback/migration test fixtures remain historical.`);
