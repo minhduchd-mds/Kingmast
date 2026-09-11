@@ -1,10 +1,12 @@
 import type { FastifyPluginAsync,FastifyReply,FastifyRequest } from 'fastify';
 import type { NavigationRoute,VehiclePosition } from '@kingmast/contracts';
-import type { CameraCalibrationProfile,DriverProfile,VehicleAccessGrant } from '@kingmast/contracts/nextgen';
+import type { CameraCalibrationProfile,DriverProfile,ProfileMemoryEntry,VehicleAccessGrant } from '@kingmast/contracts/nextgen';
 import { NextgenRuntime } from './nextgen-runtime.js';
 import { DriverProfileRepository } from './driver-profile-repository.js';
 import { VehicleAccessRepository } from './vehicle-access-repository.js';
-import { AccessDecisionSchema,AuditQuerySchema,CameraCalibrationProfileSchema,DriverIdentitySignalSchema,DriverProfileSchema,NavigationHorizonRefreshSchema,VehicleAccessGrantSchema,VehicleQuerySchema } from './nextgen-api-contract.js';
+import {ProfileMemoryRepository} from './profile-memory-repository.js';
+import {nextgenMemoryRepository} from './nextgen-server-runtime.js';
+import { AccessDecisionSchema,AuditQuerySchema,CameraCalibrationProfileSchema,DriverIdentitySignalSchema,DriverProfileSchema,MemoryDeleteSchema,MemoryQuerySchema,NavigationHorizonRefreshSchema,ProfileMemoryEntrySchema,VehicleAccessGrantSchema,VehicleQuerySchema } from './nextgen-api-contract.js';
 import {refreshNextgenNavigation} from './nextgen-navigation-service.js';
 import {createVisionIngressAuthorizer} from './nextgen-vision-ingress-auth.js';
 import {nextgenVisionIngressRoutes} from './nextgen-vision-ingress-routes.js';
@@ -13,11 +15,13 @@ export interface NextgenApiRouteOptions {
   runtime:NextgenRuntime;
   profiles:DriverProfileRepository;
   accessRepository:VehicleAccessRepository;
+  memoryRepository?:ProfileMemoryRepository;
   requireViewer:(request:FastifyRequest,reply:FastifyReply)=>boolean;
   requireWrite:(request:FastifyRequest,reply:FastifyReply,payload:unknown)=>boolean;
 }
 
 export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(app,options)=>{
+  const memory=options.memoryRepository??nextgenMemoryRepository;
   await app.register(nextgenVisionIngressRoutes,{runtime:options.runtime,requireDevice:createVisionIngressAuthorizer()});
 
   app.get('/v3/nextgen/runtime',{config:{rateLimit:{max:300,timeWindow:60_000}}},async(request,reply)=>{
@@ -60,7 +64,29 @@ export const nextgenApiRoutes:FastifyPluginAsync<NextgenApiRouteOptions>=async(a
     const parsed=DriverProfileSchema.safeParse(request.body);
     if(!parsed.success)return reply.code(400).send({error:'invalid-driver-profile',details:parsed.error.flatten()});
     const saved=await options.profiles.save(parsed.data as DriverProfile);
+    if(!saved.privacy.personalization)await memory.clearProfile(saved.id);else if(!saved.privacy.locationHistory)await memory.clearLocationMemory(saved.id);
     return{profile:{id:saved.id,displayName:saved.displayName,role:saved.role,ui:saved.ui,privacy:saved.privacy,home:saved.home,work:saved.work,updatedAtMs:saved.updatedAtMs}};
+  });
+
+  app.get('/v3/nextgen/memory',{config:{rateLimit:{max:120,timeWindow:60_000}}},async(request,reply)=>{
+    if(!options.requireViewer(request,reply))return;
+    const parsed=MemoryQuerySchema.safeParse(request.query);if(!parsed.success)return reply.code(400).send({error:'invalid-memory-query'});
+    const profile=await options.profiles.get(parsed.data.profileId);if(!profile)return reply.code(404).send({error:'profile-not-found'});
+    return{entries:await memory.list(profile),privacy:{personalization:profile.privacy.personalization,locationHistory:profile.privacy.locationHistory},controlAuthority:'none'};
+  });
+
+  app.post('/v3/nextgen/memory',{config:{rateLimit:{max:60,timeWindow:60_000}}},async(request,reply)=>{
+    if(!options.requireWrite(request,reply,request.body))return;
+    const parsed=ProfileMemoryEntrySchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-profile-memory',details:parsed.error.flatten()});
+    const profile=await options.profiles.get(parsed.data.profileId);if(!profile)return reply.code(404).send({error:'profile-not-found'});
+    const saved=await memory.save(profile,parsed.data as ProfileMemoryEntry);if(!saved)return reply.code(409).send({error:'memory-not-permitted-by-profile-privacy'});
+    return{entry:saved,controlAuthority:'none'};
+  });
+
+  app.post('/v3/nextgen/memory/delete',{config:{rateLimit:{max:60,timeWindow:60_000}}},async(request,reply)=>{
+    if(!options.requireWrite(request,reply,request.body))return;
+    const parsed=MemoryDeleteSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:'invalid-memory-delete'});
+    await memory.remove(parsed.data.profileId,parsed.data.id);return{deleted:true,controlAuthority:'none'};
   });
 
   app.post('/v3/nextgen/access/grants',{config:{rateLimit:{max:30,timeWindow:60_000}}},async(request,reply)=>{
