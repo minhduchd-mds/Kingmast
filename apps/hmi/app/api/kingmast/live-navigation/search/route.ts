@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { admitNavigationRequest, securityEnvelopeHeaders } from '@/lib/security-envelope';
+import { admitNavigationRequest, securityEnvelopeHeaders } from '../../../../../lib/security-envelope';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   if (lat !== null && lng !== null) {
     const delta = 0.28;
-    url.searchParams.set('viewbox', `${lng - delta},${lat + delta},${lng - delta},${lat - delta}`);
+    url.searchParams.set('viewbox', `${lng - delta},${lat + delta},${lng + delta},${lat - delta}`);
     url.searchParams.set('bounded', '0');
   }
 
