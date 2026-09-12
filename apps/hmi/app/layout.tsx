@@ -32,6 +32,7 @@ import './hmi-vision-scene.css';
 import './hmi-profile-memory.css';
 import './hmi-vehicle-access.css';
 import './hmi-camera-runtime.css';
+import './hmi-cockpit-sidebar-refinement.css';
 import DriverProfileRuntime from '../components/DriverProfileRuntime';
 import DriverCapabilityRail from '../components/DriverCapabilityRail';
 import SurroundSpatialOverlay from '../components/SurroundSpatialOverlay';
