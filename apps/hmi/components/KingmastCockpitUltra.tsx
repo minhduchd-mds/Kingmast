@@ -35,6 +35,7 @@ import { esp32C3BenchToTelemetryFrame, type Esp32C3BenchPayload } from '../lib/e
 import type { KingmastTelemetryEventDetail } from '../lib/realtime';
 import KingmastDriveScene from './KingmastDriveScene';
 import styles from './KingmastCockpitUltra.module.css';
+import ui from './KingmastCockpitInteractions.module.css';
 
 type LinkState = 'connecting' | 'live' | 'offline';
 type ContextTab = 'objects' | 'device' | 'alerts' | 'energy';
@@ -164,7 +165,7 @@ function Sidebar({ active, onChange, alertCount, link }: { active: NavKey; onCha
     <aside className={styles.sidebar}>
       <nav className={styles.nav} aria-label="KINGMAST navigation">
         {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
-          <button key={key} type="button" className={active === key ? styles.navActive : styles.navItem} onClick={() => onChange(key)}>
+          <button key={key} type="button" aria-current={active === key ? 'page' : undefined} className={active === key ? styles.navActive : styles.navItem} onClick={() => onChange(key)}>
             <Icon size={19} strokeWidth={1.8} />
             <span>{label}</span>
             {key === 'alerts' && alertCount > 0 ? <b>{alertCount}</b> : null}
@@ -340,8 +341,76 @@ function ContextPanel({ payload, frame, link, latency, setMode }: { payload: Esp
   );
 }
 
-function BottomDock() {
+function WorkspacePanel({ nav, payload, frame, link, latency, setMode }: { nav: Exclude<NavKey, 'drive'>; payload: Esp32C3BenchPayload | null; frame: TelemetryFrame | null; link: LinkState; latency: number | null; setMode: (mode: BenchMode) => Promise<void> }) {
+  const [settings, setSettings] = useState({ autoContext: true, alerts: true, night: true });
+  const item = NAV_ITEMS.find((entry) => entry.key === nav);
+  const alerts = frame?.alerts ?? [];
+  const objects = frame?.objects ?? [];
+  const sensorOnline = payload?.sensorOnline ?? false;
+  const description: Record<Exclude<NavKey, 'drive'>, string> = {
+    navigate: 'Điều hướng mô phỏng, ETA và chỉ dẫn tuyến. Dữ liệu bản đồ hiện là DEMO.',
+    alerts: 'Tổng hợp cảnh báo từ telemetry hiện tại, ưu tiên trạng thái nguy hiểm và suy giảm cảm biến.',
+    camera: 'Không gian camera runtime. Chỉ hiển thị trạng thái thật; không giả video khi chưa nối camera.',
+    objects: 'Danh sách mục tiêu radar/cảm biến đang có trong TelemetryFrame.',
+    trip: 'Thông tin hành trình và thống kê bench hiện tại.',
+    energy: 'Nguồn bench và khu vực dành cho BMS khi phần cứng được tích hợp.',
+    vehicle: 'Sức khỏe thiết bị KINGMAST và điều khiển kịch bản ESP32-C3 bench.',
+    settings: 'Thiết lập giao diện prototype. Các thay đổi tại đây không có quyền điều khiển xe.',
+  };
+
+  return (
+    <section className={ui.workspace} data-testid={`workspace-${nav}`} aria-label={item?.label ?? nav}>
+      <header className={ui.workspaceHeader}>
+        <span><strong>{item?.label}</strong><small>{description[nav]}</small></span>
+        <div className={ui.workspaceState}><i />{payload?.risk ?? 'SAFE'} · {link === 'live' ? 'C3 LIVE' : 'BENCH OFFLINE'}</div>
+      </header>
+
+      <div className={ui.workspaceGrid}>
+        {nav === 'navigate' ? <>
+          <div className={`${ui.workspaceCard} ${ui.wideCard}`}><h3><Navigation size={17} />Tuyến đang theo dõi <small>DEMO</small></h3><div className={ui.routePreview}><span className={ui.routePath} /><div className={ui.routeCallout}><Navigation size={22} /><span><strong>500 m</strong><small>Rẽ phải · tuyến mô phỏng</small></span></div></div></div>
+          <div className={ui.workspaceCard}><h3>Tiến độ tuyến</h3><div className={ui.workspaceMetricRow}><div className={ui.workspaceMetric}><span>ETA</span><strong>23 phút</strong></div><div className={ui.workspaceMetric}><span>Còn lại</span><strong>23 km</strong></div><div className={ui.workspaceMetric}><span>Trễ</span><strong>+3 phút</strong></div></div></div>
+          <div className={ui.workspaceCard}><h3>Trạng thái dẫn đường</h3><div className={ui.statusList}><div className={ui.statusRow}><span>GPS</span><b className={ui.ok}>DEMO READY</b></div><div className={ui.statusRow}><span>Route provider</span><b className={ui.warn}>SIMULATION</b></div><div className={ui.statusRow}><span>C3 telemetry</span><b className={link === 'live' ? ui.ok : ui.bad}>{link === 'live' ? 'LIVE' : 'OFFLINE'}</b></div></div></div>
+        </> : null}
+
+        {nav === 'alerts' ? <div className={`${ui.workspaceCard} ${ui.wideCard}`}><h3><Bell size={17} />Cảnh báo hệ thống ({alerts.length})</h3>{alerts.length ? <div className={styles.alertList}>{alerts.map((alert) => <div key={alert.id}><AlertTriangle size={17} /><span><strong>{alert.title}</strong><small>{alert.message}</small></span></div>)}</div> : <div className={styles.empty}><ShieldCheck size={28} /><strong>Không có cảnh báo hiện tại</strong><span>Telemetry không có alert hợp lệ.</span></div>}</div> : null}
+
+        {nav === 'camera' ? <>
+          <div className={`${ui.workspaceCard} ${ui.wideCard}`}><h3><Camera size={17} />Camera runtime</h3><div className={ui.cameraPreview}><span><Camera size={34} /><strong>Camera chưa được kết nối</strong><small>KINGMAST không dựng hình camera giả khi chưa có nguồn video thật.</small></span></div></div>
+          <div className={ui.workspaceCard}><h3>Luồng camera</h3><div className={ui.statusList}><div className={ui.statusRow}><span>Front camera</span><b className={ui.warn}>CHƯA NỐI</b></div><div className={ui.statusRow}><span>Recording</span><b>OFF</b></div></div></div>
+          <div className={ui.workspaceCard}><h3>ADAS camera</h3><small>Vùng dành cho lane/object vision sau khi có camera thật. Hiện không suy diễn dữ liệu hình ảnh.</small></div>
+        </> : null}
+
+        {nav === 'objects' ? <div className={`${ui.workspaceCard} ${ui.wideCard} ${ui.objectWorkspace}`}><h3><Radio size={17} />Vật thể xung quanh ({objects.length})</h3><ObjectPanel objects={objects} /></div> : null}
+
+        {nav === 'trip' ? <>
+          <div className={ui.workspaceCard}><h3><Route size={17} />Hành trình hiện tại <small>DEMO</small></h3><div className={ui.workspaceMetricRow}><div className={ui.workspaceMetric}><span>Quãng đường</span><strong>12.4 km</strong></div><div className={ui.workspaceMetric}><span>Thời gian</span><strong>18 phút</strong></div><div className={ui.workspaceMetric}><span>Tốc độ</span><strong>{Math.round(payload?.speedKph ?? 0)} km/h</strong></div></div></div>
+          <div className={ui.workspaceCard}><h3>Dữ liệu bench</h3><div className={ui.statusList}><div className={ui.statusRow}><span>Uptime</span><b>{payload?.uptime ?? '--'} s</b></div><div className={ui.statusRow}><span>Clients</span><b>{payload?.clients ?? '--'}</b></div><div className={ui.statusRow}><span>Latency</span><b>{latency ?? '--'} ms</b></div></div></div>
+        </> : null}
+
+        {nav === 'energy' ? <>
+          <div className={ui.workspaceCard}><h3><BatteryCharging size={17} />Nguồn bench</h3><div className={ui.workspaceMetricRow}><div className={ui.workspaceMetric}><span>Source</span><strong>USB</strong></div><div className={ui.workspaceMetric}><span>Nominal</span><strong>5 V</strong></div><div className={ui.workspaceMetric}><span>BMS</span><strong>--</strong></div></div></div>
+          <div className={ui.workspaceCard}><h3>Năng lượng xe</h3><small>Chưa có BMS runtime nên không hiển thị SOC, công suất hoặc phạm vi như dữ liệu thật.</small></div>
+        </> : null}
+
+        {nav === 'vehicle' ? <div className={`${ui.workspaceCard} ${ui.wideCard}`}><h3><Gauge size={17} />Thiết bị KINGMAST</h3><DevicePanel payload={payload} link={link} latency={latency} setMode={setMode} /></div> : null}
+
+        {nav === 'settings' ? <>
+          <div className={`${ui.workspaceCard} ${ui.wideCard}`}><h3><Settings size={17} />Cài đặt giao diện</h3><div className={ui.settingList}>
+            <button type="button" className={ui.settingButton} onClick={() => setSettings((value) => ({ ...value, autoContext: !value.autoContext }))}><span><strong>Tự đổi panel theo ngữ cảnh</strong><small>Ưu tiên thiết bị/cảnh báo theo trạng thái telemetry.</small></span><b className={`${ui.switch} ${settings.autoContext ? ui.switchOn : ''}`}><i /></b></button>
+            <button type="button" className={ui.settingButton} onClick={() => setSettings((value) => ({ ...value, alerts: !value.alerts }))}><span><strong>Cảnh báo giao diện</strong><small>Prototype setting; cảnh báo an toàn chính không bị tắt bởi nút này.</small></span><b className={`${ui.switch} ${settings.alerts ? ui.switchOn : ''}`}><i /></b></button>
+            <button type="button" className={ui.settingButton} onClick={() => setSettings((value) => ({ ...value, night: !value.night }))}><span><strong>Night HMI</strong><small>Giữ nền tối và độ tương phản cao cho cockpit.</small></span><b className={`${ui.switch} ${settings.night ? ui.switchOn : ''}`}><i /></b></button>
+          </div></div>
+          <div className={ui.workspaceCard}><h3>Trạng thái cảm biến</h3><div className={ui.statusList}><div className={ui.statusRow}><span>Radar trước</span><b className={sensorOnline ? ui.ok : ui.bad}>{sensorOnline ? 'ONLINE' : 'UNAVAILABLE'}</b></div><div className={ui.statusRow}><span>C3</span><b className={link === 'live' ? ui.ok : ui.bad}>{link === 'live' ? 'LIVE' : 'OFFLINE'}</b></div></div></div>
+        </> : null}
+      </div>
+    </section>
+  );
+}
+
+function BottomDock({ onNavigate }: { onNavigate: (key: NavKey) => void }) {
   const [active, setActive] = useState<DockKey>('voice');
+  const [toast, setToast] = useState<string | null>(null);
+  const [sosOpen, setSosOpen] = useState(false);
   const items: Array<{ key: DockKey; label: string; icon: typeof Mic }> = [
     { key: 'voice', label: 'Giọng nói', icon: Mic },
     { key: 'camera', label: 'Camera', icon: Camera },
@@ -349,12 +418,53 @@ function BottomDock() {
     { key: 'capture', label: 'Chụp ảnh', icon: Camera },
     { key: 'night', label: 'Chế độ đêm', icon: Moon },
   ];
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const runDockAction = (key: DockKey) => {
+    setActive(key);
+    if (key === 'voice') {
+      window.dispatchEvent(new Event('kingmast:assistant-open'));
+      setToast('Đã mở Trợ lý KINGMAST.');
+      return;
+    }
+    if (key === 'camera') {
+      onNavigate('camera');
+      setToast('Đã mở trang Camera.');
+      return;
+    }
+    if (key === 'record') {
+      setToast('Ghi hình chưa khả dụng vì camera thật chưa được kết nối.');
+      return;
+    }
+    if (key === 'capture') {
+      setToast('Chụp ảnh chưa khả dụng vì camera thật chưa được kết nối.');
+      return;
+    }
+    setToast('Đã chọn Night HMI.');
+  };
+
   return (
-    <footer className={styles.bottomDock}>
-      <div className={styles.dockGroup}>{items.map(({ key, label, icon: Icon }) => <button type="button" key={key} className={active === key ? styles.dockActive : ''} onClick={() => setActive(key)}><Icon size={19} /><span>{label}</span></button>)}</div>
-      <button type="button" className={styles.sos} title="UI demo only"><Siren size={21} />SOS</button>
-      <button type="button" className={styles.aiButton}><Sparkles size={20} />Trợ lý AI</button>
-    </footer>
+    <>
+      <footer className={`${styles.bottomDock} ${ui.bottomDockCompact}`}>
+        <div className={styles.dockGroup}>{items.map(({ key, label, icon: Icon }) => <button type="button" key={key} className={active === key ? styles.dockActive : ''} onClick={() => runDockAction(key)}><Icon size={19} /><span>{label}</span></button>)}</div>
+        <button type="button" className={styles.sos} aria-haspopup="dialog" aria-expanded={sosOpen} onClick={() => setSosOpen(true)}><Siren size={21} />SOS</button>
+      </footer>
+      {toast ? <div className={ui.dockToast} role="status">{toast}</div> : null}
+      {sosOpen ? <div className={ui.sosBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSosOpen(false); }}>
+        <section className={ui.sosDialog} role="dialog" aria-modal="true" aria-label="SOS prototype">
+          <div className={ui.sosIcon}><Siren size={28} /></div>
+          <h2>SOS · Chế độ thử nghiệm</h2>
+          <p>Nút SOS đã hoạt động ở mức giao diện. Bản prototype hiện chưa kết nối tổng đài, số khẩn cấp hoặc dịch vụ cứu hộ thực tế.</p>
+          <div className={ui.sosNotice}>Không sử dụng nút này thay cho cuộc gọi khẩn cấp thật. Khi tích hợp dịch vụ SOS thật cần có xác nhận, vị trí, kết nối mạng và quy trình an toàn riêng.</div>
+          <div className={ui.sosActions}><button type="button" className={ui.sosCancel} onClick={() => setSosOpen(false)}>Hủy</button><button type="button" className={ui.sosConfirm} onClick={() => { setSosOpen(false); setToast('SOS demo đã được ghi nhận · không có cuộc gọi thực tế.'); }}>Xác nhận demo</button></div>
+        </section>
+      </div> : null}
+    </>
   );
 }
 
@@ -364,17 +474,35 @@ export default function KingmastCockpitUltra() {
   const tone = toneFor(payload?.risk);
   const alertCount = frame?.alerts.length ?? 0;
 
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const value = new URLSearchParams(window.location.search).get('view') as NavKey | null;
+      if (value && NAV_ITEMS.some((item) => item.key === value)) setNav(value);
+      else setNav('drive');
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  const changeNav = (key: NavKey) => {
+    setNav(key);
+    const url = new URL(window.location.href);
+    if (key === 'drive') url.searchParams.delete('view');
+    else url.searchParams.set('view', key);
+    window.history.pushState({}, '', url);
+  };
+
   return (
-    <main className={`${styles.shell} ${styles[`tone_${tone}`]}`} data-testid="kingmast-cockpit-ultra">
+    <main className={`${styles.shell} ${styles[`tone_${tone}`]}`} data-testid="kingmast-cockpit-ultra" data-view={nav}>
       <TopBar link={link} latency={latencyMs} />
-      <Sidebar active={nav} onChange={setNav} alertCount={alertCount} link={link} />
+      <Sidebar active={nav} onChange={changeNav} alertCount={alertCount} link={link} />
       <VehicleStatus payload={payload} link={link} />
       <div className={styles.centerStage}>
-        {nav !== 'drive' ? <div className={styles.viewHint}><span>{NAV_ITEMS.find((item) => item.key === nav)?.label}</span><small>Workspace preview · vùng lái vẫn duy trì để không che thông tin an toàn.</small></div> : null}
-        <KingmastDriveScene payload={payload} frame={frame} alert={<AlertBanner payload={payload} />} />
+        {nav === 'drive' ? <KingmastDriveScene payload={payload} frame={frame} alert={<AlertBanner payload={payload} />} /> : <WorkspacePanel nav={nav} payload={payload} frame={frame} link={link} latency={latencyMs} setMode={setMode} />}
       </div>
       <ContextPanel payload={payload} frame={frame} link={link} latency={latencyMs} setMode={setMode} />
-      <BottomDock />
+      <BottomDock onNavigate={changeNav} />
     </main>
   );
 }
