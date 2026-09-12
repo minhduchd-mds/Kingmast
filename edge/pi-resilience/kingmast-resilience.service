@@ -1,0 +1,32 @@
+[Unit]
+Description=KINGMAST platform resilience watchdog
+After=network-online.target local-fs.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=kingmast
+Group=kingmast
+WorkingDirectory=/opt/kingmast/edge/pi-resilience
+EnvironmentFile=-/etc/kingmast/resilience.env
+ExecStart=/usr/bin/python3 /opt/kingmast/edge/pi-resilience/resilience_agent.py
+Restart=always
+RestartSec=2
+WatchdogSec=20s
+TimeoutStopSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/kingmast /mnt/kingmast-sd/history
+
+[Install]
+WantedBy=multi-user.target
