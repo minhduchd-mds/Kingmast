@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { admitNavigationRequest, securityEnvelopeHeaders } from '@/lib/security-envelope';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -26,9 +27,17 @@ function finiteCoordinate(value: string | null, min: number, max: number) {
 }
 
 export async function GET(request: NextRequest) {
+  const admission = admitNavigationRequest(request, 'navigation:search');
+  if (!admission.ok) {
+    return NextResponse.json(
+      { error: admission.reason },
+      { status: admission.status, headers: securityEnvelopeHeaders(admission.reason) },
+    );
+  }
+
   const query = request.nextUrl.searchParams.get('q')?.trim() ?? '';
   if (query.length < 2 || query.length > 120) {
-    return NextResponse.json({ error: 'invalid-query' }, { status: 400 });
+    return NextResponse.json({ error: 'invalid-query' }, { status: 400, headers: securityEnvelopeHeaders() });
   }
 
   const lat = finiteCoordinate(request.nextUrl.searchParams.get('lat'), -90, 90);
@@ -43,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   if (lat !== null && lng !== null) {
     const delta = 0.28;
-    url.searchParams.set('viewbox', `${lng - delta},${lat + delta},${lng + delta},${lat - delta}`);
+    url.searchParams.set('viewbox', `${lng - delta},${lat + delta},${lng - delta},${lat - delta}`);
     url.searchParams.set('bounded', '0');
   }
 
@@ -72,8 +81,11 @@ export async function GET(request: NextRequest) {
         source: 'geocoder' as const,
       }];
     });
-    return NextResponse.json({ places, source: 'nominatim' }, { headers: { 'cache-control': 'no-store' } });
+    return NextResponse.json({ places, source: 'nominatim' }, { headers: securityEnvelopeHeaders() });
   } catch {
-    return NextResponse.json({ error: 'geocoding-provider-unavailable' }, { status: 503, headers: { 'cache-control': 'no-store' } });
+    return NextResponse.json(
+      { error: 'geocoding-provider-unavailable' },
+      { status: 503, headers: securityEnvelopeHeaders('provider-unavailable') },
+    );
   }
 }
