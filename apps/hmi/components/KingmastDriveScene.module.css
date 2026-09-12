@@ -1,0 +1,85 @@
+.scene{
+  --blue:#1ea7ff;
+  --cyan:#4fe4ff;
+  --green:#1fe38a;
+  --amber:#ffc247;
+  --red:#ff4d57;
+  --text:#f5f8ff;
+  --muted:#9ab1c9;
+  --tone:#4fe4ff;
+  position:relative;
+  min-width:0;
+  min-height:0;
+  margin:12px 4px 8px;
+  border:1px solid rgba(56,151,226,.28);
+  border-radius:22px;
+  overflow:hidden;
+  isolation:isolate;
+  background:
+    radial-gradient(circle at 50% 62%,rgba(31,128,203,.13),transparent 30%),
+    linear-gradient(180deg,#07111d 0%,#07131f 44%,#04080c 100%);
+  box-shadow:0 26px 85px rgba(0,0,0,.38),inset 0 0 75px rgba(30,167,255,.045);
+}
+.tone_safe{--tone:var(--green)}
+.tone_watch{--tone:var(--cyan)}
+.tone_warning{--tone:var(--amber)}
+.tone_danger{--tone:var(--red)}
+.tone_lost{--tone:var(--amber)}
+.ambientSky{position:absolute;inset:0 0 43% 0;z-index:-6;overflow:hidden;background:linear-gradient(180deg,#04101d 0%,#071827 72%,rgba(6,19,31,.12) 100%)}
+.starField{position:absolute;inset:0;background-image:radial-gradient(circle,#d8f3ff 0 1px,transparent 1.5px),radial-gradient(circle,#3e9bc9 0 1px,transparent 1.6px);background-position:0 0,22px 15px;background-size:59px 47px,83px 61px;opacity:.18;mask-image:linear-gradient(180deg,#000,transparent 88%)}
+.horizonGlow{position:absolute;left:12%;right:12%;bottom:-18%;height:60%;border-radius:50%;background:radial-gradient(ellipse,rgba(27,138,217,.28),rgba(17,74,124,.12) 35%,transparent 72%);filter:blur(8px)}
+.tower{position:absolute;bottom:0;width:10%;background:linear-gradient(180deg,rgba(18,41,62,.95),rgba(7,18,29,.95));border-left:1px solid rgba(76,149,195,.15);border-right:1px solid rgba(76,149,195,.08);box-shadow:inset 0 0 35px rgba(28,104,155,.06)}
+.tower:after{content:"";position:absolute;inset:8px;background:repeating-linear-gradient(0deg,transparent 0 16px,rgba(116,190,227,.09) 17px 19px),repeating-linear-gradient(90deg,transparent 0 20px,rgba(116,190,227,.08) 21px 23px)}
+.towerA{left:3%;height:65%;clip-path:polygon(0 100%,0 18%,30% 18%,34% 0,72% 0,75% 23%,100% 23%,100% 100%)}
+.towerB{left:17%;height:46%;width:12%;clip-path:polygon(0 100%,0 26%,28% 26%,31% 8%,64% 8%,66% 0,92% 0,95% 32%,100% 32%,100% 100%)}
+.towerC{right:16%;height:54%;width:12%;clip-path:polygon(0 100%,0 30%,24% 30%,29% 0,63% 0,66% 18%,100% 18%,100% 100%)}
+.towerD{right:3%;height:69%;clip-path:polygon(0 100%,0 20%,22% 20%,26% 4%,69% 4%,73% 0,90% 0,92% 28%,100% 28%,100% 100%)}
+.roadWorld{position:absolute;z-index:-4;left:4%;right:4%;top:24%;bottom:-15%;clip-path:polygon(35% 0,65% 0,96% 100%,4% 100%);background:linear-gradient(180deg,rgba(15,23,31,.74),#121b24 54%,#0e151c 100%);box-shadow:inset 0 0 90px rgba(20,90,141,.17)}
+.roadWorld:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(37,153,222,.07),transparent 22%,transparent 78%,rgba(37,153,222,.07)),repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 2px,transparent 2px 8px);mix-blend-mode:screen}
+.roadEdgeLeft,.roadEdgeRight{position:absolute;top:0;bottom:0;width:3px;background:linear-gradient(180deg,rgba(79,228,255,.15),rgba(30,167,255,.9) 75%,rgba(30,167,255,.1));transform-origin:top center;box-shadow:0 0 18px rgba(30,167,255,.28)}
+.roadEdgeLeft{left:34%;transform:rotate(10.4deg)}
+.roadEdgeRight{right:34%;transform:rotate(-10.4deg)}
+.laneFlow{position:absolute;top:-16%;bottom:-12%;width:4px;opacity:.82;background:repeating-linear-gradient(180deg,rgba(221,239,255,.96) 0 28px,transparent 28px 65px);filter:drop-shadow(0 0 4px rgba(155,220,255,.18));animation:laneFlow var(--lane-duration) linear infinite;transform-origin:50% 0}
+.laneFlowLeft{left:40%;transform:rotate(5.5deg)}
+.laneFlowCenter{left:50%}
+.laneFlowRight{right:40%;transform:rotate(-5.5deg)}
+.demoTraffic{position:absolute;width:34px;height:34px;display:grid;place-items:center;color:#8fadc7;background:rgba(8,26,41,.72);border:1px solid rgba(76,154,213,.26);border-radius:9px;opacity:.62;filter:blur(.15px);box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.demoTraffic svg{width:21px;height:21px}
+.demoTrafficA{left:32%;top:31%;transform:scale(.68)}
+.demoTrafficB{right:31%;top:37%;transform:scale(.78)}
+.demoTrafficC{right:23%;top:26%;transform:scale(.58)}
+.topOverlay{position:absolute;inset:0;z-index:13;pointer-events:none}.topOverlay>*{pointer-events:auto}
+.sceneTelemetry{position:absolute;left:18px;top:18px;z-index:9;display:flex;gap:8px;max-width:calc(100% - 36px)}
+.sceneTelemetry>div{height:48px;display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:7px;align-items:center;min-width:108px;padding:7px 11px;border-radius:13px;border:1px solid rgba(63,158,223,.28);background:linear-gradient(180deg,rgba(8,28,47,.86),rgba(5,19,33,.78));backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
+.sceneTelemetry svg{grid-row:1/3;color:var(--cyan)}
+.sceneTelemetry span{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#7f9bb6}
+.sceneTelemetry strong{font-size:13px;color:#eaf6ff;white-space:nowrap}
+.assistRail{position:absolute;right:18px;top:18px;z-index:9;width:155px;padding:10px 12px;border-radius:14px;border:1px solid rgba(70,160,225,.24);background:rgba(5,19,33,.76);backdrop-filter:blur(11px);display:grid;gap:7px;color:#9fb3c7;font-size:10px}
+.assistRail>span{display:flex;align-items:center;gap:6px}.assistRail svg{color:#78b8e7}.assistTitle{font-size:9px!important;letter-spacing:.16em!important;color:#63d7ff!important}.statusDot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 11px rgba(31,227,138,.85)}
+.targetTrack{position:absolute;left:50%;top:var(--target-y);z-index:7;width:114px;transform:translate(-50%,calc(-50% + var(--closing-shift))) scale(var(--target-scale));transform-origin:50% 100%;transition:top .32s ease-out,transform .32s ease-out;display:grid;justify-items:center;filter:drop-shadow(0 0 18px rgba(79,228,255,.13))}
+.targetDistance{margin-bottom:5px;padding:5px 11px;border:1px solid rgba(79,228,255,.72);border-radius:9px;background:rgba(4,31,49,.92);color:#eafcff;font-size:16px;font-weight:750;box-shadow:0 0 18px rgba(30,167,255,.18)}
+.targetBox{position:relative;width:84px;height:67px;display:grid;place-items:center;border:1px solid rgba(79,228,255,.82);background:linear-gradient(180deg,rgba(7,31,48,.72),rgba(7,22,36,.42));color:#bcefff;box-shadow:inset 0 0 20px rgba(30,167,255,.08)}
+.targetCorners{position:absolute;inset:-5px;background:linear-gradient(var(--cyan),var(--cyan)) left top/17px 2px no-repeat,linear-gradient(var(--cyan),var(--cyan)) left top/2px 17px no-repeat,linear-gradient(var(--cyan),var(--cyan)) right top/17px 2px no-repeat,linear-gradient(var(--cyan),var(--cyan)) right top/2px 17px no-repeat,linear-gradient(var(--cyan),var(--cyan)) left bottom/17px 2px no-repeat,linear-gradient(var(--cyan),var(--cyan)) left bottom/2px 17px no-repeat,linear-gradient(var(--cyan),var(--cyan)) right bottom/17px 2px no-repeat,linear-gradient(var(--cyan),var(--cyan)) right bottom/2px 17px no-repeat;filter:drop-shadow(0 0 5px rgba(79,228,255,.45))}
+.targetMeta{margin-top:5px;display:flex;gap:5px;font-size:9px}.targetMeta span,.targetMeta b{padding:4px 7px;border-radius:7px;background:rgba(5,21,34,.82);border:1px solid rgba(66,147,205,.28)}.targetMeta b{color:var(--tone);border-color:color-mix(in srgb,var(--tone) 55%,transparent)}
+.targetTrack[data-critical="true"] .targetDistance{border-color:var(--red);background:rgba(89,8,16,.92);box-shadow:0 0 24px rgba(255,77,87,.28)}
+.targetTrack[data-critical="true"] .targetBox{border-color:var(--red);color:#fff1f2;background:rgba(86,7,15,.46);animation:targetDanger 1.2s ease-in-out infinite}.targetTrack[data-critical="true"] .targetCorners{background:linear-gradient(var(--red),var(--red)) left top/17px 2px no-repeat,linear-gradient(var(--red),var(--red)) left top/2px 17px no-repeat,linear-gradient(var(--red),var(--red)) right top/17px 2px no-repeat,linear-gradient(var(--red),var(--red)) right top/2px 17px no-repeat,linear-gradient(var(--red),var(--red)) left bottom/17px 2px no-repeat,linear-gradient(var(--red),var(--red)) left bottom/2px 17px no-repeat,linear-gradient(var(--red),var(--red)) right bottom/17px 2px no-repeat,linear-gradient(var(--red),var(--red)) right bottom/2px 17px no-repeat;filter:drop-shadow(0 0 6px rgba(255,77,87,.65))}
+.sensorField{position:absolute;z-index:1;left:50%;bottom:1%;width:min(72%,650px);aspect-ratio:1.9/1;transform:translateX(-50%);pointer-events:none}
+.sensorSector{position:absolute;left:50%;bottom:11%;width:22%;height:78%;transform-origin:50% 100%;clip-path:polygon(44% 0,56% 0,100% 100%,0 100%);background:linear-gradient(180deg,rgba(30,167,255,0),rgba(30,167,255,.18));filter:blur(.1px)}
+.sectorLeft{transform:translateX(-50%) rotate(-38deg)}.sectorFront{transform:translateX(-50%)}.sectorRight{transform:translateX(-50%) rotate(38deg)}
+.radarPulse{position:absolute;left:50%;bottom:2%;width:72%;aspect-ratio:2/1;border:1px solid rgba(30,167,255,.44);border-radius:50% 50% 6% 6%/100% 100% 5% 5%;transform:translateX(-50%);box-shadow:0 0 18px rgba(30,167,255,.05);animation:radarPulse 2.2s linear infinite}
+.radar2{width:52%;animation-delay:.72s}.radar3{width:34%;animation-delay:1.44s}.radarSweep{position:absolute;left:50%;bottom:1%;width:1px;height:56%;transform-origin:50% 100%;background:linear-gradient(180deg,transparent,rgba(79,228,255,.82));box-shadow:0 0 12px rgba(79,228,255,.52);animation:radarSweep 3.6s linear infinite}
+.egoVehicle{position:absolute;z-index:6;left:50%;bottom:7%;width:min(31%,250px);transform:translateX(-50%);display:grid;place-items:center}.egoVehicle img{position:relative;z-index:2;width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 22px 20px rgba(0,0,0,.55)) drop-shadow(0 0 18px rgba(79,228,255,.1));user-select:none}.egoAura{position:absolute;z-index:1;left:50%;bottom:3%;width:85%;height:36%;transform:translateX(-50%);border-radius:50%;background:radial-gradient(ellipse,rgba(30,167,255,.23),rgba(30,167,255,.05) 48%,transparent 72%);filter:blur(8px)}.egoCaption{position:absolute;z-index:3;bottom:4%;left:50%;transform:translateX(-50%);padding:3px 7px;border-radius:6px;background:rgba(3,13,23,.66);font-size:7px;letter-spacing:.12em;color:#d9f5ff}
+.zoneChip{position:absolute;z-index:8;min-width:118px;display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;align-items:center;gap:2px 8px;padding:9px 11px;border-radius:12px;border:1px solid rgba(54,155,224,.5);background:linear-gradient(180deg,rgba(7,31,51,.89),rgba(4,19,32,.84));backdrop-filter:blur(10px);box-shadow:0 8px 22px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.025)}.zoneChip svg{grid-row:1/3;color:#9adfff}.zoneChip span{font-size:11px;color:#bfd5e8}.zoneChip strong{font-size:15px;text-align:right;color:#f3f9ff}.zoneChip small{grid-column:2/4;color:#66839e;font-size:8px}.zoneLeft{left:18px;bottom:24%}.zoneRight{right:18px;bottom:24%}.zoneRear{left:50%;bottom:3%;transform:translateX(-50%);min-width:132px}
+.degradedOverlay{position:absolute;z-index:11;left:50%;bottom:18%;transform:translateX(-50%);width:min(70%,520px);display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:13px;border:1px solid rgba(255,194,71,.56);background:linear-gradient(180deg,rgba(64,49,8,.94),rgba(44,32,6,.91));box-shadow:0 0 28px rgba(255,194,71,.11);color:#fff4d6}.degradedOverlay svg{flex:0 0 auto;color:var(--amber)}.degradedOverlay span{display:flex;flex-direction:column;gap:2px}.degradedOverlay strong{font-size:11px;letter-spacing:.08em}.degradedOverlay small{font-size:9px;color:#d7cda8}
+.sceneFooter{position:absolute;z-index:10;left:15px;right:15px;bottom:14px;display:flex;align-items:flex-end;justify-content:space-between;pointer-events:none}.truthBadge,.viewToggle{pointer-events:auto;border:1px solid rgba(57,145,210,.34);background:rgba(4,19,33,.82);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}.truthBadge{height:34px;display:flex;align-items:center;gap:7px;padding:0 10px;border-radius:10px;color:#8ba9c3;font-size:8px;letter-spacing:.1em}.truthBadge i{width:7px;height:7px;border-radius:50%}.truthLive{background:var(--green);box-shadow:0 0 10px var(--green)}.truthLost{background:var(--amber);box-shadow:0 0 10px var(--amber)}.viewToggle{display:flex;align-items:center;gap:5px;padding:4px;border-radius:11px}.viewToggle>span{padding:0 6px;font-size:8px;letter-spacing:.12em;color:#6888a5}.viewToggle button{height:28px;min-width:38px;border:1px solid transparent;border-radius:8px;background:transparent;color:#7995af;font-size:10px;font-weight:700;cursor:pointer;transition:.2s ease}.viewToggle button:hover{color:#d9f6ff;background:rgba(30,167,255,.08)}.viewToggle .viewActive{color:white;border-color:rgba(79,228,255,.55);background:linear-gradient(180deg,#24baff,#116dea);box-shadow:0 0 16px rgba(30,167,255,.42)}
+.mode2d .roadWorld{top:18%;left:10%;right:10%;bottom:1%;clip-path:none;border-radius:44% 44% 0 0/18% 18% 0 0;transform:perspective(800px) rotateX(20deg)}.mode2d .ambientSky{opacity:.45}.mode2d .targetTrack{top:35%!important;transform:translate(-50%,0) scale(.9)}.mode2d .egoVehicle{width:min(25%,210px);bottom:12%}.mode2d .sensorField{bottom:7%;width:66%}
+.tone_danger:after{content:"";position:absolute;inset:0;z-index:12;pointer-events:none;border:1px solid rgba(255,77,87,.26);border-radius:inherit;box-shadow:inset 0 0 70px rgba(255,34,52,.075);animation:dangerFrame 1.2s ease-in-out infinite}.tone_warning:after,.tone_watch:after{content:"";position:absolute;inset:0;z-index:12;pointer-events:none;border-radius:inherit;box-shadow:inset 0 0 55px color-mix(in srgb,var(--tone) 7%,transparent)}
+@keyframes laneFlow{from{background-position-y:0}to{background-position-y:65px}}
+@keyframes radarPulse{0%{opacity:.08;transform:translateX(-50%) scale(.72)}38%{opacity:.58}100%{opacity:0;transform:translateX(-50%) scale(1.12)}}
+@keyframes radarSweep{from{transform:rotate(-58deg)}to{transform:rotate(58deg)}}
+@keyframes targetDanger{0%,100%{box-shadow:0 0 18px rgba(255,77,87,.18)}50%{box-shadow:0 0 42px rgba(255,77,87,.52)}}
+@keyframes dangerFrame{0%,100%{opacity:.45}50%{opacity:1}}
+@media (max-width:1500px){.sceneTelemetry>div{min-width:94px;padding:6px 8px}.assistRail{width:140px}.egoVehicle{width:min(29%,215px)}.zoneChip{min-width:104px}.zoneLeft{left:10px}.zoneRight{right:10px}}
+@media (max-width:1280px){.sceneTelemetry{left:10px;top:10px;gap:5px}.sceneTelemetry>div{height:41px;min-width:82px}.sceneTelemetry span{display:none}.sceneTelemetry strong{font-size:11px}.assistRail{right:10px;top:10px;width:124px;padding:8px}.assistRail>span:not(.assistTitle):nth-of-type(3){display:none}.egoVehicle{width:min(30%,190px)}.zoneChip{padding:7px 8px}.zoneChip small{display:none}.zoneRear{bottom:4%}.sceneFooter{left:10px;right:10px;bottom:9px}}
+@media (max-height:760px){.sceneTelemetry>div{height:40px}.egoVehicle{width:min(27%,185px);bottom:5%}.sensorField{bottom:0;width:68%}.zoneLeft,.zoneRight{bottom:22%}.zoneRear{bottom:2%}.degradedOverlay{bottom:15%}}
+@media (prefers-reduced-motion:reduce){.laneFlow,.radarPulse,.radarSweep,.targetBox,.tone_danger:after{animation:none!important}.targetTrack,.viewToggle button{transition:none!important}}
