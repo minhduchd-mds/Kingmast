@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { admitNavigationRequest, securityEnvelopeHeaders } from '../../../../../lib/security-envelope';
+import { requireOutboundUrl } from '../../../../../lib/outbound-security';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -42,21 +43,22 @@ export async function GET(request: NextRequest) {
 
   const lat = finiteCoordinate(request.nextUrl.searchParams.get('lat'), -90, 90);
   const lng = finiteCoordinate(request.nextUrl.searchParams.get('lng'), -180, 180);
-  const base = (process.env.GEOCODING_BASE_URL?.trim() || 'https://nominatim.openstreetmap.org').replace(/\/$/, '');
-  const url = new URL(`${base}/search`);
-  url.searchParams.set('format', 'jsonv2');
-  url.searchParams.set('q', query);
-  url.searchParams.set('limit', '6');
-  url.searchParams.set('addressdetails', '0');
-  url.searchParams.set('accept-language', 'vi,en');
-
-  if (lat !== null && lng !== null) {
-    const delta = 0.28;
-    url.searchParams.set('viewbox', `${lng - delta},${lat + delta},${lng + delta},${lat - delta}`);
-    url.searchParams.set('bounded', '0');
-  }
 
   try {
+    const base = (process.env.GEOCODING_BASE_URL?.trim() || 'https://nominatim.openstreetmap.org').replace(/\/$/, '');
+    const url = requireOutboundUrl(`${base}/search`, 'navigation-geocoding');
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('q', query);
+    url.searchParams.set('limit', '6');
+    url.searchParams.set('addressdetails', '0');
+    url.searchParams.set('accept-language', 'vi,en');
+
+    if (lat !== null && lng !== null) {
+      const delta = 0.28;
+      url.searchParams.set('viewbox', `${lng - delta},${lat + delta},${lng + delta},${lat - delta}`);
+      url.searchParams.set('bounded', '0');
+    }
+
     const response = await fetch(url, {
       cache: 'no-store',
       headers: {
