@@ -8,6 +8,9 @@ const live = read('components/KingmastLiveNavigation.tsx');
 const cockpit = read('components/KingmastRealCockpit.tsx');
 const page = read('app/esp32-live/page.tsx');
 const source = `${live}\n${cockpit}`;
+const c3Start = live.indexOf('function useC3Reachability');
+const c3End = live.indexOf('function duration', c3Start);
+const c3Hook = c3Start >= 0 && c3End > c3Start ? live.slice(c3Start, c3End) : '';
 
 const required = [
   ['esp32-live mounts real navigation shell', page.includes('KingmastLiveNavigation')],
@@ -18,8 +21,8 @@ const required = [
   ['gps heading preserves unavailable state', live.includes('position.coords.heading == null ? null')],
   ['traffic live depends on provider capability', live.includes('trafficLive={Boolean(capability?.liveTraffic)}')],
   ['osrm is labelled without live traffic', live.includes('OSRM · tuyến thật, không traffic live')],
-  ['https does not mislabel local c3 mixed-content as offline', live.includes("window.location.protocol === 'https:'") && live.includes("setState('blocked')")],
-  ['local c3 payload is reachability-only', live.includes('await response.json();') && !live.includes('distanceM') && !live.includes('ttc') && !live.includes('relativeSpeedMps')],
+  ['https does not mislabel local c3 mixed-content as offline', c3Hook.includes("window.location.protocol === 'https:'") && c3Hook.includes("setState('blocked')")],
+  ['local c3 payload is reachability-only', c3Hook.includes('await response.json();') && !c3Hook.includes('distanceM') && !c3Hook.includes('ttc') && !c3Hook.includes('relativeSpeedMps')],
 ];
 
 const forbidden = [
