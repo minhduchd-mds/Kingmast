@@ -23,6 +23,13 @@ const forbidden=[
   /\bsendActuatorCommand\b/i,
   /\bissueActuatorCommand\b/i,
   /\bvehicleControlCommand\b/i,
+  /\bAF_CAN\b/,
+  /\bPF_CAN\b/,
+  /\bCAN_RAW\b/,
+  /\bsocketcan\b/i,
+  /\bcansend\b/i,
+  /\bcanplayer\b/i,
+  /\bpython-can\b/i,
 ];
 const findings=[];
 
@@ -46,4 +53,4 @@ if(!readOnlyContract.includes('interface ReadOnlyVehiclePort'))findings.push('pa
 if(!contractsPackage.includes('"./vehicle-readonly":"./src/vehicle-readonly.ts"'))findings.push('packages/contracts/package.json: read-only vehicle port export missing');
 
 if(findings.length){console.error('KINGMAST warning-only safety boundary violation:\n'+findings.join('\n'));process.exit(1);}
-console.log('KINGMAST safety boundary check passed: actuator APIs absent and read-only vehicle contract enforced.');
+console.log('KINGMAST safety boundary check passed: actuator APIs, raw CAN transmit surfaces and vehicle write authority remain absent.');
