@@ -5,6 +5,7 @@ const root=process.cwd();
 const failures=[];
 const productionRoots=['apps/hmi','services/risk-engine','packages/contracts','edge'];
 const sourceExt=/\.(?:ts|tsx|js|mjs|cjs|py|ino|h|hpp|cpp)$/;
+const hmiForbiddenImports=new Set(['child_process','node:child_process','node:net','net','node:dgram','dgram']);
 
 function walk(dir){
   const full=resolve(root,dir);
@@ -33,9 +34,12 @@ for(const base of productionRoots){
       if(specifier.includes('autonomy-lab'))failures.push(`${rel}: production code must not import simulation-only autonomy-lab`);
       if(rel.startsWith('apps/hmi/')&&(specifier.includes('services/risk-engine/src')||specifier.startsWith('../../../services/')||specifier.startsWith('../../services/')))failures.push(`${rel}: HMI must use contracts/network boundary, not risk-engine source imports`);
       if(rel.startsWith('apps/hmi/')&&(specifier.includes('edge/esp32')||specifier.includes('edge/camera-detector')))failures.push(`${rel}: HMI must not import hardware publisher implementation`);
+      if(rel.startsWith('apps/hmi/')&&hmiForbiddenImports.has(specifier))failures.push(`${rel}: HMI must not gain shell/raw-socket escape capability via ${specifier}`);
       if(rel.startsWith('services/risk-engine/')&&specifier.includes('apps/hmi'))failures.push(`${rel}: risk engine must not depend on HMI implementation`);
       if(rel.startsWith('packages/contracts/')&&(specifier.includes('apps/')||specifier.includes('services/')||specifier.includes('edge/')))failures.push(`${rel}: shared contracts must remain independent of application/service/hardware implementations`);
     }
+    if(rel.startsWith('apps/hmi/')&&/\/dev\/(?:can|tty|gpio|mem)\w*/i.test(text))failures.push(`${rel}: HMI must not address vehicle/device nodes directly`);
+    if(rel.startsWith('apps/hmi/')&&/\b(?:can\.write|sendCanFrame|transmitCan|commandBrake|commandSteer|applyBrake|applyThrottle)\b/i.test(text))failures.push(`${rel}: HMI contains prohibited vehicle-control surface`);
   }
 }
 
@@ -51,4 +55,4 @@ else{
 }
 
 if(failures.length){console.error('KINGMAST architecture boundary check failed:\n'+failures.map((item)=>`- ${item}`).join('\n'));process.exit(1);}
-console.log('KINGMAST architecture boundary check passed: production, simulation, HMI, contracts and read-only vehicle boundaries remain separated.');
+console.log('KINGMAST architecture boundary check passed: HMI shell/device escape paths, production/simulation coupling and vehicle-control surfaces remain separated.');
