@@ -14,7 +14,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Python syntax
-        run: python -m py_compile edge/pi-storage/storage_runtime.py edge/pi-storage/history_gateway.py edge/pi-storage/test_storage_runtime.py edge/pi-storage/test_history_gateway.py edge/pi-storage/hardware_readiness_selftest.py
+        run: python -m py_compile edge/pi-storage/storage_runtime.py edge/pi-storage/history_gateway.py edge/pi-storage/test_storage_runtime.py edge/pi-storage/test_history_gateway.py edge/pi-storage/hardware_readiness_selftest.py edge/pi-storage/physical_sd_probe.py
       - name: Adaptive storage and history authentication tests
         working-directory: edge/pi-storage
         run: python -m unittest -v test_storage_runtime.py test_history_gateway.py
