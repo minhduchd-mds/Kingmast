@@ -54,5 +54,24 @@ else{
   if(/\b(?:write|send|transmit|command|actuate|brake|steer|throttle|torque|gear|set[A-Z]|apply[A-Z])\w*\s*\(/i.test(body))failures.push('ReadOnlyVehiclePort contains a prohibited write/actuation-like method');
 }
 
+function checkUnit(path,user,port){
+  const unit=readFileSync(resolve(root,path),'utf8');
+  const expect=(condition,message)=>{if(!condition)failures.push(`${path}: ${message}`);};
+  expect(unit.includes(`User=${user}`),'must run under its dedicated non-root user');
+  expect(!/^User=root$/m.test(unit),'must never run as root');
+  expect(unit.includes('NoNewPrivileges=true'),'NoNewPrivileges must remain enabled');
+  expect(unit.includes('PrivateDevices=true')&&unit.includes('DevicePolicy=closed'),'real device nodes must remain hidden/closed');
+  expect(unit.includes('CapabilityBoundingSet=\n')&&unit.includes('AmbientCapabilities=\n'),'Linux capabilities must remain empty');
+  expect(unit.includes('ProtectSystem=strict')&&unit.includes('ProtectHome=true'),'filesystem isolation must remain strict');
+  expect(unit.includes('RestrictNamespaces=true'),'namespace creation must remain blocked');
+  expect(unit.includes('SocketBindDeny=any')&&unit.includes(`SocketBindAllow=tcp:${port}`),'listener ports must remain deny-by-default');
+  expect(unit.includes('127.0.0.1'),'service must remain loopback-bound');
+  expect(!unit.includes('0.0.0.0'),'service must not bind every interface');
+  expect(!/\/dev\/(?:can|tty|gpio|mem)/i.test(unit),'service must not expose vehicle/device nodes');
+}
+
+checkUnit('deploy/systemd/kingmast-hmi.service','kingmast-hmi',3000);
+checkUnit('deploy/systemd/kingmast-risk-engine.service','kingmast-risk',4000);
+
 if(failures.length){console.error('KINGMAST architecture boundary check failed:\n'+failures.map((item)=>`- ${item}`).join('\n'));process.exit(1);}
-console.log('KINGMAST architecture boundary check passed: HMI shell/device escape paths, production/simulation coupling and vehicle-control surfaces remain separated.');
+console.log('KINGMAST architecture boundary check passed: HMI/risk-engine process isolation, shell/device boundaries and read-only vehicle authority remain enforced.');
