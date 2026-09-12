@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch KINGMAST recovery requests
+
+[Path]
+PathChanged=/var/lib/kingmast/resilience/recovery-request.json
+Unit=kingmast-recovery.service
+
+[Install]
+WantedBy=multi-user.target
