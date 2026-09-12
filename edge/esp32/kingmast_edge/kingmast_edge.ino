@@ -21,6 +21,7 @@ uint32_t sequenceNo=0;
 unsigned long lastPublishMs=0;
 unsigned long lastRadarSeenMs=0;
 unsigned long lastHistoryDrainMs=0;
+unsigned long lastSdMountAttemptMs=0;
 String radarLine;
 String bootId;
 String currentSpoolPath;
@@ -28,7 +29,9 @@ uint16_t currentSpoolRecords=0;
 bool sdReady=false;
 uint32_t sdSpooledPackets=0;
 uint32_t sdDroppedPackets=0;
+uint32_t sdPrunedSegments=0;
 uint32_t sdRecoveredSegments=0;
+uint32_t sdCorruptSegments=0;
 
 static const char* SPOOL_DIR="/kingmast/spool";
 
@@ -81,14 +84,33 @@ String devicePacketSignature(const String& body,uint32_t packetSequence,uint64_t
   return hmacSha256Hex(canonicalPacketMessage(body,packetSequence,timestampMs),String(KINGMAST_DEVICE_HMAC_SECRET));
 }
 
+void markSdUnavailable(const char* reason){
+  if(sdReady)Serial.printf("KINGMAST: SD unavailable reason=%s; realtime remains active\n",reason);
+  sdReady=false;
+  currentSpoolPath="";
+  currentSpoolRecords=0;
+}
+
 bool initSdSpool(){
+  lastSdMountAttemptMs=millis();
+  SD.end();
   SPI.begin(SD_SCK_PIN,SD_MISO_PIN,SD_MOSI_PIN,SD_CS_PIN);
   if(!SD.begin(SD_CS_PIN,SPI,SD_SPI_FREQUENCY_HZ)){Serial.println("KINGMAST: SD unavailable; realtime remains active without offline spool");return false;}
-  if(!SD.exists("/kingmast")&&!SD.mkdir("/kingmast")){Serial.println("KINGMAST: cannot create SD /kingmast directory");return false;}
-  if(!SD.exists(SPOOL_DIR)&&!SD.mkdir(SPOOL_DIR)){Serial.println("KINGMAST: cannot create SD spool directory");return false;}
+  if(SD.cardType()==CARD_NONE){Serial.println("KINGMAST: no SD card detected");SD.end();return false;}
+  if(!SD.exists("/kingmast")&&!SD.mkdir("/kingmast")){Serial.println("KINGMAST: cannot create SD /kingmast directory");SD.end();return false;}
+  if(!SD.exists(SPOOL_DIR)&&!SD.mkdir(SPOOL_DIR)){Serial.println("KINGMAST: cannot create SD spool directory");SD.end();return false;}
   const uint64_t total=SD.totalBytes();
+  if(total==0){Serial.println("KINGMAST: SD reported zero capacity");SD.end();return false;}
   Serial.printf("KINGMAST: SD spool ready total=%llu used=%llu\n",static_cast<unsigned long long>(total),static_cast<unsigned long long>(SD.usedBytes()));
-  return total>0;
+  return true;
+}
+
+void maintainSdSpool(){
+  if(sdReady)return;
+  const unsigned long now=millis();
+  if(now-lastSdMountAttemptMs<SD_REMOUNT_INTERVAL_MS)return;
+  sdReady=initSdSpool();
+  if(sdReady)Serial.println("KINGMAST: SD spool remounted");
 }
 
 uint64_t sdSpoolQuotaBytes(){
@@ -104,7 +126,7 @@ uint64_t spoolUsageBytes(){
   if(!sdReady)return 0;
   uint64_t total=0;
   File dir=SD.open(SPOOL_DIR);
-  if(!dir||!dir.isDirectory())return 0;
+  if(!dir||!dir.isDirectory()){markSdUnavailable("spool-directory-read");return 0;}
   File entry=dir.openNextFile();
   while(entry){if(!entry.isDirectory())total+=entry.size();entry.close();entry=dir.openNextFile();}
   dir.close();
@@ -115,7 +137,7 @@ String oldestSpoolPath(bool allowCurrent){
   if(!sdReady)return String();
   String oldest;
   File dir=SD.open(SPOOL_DIR);
-  if(!dir||!dir.isDirectory())return oldest;
+  if(!dir||!dir.isDirectory()){markSdUnavailable("spool-directory-enumeration");return oldest;}
   File entry=dir.openNextFile();
   while(entry){
     if(!entry.isDirectory()){
@@ -130,20 +152,25 @@ String oldestSpoolPath(bool allowCurrent){
   return oldest;
 }
 
-void pruneSpool(){
+void pruneSpool(uint64_t incomingBytes=0){
   if(!sdReady)return;
   const uint64_t quota=sdSpoolQuotaBytes();
   const uint64_t reserve=(SD.totalBytes()*static_cast<uint64_t>(SD_RESERVE_PERCENT))/100ULL;
-  for(int guard=0;guard<64;guard++){
+  for(int guard=0;guard<64&&sdReady;guard++){
     const uint64_t used=spoolUsageBytes();
+    if(!sdReady)return;
     const uint64_t total=SD.totalBytes();
-    const uint64_t freeBytes=total>SD.usedBytes()?total-SD.usedBytes():0;
-    if(used<=quota&&freeBytes>=reserve)return;
+    const uint64_t usedCard=SD.usedBytes();
+    const uint64_t freeBytes=total>usedCard?total-usedCard:0;
+    if(used+incomingBytes<=quota&&freeBytes>=reserve+incomingBytes)return;
     String victim=oldestSpoolPath(false);
     if(victim.length()==0)victim=oldestSpoolPath(true);
     if(victim.length()==0)return;
-    if(SD.remove(victim)){sdDroppedPackets+=1;if(victim==currentSpoolPath){currentSpoolPath="";currentSpoolRecords=0;}Serial.printf("KINGMAST: SD spool pruned %s\n",victim.c_str());}
-    else return;
+    if(SD.remove(victim)){
+      sdPrunedSegments+=1;
+      if(victim==currentSpoolPath){currentSpoolPath="";currentSpoolRecords=0;}
+      Serial.printf("KINGMAST: SD spool pruned %s\n",victim.c_str());
+    }else{markSdUnavailable("spool-prune-failed");return;}
   }
 }
 
@@ -154,19 +181,23 @@ String makeSpoolSegmentPath(uint64_t timestampMs,uint32_t packetSequence){
 }
 
 bool spoolHistoryRecord(const String& body,const String& signature,uint32_t packetSequence,uint64_t timestampMs){
+  maintainSdSpool();
   if(!sdReady||!historyUrlConfigured())return false;
   String line="{\"keyId\":\"";
   line+=deviceHmacConfigured()?String(KINGMAST_DEVICE_KEY_ID):String();
   line+="\",\"packet\":";line+=body;line+=",\"signature\":\"";line+=signature;line+="\"}";
-  if(line.length()+1>SD_SPOOL_SEGMENT_BYTES){Serial.println("KINGMAST: history packet exceeds SD spool segment bound");sdDroppedPackets+=1;return false;}
+  const uint64_t incomingBytes=static_cast<uint64_t>(line.length()+1);
+  if(incomingBytes>SD_SPOOL_SEGMENT_BYTES){Serial.println("KINGMAST: history packet exceeds SD spool segment bound");sdDroppedPackets+=1;return false;}
+  pruneSpool(incomingBytes);
+  if(!sdReady)return false;
   if(currentSpoolPath.length()==0){currentSpoolPath=makeSpoolSegmentPath(timestampMs,packetSequence);currentSpoolRecords=0;}
   File existing=SD.open(currentSpoolPath,FILE_READ);
   size_t currentBytes=existing?existing.size():0;if(existing)existing.close();
-  if(currentBytes+line.length()+1>SD_SPOOL_SEGMENT_BYTES||currentSpoolRecords>=SD_SPOOL_SEGMENT_MAX_RECORDS){currentSpoolPath=makeSpoolSegmentPath(timestampMs,packetSequence);currentSpoolRecords=0;}
+  if(currentBytes+incomingBytes>SD_SPOOL_SEGMENT_BYTES||currentSpoolRecords>=SD_SPOOL_SEGMENT_MAX_RECORDS){currentSpoolPath=makeSpoolSegmentPath(timestampMs,packetSequence);currentSpoolRecords=0;}
   File file=SD.open(currentSpoolPath,FILE_APPEND);
-  if(!file){Serial.println("KINGMAST: failed to open SD spool segment");return false;}
+  if(!file){markSdUnavailable("spool-open-failed");return false;}
   const size_t written=file.println(line);file.flush();file.close();
-  if(written==0){Serial.println("KINGMAST: failed to write SD spool record");return false;}
+  if(written==0){markSdUnavailable("spool-write-failed");return false;}
   currentSpoolRecords+=1;sdSpooledPackets+=1;pruneSpool();return true;
 }
 
@@ -191,12 +222,16 @@ int postLiveBody(const String& body,const String& signature){
 
 bool shouldSpoolStatus(int status){return status<=0||status==408||status==425||status==429||status>=500;}
 
-bool buildHistoryBatch(const String& path,String& batch){
-  File file=SD.open(path,FILE_READ);if(!file)return false;
+bool buildHistoryBatch(const String& path,String& batch,bool& corruptTail){
+  corruptTail=false;
+  File file=SD.open(path,FILE_READ);if(!file){markSdUnavailable("history-segment-open");return false;}
   batch="{\"records\":[";uint16_t count=0;
   while(file.available()){
     String line=file.readStringUntil('\n');line.trim();if(line.length()==0)continue;
-    if(count>=SD_SPOOL_SEGMENT_MAX_RECORDS||batch.length()+line.length()+4>240000){file.close();return false;}
+    DynamicJsonDocument validation(8192);
+    const DeserializationError error=deserializeJson(validation,line);
+    if(error||!validation.is<JsonObject>()){corruptTail=true;break;}
+    if(count>=SD_SPOOL_SEGMENT_MAX_RECORDS||batch.length()+line.length()+4>HISTORY_BATCH_MAX_BYTES){file.close();return false;}
     if(count>0)batch+=',';batch+=line;count+=1;
   }
   file.close();batch+="]}";return count>0;
@@ -211,14 +246,31 @@ bool postHistoryBatch(const String& batch){
 }
 
 void drainOldestSpoolSegment(){
+  maintainSdSpool();
   if(!sdReady||WiFi.status()!=WL_CONNECTED||!historyUrlConfigured())return;
   String path=oldestSpoolPath(true);if(path.length()==0)return;
-  String batch;if(!buildHistoryBatch(path,batch)){Serial.printf("KINGMAST: invalid SD spool segment retained %s\n",path.c_str());return;}
+  String batch;bool corruptTail=false;
+  const bool hasValidRecords=buildHistoryBatch(path,batch,corruptTail);
+  if(!sdReady)return;
+  if(!hasValidRecords){
+    if(corruptTail&&SD.remove(path)){
+      if(path==currentSpoolPath){currentSpoolPath="";currentSpoolRecords=0;}
+      sdCorruptSegments+=1;
+      Serial.printf("KINGMAST: discarded unrecoverable partial SD segment %s\n",path.c_str());
+    }
+    return;
+  }
   if(!postHistoryBatch(batch))return;
-  if(SD.remove(path)){if(path==currentSpoolPath){currentSpoolPath="";currentSpoolRecords=0;}sdRecoveredSegments+=1;Serial.printf("KINGMAST: recovered SD history segment %s\n",path.c_str());}
+  if(SD.remove(path)){
+    if(path==currentSpoolPath){currentSpoolPath="";currentSpoolRecords=0;}
+    sdRecoveredSegments+=1;
+    if(corruptTail)sdCorruptSegments+=1;
+    Serial.printf("KINGMAST: recovered SD history segment %s partialTail=%d\n",path.c_str(),corruptTail?1:0);
+  }else markSdUnavailable("history-segment-remove");
 }
 
 void publishFrame(){
+  maintainSdSpool();
   uint64_t nowEpoch=epochMillis();
   if(nowEpoch==0){if(WiFi.status()!=WL_CONNECTED)connectWifi();if(!syncClock())return;nowEpoch=epochMillis();if(nowEpoch==0)return;}
   if(!gps.location.isValid())return;
@@ -283,4 +335,4 @@ void setup(){
   connectWifi();syncClock();
 }
 
-void loop(){readSensors();unsigned long now=millis();if(now-lastPublishMs>=PUBLISH_INTERVAL_MS){lastPublishMs=now;publishFrame();}delay(2);}
+void loop(){readSensors();maintainSdSpool();unsigned long now=millis();if(now-lastPublishMs>=PUBLISH_INTERVAL_MS){lastPublishMs=now;publishFrame();}delay(2);}
