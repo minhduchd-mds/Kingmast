@@ -1,5 +1,5 @@
-import KingmastCockpitPro from '../../components/KingmastCockpitPro';
+import KingmastCockpitUltra from '../../components/KingmastCockpitUltra';
 
 export default function Esp32LiveBenchPage() {
-  return <KingmastCockpitPro />;
+  return <KingmastCockpitUltra />;
 }
