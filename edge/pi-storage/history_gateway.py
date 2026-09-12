@@ -17,6 +17,7 @@ from storage_runtime import AdaptiveJsonlRingStore
 MAX_BODY_BYTES = 256 * 1024
 MAX_RECORDS = 128
 MAX_RECENT_IDS = 20_000
+LOOPBACK_CLIENTS = {'127.0.0.1', '::1'}
 
 
 def _stable_json(value: Any) -> str:
@@ -75,11 +76,11 @@ def parse_hmac_registry(raw: str) -> dict[str, dict[str, str]]:
             if not isinstance(item, dict):
                 continue
             key_id = str(item.get('keyId', '')).strip()
-            secret = str(item.get('secret', ''))
+            key_material = str(item.get('secret', ''))
             algorithm = item.get('algorithm', 'hmac-sha256')
             state = item.get('state', 'active')
-            if algorithm == 'hmac-sha256' and state == 'active' and key_id and len(secret) >= 32:
-                device[key_id] = secret
+            if algorithm == 'hmac-sha256' and state == 'active' and key_id and len(key_material) >= 32:
+                device[key_id] = key_material
         if device:
             result[device_id] = device
     return result
@@ -91,10 +92,10 @@ def verify_record_signature(record: dict[str, Any], registry: dict[str, dict[str
     signature = str(record.get('signature', '')).strip().lower()
     if len(signature) != 64 or any(ch not in '0123456789abcdef' for ch in signature):
         return False
-    secret = registry.get(packet['deviceId'], {}).get(key_id)
-    if secret is None:
+    key_material = registry.get(packet['deviceId'], {}).get(key_id)
+    if key_material is None:
         return False
-    expected = hmac.new(secret.encode('utf-8'), canonical_packet_message(packet, key_id), hashlib.sha256).hexdigest()
+    expected = hmac.new(key_material.encode('utf-8'), canonical_packet_message(packet, key_id), hashlib.sha256).hexdigest()
     return hmac.compare_digest(signature, expected)
 
 
@@ -135,6 +136,9 @@ class HistoryRuntime:
 
     def _token_valid(self, candidate: str) -> bool:
         return bool(self.edge_token) and hmac.compare_digest(candidate, self.edge_token)
+
+    def status_authorized(self, candidate: str, client_ip: str) -> bool:
+        return client_ip in LOOPBACK_CLIENTS or self._token_valid(candidate)
 
     def ingest_batch(self, payload: Any, token: str) -> dict[str, Any]:
         if not isinstance(payload, dict) or not isinstance(payload.get('records'), list):
@@ -220,6 +224,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         if self.path != '/v1/storage/status':
             self._json(404, {'error': 'not-found'})
+            return
+        token = self.headers.get('x-kingmast-edge-token', '')
+        if not self.runtime.status_authorized(token, self.client_address[0]):
+            self._json(401, {'error': 'storage-status-auth-required'})
             return
         self._json(200, self.runtime.status())
 
