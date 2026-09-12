@@ -77,6 +77,34 @@ expect(traceReport.controlAuthority === 'none', 'traceability report must preser
 expect(traceReport.qualificationClaim === 'traceability-planning-report-only-not-sotif-conformity-or-physical-validation', 'traceability report must reject SOTIF/conformity claims');
 expect(traceReport.cases.every((item) => item.physicalEvidenceState === 'pending' && item.targetHardwareQualified === false && item.hilQualified === false && item.controlAuthority === 'none'), 'scenario traceability must preserve pending physical evidence and no-actuation boundary');
 
+// The scenarios below are currently executable in deterministic software tests and therefore
+// must be linked by their stable S8 IDs. Other catalog scenarios may remain candidate-only until
+// a reviewed SIL/HIL/track implementation exists; this gate must not manufacture false coverage.
+const requiredDirectScenarioIds = [
+  'S8-002',
+  'S8-004',
+  'S8-017',
+  'S8-019',
+  'S8-021',
+  'S8-022',
+  'S8-024',
+  'S8-025',
+  'S8-026',
+  'S8-027',
+  'S8-028',
+  'S8-030',
+  'S8-034',
+  'S8-036',
+];
+const traceByScenario = new Map(traceReport.cases.map((item) => [item.scenarioId, item]));
+for (const scenarioId of requiredDirectScenarioIds) {
+  const traced = traceByScenario.get(scenarioId);
+  expect(Boolean(traced), `${scenarioId} is missing from traceability report`);
+  expect(traced.directScenarioIdAssertionPresent === true, `${scenarioId} must have an exact stable-ID assertion in candidate automated evidence`);
+  expect(Array.isArray(traced.directScenarioIdEvidence) && traced.directScenarioIdEvidence.length > 0, `${scenarioId} must identify the exact test source containing its stable ID`);
+}
+expect(traceReport.directScenarioIdAssertionCount >= requiredDirectScenarioIds.length, 'direct software scenario-ID coverage regressed below the required executable subset');
+
 expect(assurance.includes("qualificationClaim: 'research-runtime-diagnostics-only-not-sotif-conformity'"), 'runtime assurance snapshot must reject conformity claim');
 expect(assurance.includes("controlAuthority: 'none'"), 'runtime assurance snapshot must preserve zero actuator authority');
 expect(assurance.includes('targetHardwareQualified: false') && assurance.includes('controlledTrackQualified: false') && assurance.includes('publicRoadApproved: false'), 'runtime assurance must not invent physical qualification');
@@ -98,4 +126,4 @@ for (const required of [
   expect(existsSync(resolve(root, required)), `${required} is required`);
 }
 
-console.log(`KINGMAST SOTIF ODD/traceability policy passed: ${scenarios.scenarios.length} scenarios mapped, physical bounds remain unclaimed, OpenODD 1.0.0/OpenSCENARIO XML 1.4.0 are bridge targets only.`);
+console.log(`KINGMAST SOTIF ODD/traceability policy passed: ${scenarios.scenarios.length} scenarios mapped, ${traceReport.directScenarioIdAssertionCount} have exact software IDs, physical bounds remain unclaimed, OpenODD 1.0.0/OpenSCENARIO XML 1.4.0 are bridge targets only.`);
