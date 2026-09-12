@@ -1,6 +1,10 @@
 import {readFileSync} from 'node:fs';
 
 const server=readFileSync('services/risk-engine/src/server.ts','utf8');
+const envelope=readFileSync('apps/hmi/lib/security-envelope.ts','utf8');
+const navigation=readFileSync('apps/hmi/app/api/kingmast/live-navigation/alternatives/route.ts','utf8');
+const geocoding=readFileSync('apps/hmi/app/api/kingmast/live-navigation/search/route.ts','utf8');
+const envelopeDoc=readFileSync('docs/SECURITY_ENVELOPE.md','utf8');
 const failures=[];
 const lines=server.split(/\r?\n/);
 
@@ -36,8 +40,49 @@ for(const [index,line] of lines.entries()){
   }
 }
 
+expect('HMI security envelope is fail closed',
+  envelope.includes("enabled('KINGMAST_SECURITY_ENVELOPE_ENABLED', true)")&&
+  envelope.includes("enabled('KINGMAST_NAV_AUTH_REQUIRED', true)")&&
+  envelope.includes("KINGMAST_EMERGENCY_LOCKDOWN")&&
+  envelope.includes("status: 401")&&
+  envelope.includes("status: 429")
+);
+expect('navigation capability is short lived and replay resistant',
+  envelope.includes("x-kingmast-capability")&&
+  envelope.includes('15 * 60_000')&&
+  envelope.includes('timingSafeEqual')&&
+  envelope.includes('capabilityReplay')
+);
+expect('paid routing requires explicit enable kill switch and bounded quota',
+  envelope.includes("enabled('KINGMAST_PAID_ROUTING_ENABLED')")&&
+  envelope.includes("enabled('KINGMAST_NAV_KILL_SWITCH')")&&
+  envelope.includes("KINGMAST_NAV_DAILY_PAID_LIMIT")&&
+  envelope.includes('consumePaidRoutingQuota')
+);
+expect('navigation alternatives are envelope protected',
+  navigation.includes("admitNavigationRequest(request, 'navigation:route')")&&
+  navigation.includes('paidRoutingEnabled()')&&
+  navigation.includes('consumePaidRoutingQuota()')&&
+  navigation.includes('securityEnvelopeHeaders')
+);
+expect('geocoding search is envelope protected',
+  geocoding.includes("admitNavigationRequest(request, 'navigation:search')")&&
+  geocoding.includes('securityEnvelopeHeaders')
+);
+expect('paid map credentials remain server-side only',
+  navigation.includes('process.env.GOOGLE_ROUTES_API_KEY')&&
+  navigation.includes('process.env.MAPBOX_ACCESS_TOKEN')&&
+  !navigation.includes('NEXT_PUBLIC_GOOGLE')&&
+  !navigation.includes('NEXT_PUBLIC_MAPBOX')
+);
+expect('security envelope documents hardware read-only vehicle boundary',
+  envelopeDoc.includes('Hardware read-only vehicle gateway')&&
+  envelopeDoc.includes('Internet/API compromise must not create a path')&&
+  envelopeDoc.includes('Observe -> Analyze -> Warn')
+);
+
 if(failures.length){
-  console.error(`KINGMAST route rate-limit policy failed:\n${failures.map((item)=>`- ${item}`).join('\n')}`);
+  console.error(`KINGMAST route/security-envelope policy failed:\n${failures.map((item)=>`- ${item}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`KINGMAST route rate-limit policy passed for ${routes} explicit Fastify routes plus the bounded global fallback.`);
+console.log(`KINGMAST route/security-envelope policy passed for ${routes} explicit Fastify routes plus protected HMI navigation/geocoding boundaries.`);
