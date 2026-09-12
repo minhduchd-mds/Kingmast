@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { GeoPoint, NavigationRoute, NavigationRouteOption, NavigationStep } from '@kingmast/contracts';
+import {
+  admitNavigationRequest,
+  consumePaidRoutingQuota,
+  paidRoutingEnabled,
+  securityEnvelopeHeaders,
+} from '@/lib/security-envelope';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -133,8 +139,9 @@ function fromGoogle(raw: GoogleRoute, origin: GeoPoint, destination: GeoPoint): 
 
 function backendOrder(): Backend[] {
   const configured = (process.env.KINGMAST_TRAFFIC_ROUTING_PROVIDER?.trim() || 'auto').toLowerCase();
-  const google = Boolean(process.env.GOOGLE_ROUTES_API_KEY?.trim());
-  const mapbox = Boolean(process.env.MAPBOX_ACCESS_TOKEN?.trim());
+  const paidAllowed = paidRoutingEnabled();
+  const google = paidAllowed && Boolean(process.env.GOOGLE_ROUTES_API_KEY?.trim());
+  const mapbox = paidAllowed && Boolean(process.env.MAPBOX_ACCESS_TOKEN?.trim());
   if (configured === 'google') return google ? ['google', 'osrm'] : ['osrm'];
   if (configured === 'mapbox') return mapbox ? ['mapbox', 'osrm'] : ['osrm'];
   if (configured === 'osrm') return ['osrm'];
@@ -142,6 +149,7 @@ function backendOrder(): Backend[] {
 }
 
 async function requestGoogle(origin: GeoPoint, destination: GeoPoint) {
+  if (!consumePaidRoutingQuota()) throw new Error('paid-routing-disabled-or-quota');
   const key = process.env.GOOGLE_ROUTES_API_KEY?.trim();
   if (!key) throw new Error('google-not-configured');
   const base = (process.env.GOOGLE_ROUTES_BASE_URL?.trim() || 'https://routes.googleapis.com').replace(/\/$/, '');
@@ -166,6 +174,7 @@ async function requestGoogle(origin: GeoPoint, destination: GeoPoint) {
 }
 
 async function requestMapbox(origin: GeoPoint, destination: GeoPoint) {
+  if (!consumePaidRoutingQuota()) throw new Error('paid-routing-disabled-or-quota');
   const token = process.env.MAPBOX_ACCESS_TOKEN?.trim();
   if (!token) throw new Error('mapbox-not-configured');
   const base = (process.env.MAPBOX_DIRECTIONS_BASE_URL?.trim() || 'https://api.mapbox.com').replace(/\/$/, '');
@@ -226,18 +235,31 @@ function toOptions(items: NavigationRoute[]): NavigationRouteOption[] {
 }
 
 export async function POST(request: NextRequest) {
+  const admission = admitNavigationRequest(request, 'navigation:route');
+  if (!admission.ok) {
+    return NextResponse.json(
+      { error: admission.reason },
+      { status: admission.status, headers: securityEnvelopeHeaders(admission.reason) },
+    );
+  }
+
   try {
     const body = await request.json() as { origin?: unknown; destination?: unknown };
     const origin = point(body.origin);
     const destination = point(body.destination);
-    if (!origin || !destination) return NextResponse.json({ error: 'invalid-route-request' }, { status: 400 });
+    if (!origin || !destination) {
+      return NextResponse.json({ error: 'invalid-route-request' }, { status: 400, headers: securityEnvelopeHeaders() });
+    }
     const result = toOptions(await routes(origin, destination));
     return NextResponse.json({
       routes: result,
       trafficAvailable: Boolean(result.some((item) => item.route.traffic?.aware)),
       trafficSource: result.find((item) => item.route.traffic?.aware)?.route.traffic?.source ?? 'none',
-    }, { headers: { 'cache-control': 'no-store' } });
+    }, { headers: securityEnvelopeHeaders() });
   } catch {
-    return NextResponse.json({ error: 'navigation-provider-unavailable' }, { status: 503, headers: { 'cache-control': 'no-store' } });
+    return NextResponse.json(
+      { error: 'navigation-provider-unavailable' },
+      { status: 503, headers: securityEnvelopeHeaders('provider-unavailable') },
+    );
   }
 }
