@@ -17,7 +17,7 @@ def main() -> None:
     gib = 1024 ** 3
     plan128 = compute_storage_plan(128 * gib, 100 * gib, 15, 10)
     plan256 = compute_storage_plan(256 * gib, 200 * gib, 15, 10)
-    check(checks, 'adaptive-128-256', plan256.quota_bytes == plan128.quota_bytes * 2, 'quota follows actual filesystem capacity')
+    check(checks, 'adaptive-128-256', abs(plan256.quota_bytes - plan128.quota_bytes * 2) <= 1, 'quota follows actual filesystem capacity within one-byte floating rounding')
     check(checks, 'reserve-degraded', compute_storage_plan(1000, 140, 15, 10).mode == 'degraded', 'free space enters degraded before reserve floor')
     check(checks, 'reserve-critical', compute_storage_plan(1000, 100, 15, 10).mode == 'critical', 'reserve floor is reported critical')
 
