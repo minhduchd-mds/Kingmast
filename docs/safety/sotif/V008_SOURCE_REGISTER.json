@@ -1,0 +1,117 @@
+{
+  "schema": "kingmast-sotif-source-register/v1",
+  "productVersion": "0.0.8",
+  "reviewedAt": "2026-09-12",
+  "controlAuthority": "none",
+  "qualificationClaim": "research-reference-register-only-not-compliance",
+  "sources": [
+    {
+      "id": "ISO-21448-2022",
+      "publisher": "ISO",
+      "title": "ISO 21448:2022 Road vehicles — Safety of the intended functionality",
+      "status": "published",
+      "role": "primary-sotif-reference",
+      "url": "https://www.iso.org/standard/77490.html",
+      "notes": "Published SOTIF reference. Covers functional/performance insufficiency and reasonably foreseeable misuse; excludes conventional ISO 26262 faults and cybersecurity threats."
+    },
+    {
+      "id": "ISO-21448-WD2-2026",
+      "publisher": "ISO",
+      "title": "ISO/WD 21448 Edition 2",
+      "status": "working-draft",
+      "role": "revision-awareness-only",
+      "url": "https://www.iso.org/standard/93071.html",
+      "notes": "Under development in 2026 and intended to replace ISO 21448:2022 when published. Not used as a conformity baseline."
+    },
+    {
+      "id": "ISO-26262-FAMILY",
+      "publisher": "ISO",
+      "title": "ISO 26262 Road vehicles — Functional safety",
+      "status": "published-family",
+      "role": "functional-safety-boundary",
+      "url": "https://www.iso.org/publication/PUB200262.html",
+      "notes": "Used to keep conventional fault handling and safety lifecycle distinct from SOTIF insufficiency analysis."
+    },
+    {
+      "id": "ISO-34502-2022",
+      "publisher": "ISO",
+      "title": "ISO 34502:2022 Road vehicles — Test scenarios for automated driving systems — Scenario based safety evaluation framework",
+      "status": "published",
+      "role": "scenario-framework-reference",
+      "url": "https://www.iso.org/standard/78951.html",
+      "notes": "ADS-focused scenario framework used as a structural reference; it does not make the Level-0 KINGMAST function compliant."
+    },
+    {
+      "id": "ISO-34503-2023",
+      "publisher": "ISO",
+      "title": "ISO 34503:2023 Road vehicles — Test scenarios for automated driving systems — Specification for operational design domain",
+      "status": "published",
+      "role": "operating-domain-taxonomy-reference",
+      "url": "https://www.iso.org/standard/78952.html",
+      "notes": "Used as a reference for hierarchical operating-condition/ODD description."
+    },
+    {
+      "id": "ISO-34504-2024",
+      "publisher": "ISO",
+      "title": "ISO 34504:2024 Road vehicles — Test scenarios for automated driving systems — Scenario categorization",
+      "status": "published",
+      "role": "scenario-tagging-reference",
+      "url": "https://www.iso.org/standard/78953.html",
+      "notes": "Used to structure scenario tags and environmental/dynamic-entity categorization."
+    },
+    {
+      "id": "ISO-34505-2025",
+      "publisher": "ISO",
+      "title": "ISO 34505:2025 Road vehicles — Test scenarios for automated driving systems — Scenario evaluation and test case generation",
+      "status": "published",
+      "role": "test-case-generation-reference",
+      "url": "https://www.iso.org/standard/78954.html",
+      "notes": "Used for traceable test-case fields such as identifiers, objectives, inputs, platforms and expected results, and for coverage/prioritization concepts."
+    },
+    {
+      "id": "ASAM-OPENSCENARIO-XML",
+      "publisher": "ASAM",
+      "title": "ASAM OpenSCENARIO XML",
+      "status": "published",
+      "role": "dynamic-scenario-interchange",
+      "url": "https://www.asam.net/standards/detail/openscenario-xml/",
+      "notes": "Current ASAM landing page; as of 2026-09 the listed current version is 1.4.0, released 2026-05-19."
+    },
+    {
+      "id": "ASAM-OPENODD-1.0.0",
+      "publisher": "ASAM",
+      "title": "ASAM OpenODD Base Standard 1.0.0",
+      "status": "published",
+      "role": "machine-readable-operating-domain",
+      "url": "https://publications.pages.asam.net/standards/ASAM_OpenODD/ASAM_OpenODD/latest/specification/index.html",
+      "notes": "Reference for machine-readable operating domain/ODD modelling and future simulator interchange."
+    },
+    {
+      "id": "EURONCAP-SA-2026",
+      "publisher": "Euro NCAP",
+      "title": "Euro NCAP Safety Assist — latest protocols",
+      "status": "published",
+      "role": "independent-consumer-test-comparator",
+      "url": "https://www.euroncap.com/safety-assist/",
+      "notes": "Latest protocol index used only as scenario/test comparator, not as a KINGMAST score or approval claim."
+    },
+    {
+      "id": "EURONCAP-AEB-C2C-4.3.1",
+      "publisher": "Euro NCAP",
+      "title": "AEB Car-to-Car Test Protocol v4.3.1",
+      "status": "published",
+      "role": "vehicle-conflict-scenario-comparator",
+      "url": "https://cdn.euroncap.com/cars/assets/euro_ncap_aeb_c2c_test_protocol_v431_532926aad1.pdf",
+      "notes": "Used to ensure research coverage includes stationary/moving/braking lead, turn-across-path, crossing-path and head-on conflict families. No AEB claim is made."
+    },
+    {
+      "id": "NHTSA-FMVSS-127",
+      "publisher": "NHTSA",
+      "title": "FMVSS No. 127 Automatic Emergency Braking Systems for Light Vehicles — final rule information",
+      "status": "published",
+      "role": "us-regulatory-scenario-comparator",
+      "url": "https://www.nhtsa.gov/press-releases/nhtsa-fmvss-127-automatic-emergency-braking-reduce-crashes",
+      "notes": "AEB/PAEB regulation used only to identify vehicle/pedestrian scenario gaps. KINGMAST remains warning-only and does not claim FMVSS 127 compliance."
+    }
+  ]
+}
