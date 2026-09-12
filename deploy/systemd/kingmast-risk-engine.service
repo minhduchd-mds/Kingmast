@@ -42,6 +42,8 @@ RestrictRealtime=true
 RestrictNamespaces=true
 LockPersonality=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=any
+SocketBindAllow=tcp:4000
 UMask=0077
 ReadWritePaths=/var/lib/kingmast-risk /var/log/kingmast-risk
 
