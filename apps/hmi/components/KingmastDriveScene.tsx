@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import type { TelemetryFrame } from '@kingmast/contracts';
 import type { Esp32C3BenchPayload } from '../lib/esp32-c3-bench';
 import styles from './KingmastDriveScene.module.css';
+import fx from './KingmastDriveSceneEnhancements.module.css';
 
 type ViewMode = '2d' | '3d';
 type Tone = 'safe' | 'watch' | 'warning' | 'danger' | 'lost';
@@ -36,6 +37,16 @@ function toneLabel(tone: Tone) {
   return 'SAFE';
 }
 
+function riskLevel(tone: Tone, distance: number | null, ttc: number | null) {
+  if (tone === 'lost') return 28;
+  if (tone === 'danger') return 96;
+  if (tone === 'warning') return 72;
+  if (tone === 'watch') return 44;
+  if (distance !== null && distance < 35) return 28;
+  if (ttc !== null && ttc < 8) return 24;
+  return 14;
+}
+
 export default function KingmastDriveScene({ payload, frame, alert }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('3d');
   const tone = toneFor(payload);
@@ -45,6 +56,9 @@ export default function KingmastDriveScene({ payload, frame, alert }: Props) {
   const speed = Math.max(0, payload?.speedKph ?? 0);
   const relativeSpeed = payload?.relativeSpeedMps ?? 0;
   const closingSpeed = Math.max(0, -relativeSpeed);
+  const objectCount = frame?.objects.length ?? 0;
+  const confidence = sensorOnline ? Math.round((payload?.confidence ?? 0) * 100) : 0;
+  const riskPercent = riskLevel(tone, distance, ttc);
 
   const sceneMetrics = useMemo(() => {
     const proximity = distance === null ? 0 : 1 - clamp(distance / 60, 0, 1);
@@ -52,7 +66,23 @@ export default function KingmastDriveScene({ payload, frame, alert }: Props) {
     const targetScale = 0.72 + proximity * 0.58;
     const laneDuration = clamp(2.8 - speed / 42, 0.65, 2.8);
     const closingShift = clamp(closingSpeed * 1.8, 0, 16);
-    return { proximity, targetY, targetScale, laneDuration, closingShift };
+    const envelopeSize = 120 + proximity * 115;
+    const envelopeY = 31 + proximity * 20;
+    const envelopeOpacity = distance === null ? 0 : 0.16 + proximity * 0.5;
+    const closingOpacity = clamp(closingSpeed / 8, 0.12, 0.82);
+    const speedOpacity = clamp(speed / 100, 0.08, 0.38);
+    return {
+      proximity,
+      targetY,
+      targetScale,
+      laneDuration,
+      closingShift,
+      envelopeSize,
+      envelopeY,
+      envelopeOpacity,
+      closingOpacity,
+      speedOpacity,
+    };
   }, [closingSpeed, distance, speed]);
 
   const sceneStyle = {
@@ -60,6 +90,12 @@ export default function KingmastDriveScene({ payload, frame, alert }: Props) {
     '--target-scale': String(sceneMetrics.targetScale),
     '--lane-duration': `${sceneMetrics.laneDuration}s`,
     '--closing-shift': `${sceneMetrics.closingShift}px`,
+    '--envelope-size': `${sceneMetrics.envelopeSize}px`,
+    '--envelope-y': `${sceneMetrics.envelopeY}%`,
+    '--envelope-opacity': String(sceneMetrics.envelopeOpacity),
+    '--closing-opacity': String(sceneMetrics.closingOpacity),
+    '--speed-opacity': String(sceneMetrics.speedOpacity),
+    '--risk-level': `${riskPercent}%`,
   } as CSSProperties;
 
   return (
@@ -88,6 +124,18 @@ export default function KingmastDriveScene({ payload, frame, alert }: Props) {
         <span className={`${styles.demoTraffic} ${styles.demoTrafficA}`}><CarFront /></span>
         <span className={`${styles.demoTraffic} ${styles.demoTrafficB}`}><CarFront /></span>
         <span className={`${styles.demoTraffic} ${styles.demoTrafficC}`}><CarFront /></span>
+      </div>
+
+      <div className={fx.visualLayer} aria-hidden="true">
+        <span className={fx.scanLines} />
+        <span className={fx.depthGrid} />
+        <span className={fx.speedStreaks} />
+        <span className={fx.cornerTechLeft} />
+        <span className={fx.cornerTechRight} />
+        <div className={fx.projectedPath}><span className={fx.pathCenter} /></div>
+        {sensorOnline && distance !== null ? <span className={fx.collisionEnvelope} /> : null}
+        {sensorOnline && closingSpeed > 0.2 ? <span className={fx.closingTrail} /> : null}
+        {tone === 'danger' ? <span className={fx.dangerFlash} /> : tone === 'warning' ? <span className={fx.warningFlash} /> : null}
       </div>
 
       <div className={styles.topOverlay}>{alert}</div>
@@ -145,6 +193,18 @@ export default function KingmastDriveScene({ payload, frame, alert }: Props) {
         <CarFront size={16} /><span>Phía sau</span><strong>--</strong><small>chưa nối</small>
       </div>
 
+      <div className={fx.riskCluster} data-testid="drive-risk-meter">
+        <div className={fx.riskClusterHeader}><span>RISK LEVEL</span><strong>{toneLabel(tone)}</strong></div>
+        <div className={fx.riskBar}><i /></div>
+        <div className={fx.riskMeta}><span>TTC {ttc === null ? '--' : `${ttc.toFixed(2)}s`}</span><span>{riskPercent}%</span></div>
+      </div>
+
+      <div className={fx.sensorHealthStrip} data-testid="drive-sensor-strip">
+        <div><span>RADAR</span><strong className={sensorOnline ? fx.sensorOk : fx.sensorLost}>{sensorOnline ? 'LIVE' : 'LOST'}</strong></div>
+        <div><span>CONF</span><strong>{sensorOnline ? `${confidence}%` : '--'}</strong></div>
+        <div><span>OBJECTS</span><strong>{sensorOnline ? objectCount : '--'}</strong></div>
+      </div>
+
       {!sensorOnline ? (
         <div className={styles.degradedOverlay} role="status">
           <AlertTriangle size={22} />
@@ -163,6 +223,7 @@ export default function KingmastDriveScene({ payload, frame, alert }: Props) {
           <button type="button" className={viewMode === '3d' ? styles.viewActive : ''} onClick={() => setViewMode('3d')}>3D</button>
         </div>
       </div>
+      <span className={fx.vignette} aria-hidden="true" />
     </section>
   );
 }
