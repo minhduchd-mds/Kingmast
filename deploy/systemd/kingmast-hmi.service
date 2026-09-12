@@ -1,0 +1,48 @@
+[Unit]
+Description=KINGMAST HMI (isolated warning-only UI)
+After=network-online.target kingmast-risk-engine.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kingmast-hmi
+Group=kingmast-hmi
+WorkingDirectory=/opt/kingmast/apps/hmi
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+EnvironmentFile=-/etc/kingmast/hmi.env
+ExecStart=/usr/bin/corepack pnpm exec next start -H 127.0.0.1 -p 3000
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=10
+
+# Security envelope: HMI has no Linux capability and cannot see real vehicle devices.
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=true
+PrivateDevices=true
+DevicePolicy=closed
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+
+# Next may need its build cache; no other application path is writable.
+ReadWritePaths=/opt/kingmast/apps/hmi/.next/cache
+
+[Install]
+WantedBy=multi-user.target
