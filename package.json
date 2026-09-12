@@ -58,7 +58,7 @@
     "boot:evidence": "node scripts/boot-security-evidence-check.mjs",
     "skills:validate": "node scripts/validate-agent-skills.mjs",
     "safety:boundary": "node scripts/safety-boundary-check.mjs",
-    "architecture:boundary": "node scripts/architecture-boundary-check.mjs",
+    "architecture:boundary": "node scripts/architecture-boundary-check.mjs && node scripts/vehicle-security-zone-policy-check.mjs",
     "security:secrets": "node scripts/secret-scan.mjs",
     "security:config-auth": "node scripts/configuration-auth-policy-check.mjs",
     "security:provider-auth": "node scripts/provider-identity-policy-check.mjs",
