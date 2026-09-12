@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360" role="img" aria-labelledby="title desc">
+  <title id="title">KINGMAST rear vehicle</title>
+  <desc id="desc">Transparent rear view illustration for the KINGMAST HMI driving scene.</desc>
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="0.46" stop-color="#c7d3df"/>
+      <stop offset="0.74" stop-color="#8f9eac"/>
+      <stop offset="1" stop-color="#5f6a75"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#182839"/>
+      <stop offset="0.52" stop-color="#0a1723"/>
+      <stop offset="1" stop-color="#02070c"/>
+    </linearGradient>
+    <linearGradient id="bumper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b4651"/>
+      <stop offset="1" stop-color="#11171d"/>
+    </linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7a0810"/>
+      <stop offset="0.35" stop-color="#ff2c3a"/>
+      <stop offset="0.7" stop-color="#ff7180"/>
+      <stop offset="1" stop-color="#7a0810"/>
+    </linearGradient>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#000" flood-opacity=".55"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <ellipse cx="260" cy="321" rx="145" ry="18" fill="#000" opacity=".36"/>
+    <path d="M126 250c8-70 28-119 58-148 22-21 48-31 76-31s54 10 76 31c30 29 50 78 58 148l-20 54c-3 10-12 17-23 17H149c-11 0-20-7-23-17z" fill="url(#body)" stroke="#e9f3fb" stroke-width="3"/>
+    <path d="M177 128c18-24 45-37 83-37s65 13 83 37l20 69H157z" fill="url(#glass)" stroke="#7f95a8" stroke-width="2"/>
+    <path d="M172 199h176" stroke="#9eabb7" stroke-width="4" opacity=".8"/>
+    <path d="M151 221c31-14 67-21 109-21s78 7 109 21l5 28c-35 8-73 12-114 12s-79-4-114-12z" fill="#aebac6" opacity=".82"/>
+    <path d="M139 247h242l-11 52H150z" fill="url(#bumper)"/>
+    <path d="M161 232h77c7 0 12 5 12 12v8h-96v-9c0-6 3-9 7-11z" fill="url(#tail)" filter="url(#softGlow)"/>
+    <path d="M359 232h-77c-7 0-12 5-12 12v8h96v-9c0-6-3-9-7-11z" fill="url(#tail)" filter="url(#softGlow)"/>
+    <path d="M170 239h64" stroke="#ffd9de" stroke-width="3" opacity=".95"/>
+    <path d="M350 239h-64" stroke="#ffd9de" stroke-width="3" opacity=".95"/>
+    <rect x="228" y="218" width="64" height="24" rx="8" fill="#101922" stroke="#cad7e1" stroke-width="2"/>
+    <text x="260" y="234" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#eaf8ff">KINGMAST</text>
+    <path d="M187 283h146" stroke="#76838f" stroke-width="2"/>
+    <path d="M197 296h126" stroke="#222d36" stroke-width="7" stroke-linecap="round"/>
+    <rect x="112" y="244" width="25" height="58" rx="12" fill="#111820"/>
+    <rect x="383" y="244" width="25" height="58" rx="12" fill="#111820"/>
+    <path d="M134 185l-29 11 7 17 35-7" fill="#788691" stroke="#c8d5df" stroke-width="2"/>
+    <path d="M386 185l29 11-7 17-35-7" fill="#788691" stroke="#c8d5df" stroke-width="2"/>
+  </g>
+</svg>
