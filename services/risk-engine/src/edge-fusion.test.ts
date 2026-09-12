@@ -28,7 +28,7 @@ describe('fuseEdgePerception', () => {
     expect(objects).toEqual([]);
   });
 
-  it('rejects future-dated radar frames beyond allowed clock skew', () => {
+  it('[S8-028] rejects future-dated radar frames beyond allowed clock skew', () => {
     const objects = fuseEdgePerception({
       vehicle,
       nowMs: now,
@@ -37,7 +37,7 @@ describe('fuseEdgePerception', () => {
     expect(objects).toEqual([]);
   });
 
-  it('rejects stale individual tracks even when their enclosing frame is fresh', () => {
+  it('[S8-027] rejects stale individual tracks even when their enclosing frame is fresh', () => {
     const result = fuseEdgePerceptionDetailed({
       vehicle,
       nowMs: now,
@@ -51,7 +51,7 @@ describe('fuseEdgePerception', () => {
     expect(result.diagnostics.rejectedRadarObservations).toBe(1);
   });
 
-  it('never reuses one camera detection to classify multiple radar tracks', () => {
+  it('[S8-025] never reuses one camera detection to classify multiple radar tracks', () => {
     const result = fuseEdgePerceptionDetailed({
       vehicle,
       nowMs: now,
@@ -68,7 +68,7 @@ describe('fuseEdgePerception', () => {
     expect(result.objects.filter((object) => object.source === 'radar-only')).toHaveLength(1);
   });
 
-  it('does not associate a near-bearing camera detection when range residual exceeds the gate', () => {
+  it('[S8-024] does not associate a near-bearing camera detection when range residual exceeds the gate', () => {
     const result = fuseEdgePerceptionDetailed({
       vehicle,
       nowMs: now,
@@ -84,7 +84,7 @@ describe('fuseEdgePerception', () => {
     expect(result.diagnostics.disagreementCount).toBe(1);
   });
 
-  it('rejects camera/radar association when timestamps are too far apart', () => {
+  it('[S8-026] rejects camera/radar association when timestamps are too far apart', () => {
     const result = fuseEdgePerceptionDetailed({
       vehicle,
       nowMs: now,
@@ -99,7 +99,7 @@ describe('fuseEdgePerception', () => {
     expect(result.diagnostics.matchedCount).toBe(0);
   });
 
-  it('keeps radar-only targets unclassified rather than inventing a class', () => {
+  it('[S8-022] keeps radar-only targets unclassified rather than inventing a class', () => {
     const objects = fuseEdgePerception({
       vehicle,
       nowMs: now,
