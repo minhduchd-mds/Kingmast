@@ -5,7 +5,7 @@ import {
   consumePaidRoutingQuota,
   paidRoutingEnabled,
   securityEnvelopeHeaders,
-} from '@/lib/security-envelope';
+} from '../../../../../lib/security-envelope';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
