@@ -1,0 +1,69 @@
+{
+  "schema": "kingmast-vehicle-security-zones/v1",
+  "controlAuthority": "none",
+  "defaultTrust": "deny",
+  "internetInboundToVehicle": false,
+  "cloudInImmediateWarningPath": false,
+  "hardwareBoundaryRequired": true,
+  "softwareIsolationAloneIsSufficient": false,
+  "zones": [
+    {
+      "id": "external-internet",
+      "trust": "untrusted",
+      "vehicleDeviceAccess": "none",
+      "actuatorAuthority": "none"
+    },
+    {
+      "id": "cloud-context",
+      "trust": "untrusted-input",
+      "vehicleDeviceAccess": "none",
+      "actuatorAuthority": "none",
+      "allowedPurposes": ["navigation-context", "geocoding", "read-only-ai", "tts"]
+    },
+    {
+      "id": "hmi",
+      "trust": "sandboxed",
+      "runtimeUser": "kingmast-hmi",
+      "listen": "127.0.0.1:3000",
+      "vehicleDeviceAccess": "none",
+      "linuxCapabilities": [],
+      "actuatorAuthority": "none"
+    },
+    {
+      "id": "risk-engine",
+      "trust": "sandboxed",
+      "runtimeUser": "kingmast-risk",
+      "listen": "127.0.0.1:4000",
+      "vehicleDeviceAccess": "none",
+      "linuxCapabilities": [],
+      "actuatorAuthority": "none"
+    },
+    {
+      "id": "sensor-gateway",
+      "trust": "authenticated-input",
+      "internetReachable": false,
+      "vehicleBusAuthority": "receive-only",
+      "actuatorAuthority": "none"
+    },
+    {
+      "id": "oem-vehicle",
+      "trust": "safety-boundary",
+      "internetReachable": false,
+      "canTxEnabled": false,
+      "requiredTransceiverMode": "listen-only-or-physically-tx-disabled",
+      "actuatorAuthority": "none"
+    }
+  ],
+  "flows": [
+    {"from": "external-internet", "to": "hmi", "policy": "deny-by-default"},
+    {"from": "hmi", "to": "cloud-context", "policy": "outbound-allowlist-only"},
+    {"from": "cloud-context", "to": "hmi", "policy": "response-to-established-request-only"},
+    {"from": "sensor-gateway", "to": "risk-engine", "policy": "authenticated-bounded-telemetry"},
+    {"from": "risk-engine", "to": "hmi", "policy": "read-only-advisory-data"},
+    {"from": "oem-vehicle", "to": "sensor-gateway", "policy": "receive-only-telemetry"},
+    {"from": "sensor-gateway", "to": "oem-vehicle", "policy": "deny"},
+    {"from": "hmi", "to": "oem-vehicle", "policy": "deny"},
+    {"from": "risk-engine", "to": "oem-vehicle", "policy": "deny"},
+    {"from": "cloud-context", "to": "oem-vehicle", "policy": "deny"}
+  ]
+}
