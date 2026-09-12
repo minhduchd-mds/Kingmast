@@ -1,4 +1,5 @@
 import { NextRequest,NextResponse } from 'next/server';
+import { approvedOutboundUrl } from '../../../../lib/outbound-security';
 
 export const runtime='nodejs';
 
@@ -10,13 +11,23 @@ type PlanResponse={plan:Plan;executionAllowed:boolean;context:{vehicleContextFre
 
 const READ_ONLY_TOOLS=new Set(['navigation.summary','navigation.alternatives','vehicle.health','road.active-hazards','road.next-maneuver','charging.options','settings.summary','alerts.explain']);
 
+function enabled(name:string){const value=process.env[name]?.trim().toLowerCase();return value==='1'||value==='true'||value==='yes'||value==='on';}
 function sameOrigin(request:NextRequest){const origin=request.headers.get('origin');if(!origin)return true;try{return new URL(origin).host===request.nextUrl.host;}catch{return false;}}
 function cleanText(value:unknown,max:number){return typeof value==='string'?value.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max):'';}
 function normalizeLocale(value:unknown):Locale{return value==='vi-VN'?'vi-VN':'en-US';}
-function apiBase(){return(process.env.NEXT_PUBLIC_KINGMAST_API_URL??process.env.KINGMAST_API_URL??'http://127.0.0.1:4000').replace(/\/$/,'');}
+function loopback(host:string){const value=host.toLowerCase().replace(/^\[|\]$/g,'');return value==='127.0.0.1'||value==='localhost'||value==='::1';}
+function apiBase(){
+  const raw=(process.env.KINGMAST_API_URL??process.env.NEXT_PUBLIC_KINGMAST_API_URL??'http://127.0.0.1:4000').trim();
+  try{
+    const url=new URL(raw);
+    if(loopback(url.hostname)&&(url.protocol==='http:'||url.protocol==='https:'))return url.toString().replace(/\/$/,'');
+    if(process.env.NODE_ENV!=='production'&&(url.protocol==='http:'||url.protocol==='https:'))return url.toString().replace(/\/$/,'');
+    if(enabled('KINGMAST_PUBLIC_RISK_ENGINE_ENABLED'))return approvedOutboundUrl(url,'assistant-provider')?.toString().replace(/\/$/,'')??null;
+    return null;
+  }catch{return null;}
+}
 function viewerToken(){return(process.env.KINGMAST_VIEWER_TOKEN??'').trim();}
-function isLoopback(host:string){return host==='127.0.0.1'||host==='localhost'||host==='::1';}
-function providerUrl(){const raw=(process.env.KINGMAST_ASSISTANT_PROVIDER_URL??'').trim();if(!raw)return null;try{const url=new URL(raw);if(url.protocol==='https:')return url;if(url.protocol==='http:'&&isLoopback(url.hostname))return url;return null;}catch{return null;}}
+function providerUrl(){if(!enabled('KINGMAST_CLOUD_AI_ENABLED'))return null;const raw=(process.env.KINGMAST_ASSISTANT_PROVIDER_URL??'').trim();if(!raw)return null;return approvedOutboundUrl(raw,'assistant-provider');}
 
 function sanitizeDevices(value:unknown):Device[]{
   if(!Array.isArray(value))return[];
@@ -29,7 +40,8 @@ function sanitizeDevices(value:unknown):Device[]{
 }
 
 async function fetchGroundedPlan(input:string):Promise<PlanResponse>{
-  const base=apiBase();const token=viewerToken();let cookie='';
+  const base=apiBase();if(!base)throw new Error('risk-engine-boundary');
+  const token=viewerToken();let cookie='';
   if(token){
     const session=await fetch(`${base}/v3/session`,{method:'POST',headers:{'x-kingmast-viewer-token':token},cache:'no-store',signal:AbortSignal.timeout(2500)});
     if(!session.ok)throw new Error(`viewer-session:${session.status}`);
@@ -55,10 +67,7 @@ function deterministicAnswer(planResponse:PlanResponse|null,devices:Device[],loc
   const{plan,context,executionAllowed}=planResponse;
   if(!executionAllowed)return locale==='vi-VN'?'Phần này chỉ mở khi xe đang đỗ. Khi anh dừng xe, em có thể hướng dẫn tiếp.':'This is available only while parked. I can guide you through it once the vehicle is stopped.';
   if(plan.intent==='unsupported')return locale==='vi-VN'?'Phần này em chưa hỗ trợ trong chế độ trợ lý chỉ đọc. Anh có thể hỏi em về cảnh báo, thiết bị, tuyến đường, tình trạng đường hoặc sạc.':'I cannot do that in the read-only assistant, but I can help with alerts, device health, routes, road context or charging.';
-  if(plan.intent==='vehicle-status'){
-    const deviceText=deviceFallback(devices,locale);const sensors=sensorSummary(context.sensorHealth,locale);
-    return locale==='vi-VN'?`${deviceText} Trạng thái cảm biến hiện tại: ${sensors}.`:`${deviceText} Current sensor state: ${sensors}.`;
-  }
+  if(plan.intent==='vehicle-status'){const deviceText=deviceFallback(devices,locale);const sensors=sensorSummary(context.sensorHealth,locale);return locale==='vi-VN'?`${deviceText} Trạng thái cảm biến hiện tại: ${sensors}.`:`${deviceText} Current sensor state: ${sensors}.`;}
   if(plan.intent==='explain-alert')return context.activeAlertCount>0?(locale==='vi-VN'?`Hiện có ${context.activeAlertCount} cảnh báo đang hoạt động. Em sẽ chỉ giải thích dựa trên telemetry đã xác thực, không đoán thêm nguyên nhân.`:`There are ${context.activeAlertCount} active alert(s). I will explain them only from verified telemetry and will not invent a cause.`):(locale==='vi-VN'?'Hiện em chưa thấy cảnh báo nào đang hoạt động trong ngữ cảnh đã xác thực.':'I am not seeing an active alert in the verified runtime context.');
   if(plan.intent==='road-context')return locale==='vi-VN'?'Em cần dữ liệu tình trạng đường trực tiếp để nói chính xác phía trước có gì. Nếu nguồn đó chưa có, em sẽ báo chưa có thay vì đoán.':'I need live road-context data to describe what is ahead accurately. If that source is unavailable, I will say so rather than guess.';
   if(plan.intent==='navigation')return locale==='vi-VN'?'Anh nói điểm đến, ví dụ “tìm đường ít tắc tới Hồ Gươm”, em sẽ tìm tuyến và đưa lên bản đồ nếu dịch vụ định tuyến đang khả dụng.':'Tell me a destination, for example “find the fastest route to the airport,” and I will put the route on the map when routing is available.';
@@ -90,7 +99,7 @@ export async function POST(request:NextRequest){
   const locale=normalizeLocale(body.locale);const devices=sanitizeDevices(body.devices);
   let grounded:PlanResponse|null=null;try{grounded=await fetchGroundedPlan(input);}catch{}
   let answer:string|null=null;let mode:'provider'|'grounded-fallback'|'offline-fallback'='offline-fallback';
-  if(grounded?.executionAllowed){try{answer=await providerAnswer(input,locale,grounded,devices);if(answer)mode='provider';}catch{answer=null;}}
+  if(enabled('KINGMAST_CLOUD_AI_ENABLED')&&grounded?.executionAllowed){try{answer=await providerAnswer(input,locale,grounded,devices);if(answer)mode='provider';}catch{answer=null;}}
   if(!answer){answer=deterministicAnswer(grounded,devices,locale);mode=grounded?'grounded-fallback':'offline-fallback';}
-  return NextResponse.json({answer,mode,grounded:Boolean(grounded),executionAllowed:grounded?.executionAllowed??false,plan:grounded?.plan??null,context:grounded?.context??null,providerConfigured:Boolean(providerUrl()),controlAuthority:'none'},{headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
+  return NextResponse.json({answer,mode,grounded:Boolean(grounded),executionAllowed:grounded?.executionAllowed??false,plan:grounded?.plan??null,context:grounded?.context??null,providerConfigured:Boolean(providerUrl()),cloudAiEnabled:enabled('KINGMAST_CLOUD_AI_ENABLED'),controlAuthority:'none'},{headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
 }
