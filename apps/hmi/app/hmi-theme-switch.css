@@ -1,0 +1,135 @@
+/* KINGMAST cockpit light/dark theme switch. The existing Night HMI button becomes a compact toggle. */
+button[class*="nightButton"]{
+  width:100%!important;
+  min-width:0;
+  height:42px!important;
+  padding:0 11px!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 42px 22px!important;
+  align-items:center!important;
+  gap:8px!important;
+  border-radius:14px!important;
+  font-size:0!important;
+  cursor:pointer!important;
+  transition:background .22s ease,border-color .22s ease,box-shadow .22s ease,color .22s ease!important;
+}
+button[class*="nightButton"]::before{
+  content:"LIGHT";
+  justify-self:start;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.12em;
+  color:#8da7bd;
+}
+button[class*="nightButton"]::after{
+  content:"";
+  grid-column:2;
+  grid-row:1;
+  width:42px;
+  height:22px;
+  border-radius:999px;
+  border:1px solid rgba(83,185,255,.42);
+  background:
+    radial-gradient(circle at calc(100% - 11px) 50%,#f7fbff 0 7px,transparent 7.5px),
+    linear-gradient(180deg,#178ce2,#0c5fa6);
+  box-shadow:inset 0 0 10px rgba(4,20,34,.34),0 0 14px rgba(30,167,255,.14);
+  transition:background .24s ease,border-color .24s ease,box-shadow .24s ease;
+}
+button[class*="nightButton"] svg{
+  grid-column:3;
+  grid-row:1;
+  width:18px!important;
+  height:18px!important;
+  color:#d5ecff;
+  transition:color .2s ease,transform .2s ease;
+}
+button[class*="nightButton"][data-theme-state="light"]::before{content:"LIGHT";color:#0e6fad}
+button[class*="nightButton"][data-theme-state="light"]::after{
+  border-color:rgba(42,122,177,.34);
+  background:
+    radial-gradient(circle at 11px 50%,#fff 0 7px,transparent 7.5px),
+    linear-gradient(180deg,#cfdae4,#b2c4d2);
+  box-shadow:inset 0 0 8px rgba(45,71,91,.12);
+}
+button[class*="nightButton"][data-theme-state="light"] svg{color:#526b80;transform:rotate(-8deg)}
+button[class*="nightButton"]:hover{border-color:rgba(79,228,255,.62)!important;box-shadow:0 0 18px rgba(30,167,255,.12)!important}
+
+/* Global light theme for the Ultra cockpit shell. The driving visualization stays high-contrast/dark. */
+html[data-kingmast-theme="light"],
+body[data-kingmast-theme="light"]{
+  color-scheme:light;
+  background:#eaf2f8!important;
+}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__shell"]{
+  --text:#102235;
+  --muted:#617a90;
+  --surface:#f5f9fc;
+  --surface2:#edf4f9;
+  background:radial-gradient(circle at 52% 8%,rgba(30,167,255,.10),transparent 29%),linear-gradient(180deg,#edf5fb,#e4eef6 58%,#dbe8f1)!important;
+  color:#102235!important;
+}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__topBar"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__sidebar"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__bottomDock"]{
+  background:linear-gradient(180deg,rgba(250,253,255,.98),rgba(235,244,250,.97))!important;
+  border-color:rgba(51,132,188,.18)!important;
+  box-shadow:0 12px 32px rgba(34,83,118,.08)!important;
+}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__sidebar"]{border-right-color:rgba(47,130,189,.2)!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__nav"] button:not([class*="__navActive"]){color:#526d84!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__nav"] button:not([class*="__navActive"]):hover{color:#113653!important;background:rgba(30,167,255,.08)!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__sidebarBottom"]{border-top-color:rgba(64,139,191,.16)!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__aiIdentity"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__systemLive"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__systemLost"]{
+  color:#17344a!important;
+}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__location"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__weather"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__networks"] span,
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__clock"]{
+  background:linear-gradient(180deg,#f9fcfe,#eef5fa)!important;
+  border-color:rgba(60,142,199,.18)!important;
+  color:#1a3850!important;
+}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__speedCard"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__infoCard"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__sensorCard"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__contextCard"]{
+  background:linear-gradient(180deg,#fbfdff,#eef5fa)!important;
+  border-color:rgba(41,133,197,.24)!important;
+  box-shadow:0 12px 28px rgba(29,78,112,.08)!important;
+  color:#18344a!important;
+}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__speedGauge"]:before{
+  background:radial-gradient(circle at 50% 33%,#f9fdff,#eaf3f9 68%,#dce9f2 100%)!important;
+}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__speedGauge"] strong,
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__speedGauge"] span{color:#17344a!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__prnd"]{color:#6e879c!important;background:#f5faff!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__context"]{color:#17344a!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__quickHeader"] strong,
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__contextCard"] header strong{color:#17344a!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__tabs"] button:not([class*="__tabActive"]){background:#edf5fa!important;color:#567189!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__dockGroup"]{
+  background:#eef5fa!important;
+  border-color:rgba(48,133,192,.22)!important;
+}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitUltra-module"][class*="__dockGroup"] button:not([class*="__dockActive"]){color:#587188!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitInteractions-module"][class*="__workspace"]{color:#18344a!important}
+body[data-kingmast-theme="light"] [class*="KingmastCockpitInteractions-module"][class*="__workspaceCard"],
+body[data-kingmast-theme="light"] [class*="KingmastCockpitInteractions-module"][class*="__workspaceHeader"]{
+  background:linear-gradient(180deg,#fbfdff,#eef5fa)!important;
+  border-color:rgba(49,135,192,.22)!important;
+  color:#17344a!important;
+}
+
+@media(max-width:1180px){
+  button[class*="nightButton"]{grid-template-columns:1fr!important;width:38px!important;height:38px!important;padding:0!important}
+  button[class*="nightButton"]::before,button[class*="nightButton"]::after{display:none!important}
+  button[class*="nightButton"] svg{grid-column:1!important;justify-self:center!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  button[class*="nightButton"],button[class*="nightButton"]::after,button[class*="nightButton"] svg{transition:none!important}
+}
