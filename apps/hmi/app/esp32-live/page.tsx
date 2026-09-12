@@ -1,5 +1,5 @@
-import KingmastLiveTrafficShell from '../../components/KingmastLiveTrafficShell';
+import KingmastLiveNavigation from '../../components/KingmastLiveNavigation';
 
 export default function Esp32LiveBenchPage() {
-  return <KingmastLiveTrafficShell />;
+  return <KingmastLiveNavigation />;
 }
