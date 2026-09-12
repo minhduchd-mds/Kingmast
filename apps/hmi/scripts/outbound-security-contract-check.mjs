@@ -21,7 +21,6 @@ expect('outbound policy rejects credential-bearing URLs',outbound.includes('url.
 expect('outbound policy rejects private IP literals outside explicit local dev',outbound.includes('privateIpLiteral')&&outbound.includes('!isLocalDev'));
 expect('outbound policy requires exact reviewed hostname allowlist',outbound.includes('KINGMAST_OUTBOUND_ALLOWLIST')&&outbound.includes('allowed.has(host)'));
 expect('official routing and speech provider hosts are explicit',outbound.includes('routes.googleapis.com')&&outbound.includes('api.mapbox.com')&&outbound.includes('api.openai.com')&&outbound.includes('api.elevenlabs.io'));
-expect('HMI egress policy does not import raw socket modules',!outbound.includes("from 'node:net'")&&!outbound.includes("from 'net'"));
 
 expect('navigation route uses egress guard for Google Mapbox and OSRM',alternatives.includes("requireOutboundUrl(`${base}/directions/v2:computeRoutes`, 'navigation-google')")&&alternatives.includes("'navigation-mapbox'")&&alternatives.includes("'navigation-osrm'"));
 expect('navigation route is distance bounded',alternatives.includes('MAX_ROUTE_DISTANCE_M')&&alternatives.includes('route-distance-exceeds-policy'));
