@@ -147,7 +147,7 @@ class HistoryRuntime:
         if not 1 <= len(records) <= MAX_RECORDS:
             raise ValueError(f'records must contain 1..{MAX_RECORDS} items')
 
-        token_valid = self._token_valid(token)
+        migration_auth_ok = self._token_valid(token)
         accepted = 0
         duplicates = 0
         prepared: list[tuple[str, dict[str, Any]]] = []
@@ -159,7 +159,7 @@ class HistoryRuntime:
             if self.require_device_auth and not signed:
                 self.rejected += 1
                 raise PermissionError('valid per-device signature required')
-            if not self.require_device_auth and not signed and not token_valid:
+            if not self.require_device_auth and not signed and not migration_auth_ok:
                 self.rejected += 1
                 raise PermissionError('edge token or valid per-device signature required')
             identity = packet_identity(packet)
