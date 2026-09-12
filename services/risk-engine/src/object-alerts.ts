@@ -18,6 +18,12 @@ function severityRank(severity: Severity) {
 function objectAlert(object: DetectedObject): LocationAlert | null {
   if (object.confidence < 0.55) return null;
 
+  // Camera-only estimated depth is not authoritative collision range in the current
+  // research architecture. It may support spatial visualization, but it must not create
+  // distance-based driver warnings until the selected camera, calibration and validation
+  // programme establishes that claim. Radar-backed fusion remains the range authority.
+  if (object.source === 'camera-only') return null;
+
   const isFront = object.zone === 'front' || object.zone === 'front-left' || object.zone === 'front-right';
   const isLateralOnly = object.zone === 'left' || object.zone === 'right';
 
