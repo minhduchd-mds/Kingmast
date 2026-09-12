@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
+import { paidRoutingEnabled, securityEnvelopeHeaders } from '../../../../../lib/security-envelope';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
-  const google = Boolean(process.env.GOOGLE_ROUTES_API_KEY?.trim());
-  const mapbox = Boolean(process.env.MAPBOX_ACCESS_TOKEN?.trim());
+  const paid = paidRoutingEnabled();
+  const google = paid && Boolean(process.env.GOOGLE_ROUTES_API_KEY?.trim());
+  const mapbox = paid && Boolean(process.env.MAPBOX_ACCESS_TOKEN?.trim());
   const configured = (process.env.KINGMAST_TRAFFIC_ROUTING_PROVIDER ?? 'auto').trim().toLowerCase();
   const selected = configured === 'google' && google ? 'google-live'
     : configured === 'mapbox' && mapbox ? 'mapbox-live'
@@ -20,5 +22,7 @@ export async function GET() {
     liveTraffic: selected !== 'none',
     trafficSource: selected,
     fallbackRouting: 'osrm',
-  }, { headers: { 'cache-control': 'no-store' } });
+    paidRoutingEnabled: paid,
+    securityEnvelope: 'enforced',
+  }, { headers: securityEnvelopeHeaders() });
 }
