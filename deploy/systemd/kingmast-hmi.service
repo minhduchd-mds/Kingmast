@@ -39,10 +39,12 @@ RestrictRealtime=true
 RestrictNamespaces=true
 LockPersonality=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=any
+SocketBindAllow=tcp:3000
 UMask=0077
 
-# Next may need its build cache; no other application path is writable.
-ReadWritePaths=/opt/kingmast/apps/hmi/.next/cache
+# Next may use its build cache; no other application path is writable.
+ReadWritePaths=-/opt/kingmast/apps/hmi/.next/cache
 
 [Install]
 WantedBy=multi-user.target
