@@ -5,6 +5,7 @@ const root=process.cwd();
 const read=(path)=>readFileSync(resolve(root,path),'utf8');
 const outbound=read('lib/outbound-security.ts');
 const envelope=read('lib/security-envelope.ts');
+const bench=read('lib/esp32-c3-bench.ts');
 const proxy=read('proxy.ts');
 const session=read('app/api/kingmast/session/route.ts');
 const assistant=read('app/api/kingmast/assistant/route.ts');
@@ -37,9 +38,11 @@ expect('production viewer sessions are local by default',session.includes('KINGM
 expect('cloud AI is opt-in and external provider is allowlisted',assistant.includes('KINGMAST_CLOUD_AI_ENABLED')&&assistant.includes("approvedOutboundUrl(raw,'assistant-provider')"));
 expect('production risk engine is local by default',assistant.includes('KINGMAST_PUBLIC_RISK_ENGINE_ENABLED')&&assistant.includes('loopback(url.hostname)'));
 expect('cloud TTS is opt-in and providers are allowlisted',tts.includes('KINGMAST_CLOUD_TTS_ENABLED')&&tts.includes("'tts-openai'")&&tts.includes("'tts-elevenlabs'")&&tts.includes("approvedOutboundUrl(raw,'tts-self-host')"));
+expect('ESP32 bench telemetry cannot enter production runtime',bench.includes("process.env.NODE_ENV === 'production'")&&bench.includes('esp32-c3-bench-disabled-in-production'));
+expect('ESP32 bench telemetry is range validated before frame creation',bench.includes('validateBenchPayload')&&bench.includes('boundedNumber(raw.speedKph, 0, 300)')&&bench.includes('boundedNumber(raw.confidence, 0, 1)')&&bench.includes('invalid-c3-bench-payload'));
 
 if(failures.length){
   console.error(`KINGMAST outbound security contract failed:\n${failures.map((item)=>`- ${item}`).join('\n')}`);
   process.exit(1);
 }
-console.log('KINGMAST outbound security contract passed: viewer locality, public API envelope, navigation capabilities, cloud opt-in and egress allowlists remain enforced.');
+console.log('KINGMAST outbound security contract passed: viewer locality, public API envelope, navigation capabilities, cloud opt-in, egress allowlists and bench telemetry isolation remain enforced.');
