@@ -1,0 +1,39 @@
+name: Platform Resilience
+on:
+  pull_request:
+    paths:
+      - 'edge/pi-resilience/**'
+      - 'scripts/platform-resilience-policy-check.mjs'
+      - '.github/workflows/platform-resilience.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'edge/pi-resilience/**'
+      - 'scripts/platform-resilience-policy-check.mjs'
+      - '.github/workflows/platform-resilience.yml'
+permissions:
+  contents: read
+jobs:
+  verify-platform-resilience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Python syntax
+        run: python -m py_compile edge/pi-resilience/boot_guard.py edge/pi-resilience/resilience_agent.py edge/pi-resilience/recovery_executor.py edge/pi-resilience/standby_failover.py edge/pi-resilience/test_boot_guard.py edge/pi-resilience/test_resilience_agent.py edge/pi-resilience/test_recovery_executor.py edge/pi-resilience/test_standby_failover.py
+      - name: A/B recovery and failover tests
+        working-directory: edge/pi-resilience
+        run: python -m unittest -v test_boot_guard.py test_resilience_agent.py test_recovery_executor.py test_standby_failover.py
+      - name: Platform resilience policy
+        run: node scripts/platform-resilience-policy-check.mjs
+      - name: Evidence honesty
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('edge/pi-resilience/README.md').read_text(encoding='utf-8')
+          assert 'True host failover requires a physically separate compute node.' in text
+          assert 'controlAuthority` remains `none`' in text
+          print('KINGMAST resilience evidence boundary preserved.')
+          PY

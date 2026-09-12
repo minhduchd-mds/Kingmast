@@ -1,0 +1,24 @@
+[Unit]
+Description=KINGMAST bounded recovery executor
+After=local-fs.target
+ConditionPathExists=/var/lib/kingmast/resilience/recovery-request.json
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/kingmast/edge/pi-resilience
+EnvironmentFile=-/etc/kingmast/resilience.env
+ExecStart=/usr/bin/python3 /opt/kingmast/edge/pi-resilience/recovery_executor.py --execute-reboot
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=CAP_SYS_BOOT CAP_DAC_OVERRIDE
+AmbientCapabilities=CAP_SYS_BOOT CAP_DAC_OVERRIDE
+ReadWritePaths=/var/lib/kingmast /boot/firmware
