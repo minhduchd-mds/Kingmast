@@ -34,18 +34,19 @@ function object(overrides: Partial<DetectedObject>): DetectedObject {
     relativeSpeedMps: -1,
     position: projectPoint(vehicle, 0, 8),
     timestampMs: vehicle.timestampMs,
+    source: 'radar-camera',
     ...overrides,
   };
 }
 
 describe('buildLocationAlerts', () => {
-  it('creates a critical pedestrian alert inside 10 meters', () => {
+  it('creates a critical pedestrian alert when range is radar-backed', () => {
     const alerts = buildLocationAlerts({ vehicle, sensors, objects: [object({})] });
     expect(alerts[0]?.type).toBe('pedestrian-ahead');
     expect(alerts[0]?.severity).toBe('critical');
   });
 
-  it('creates a caution alert for a close lead car', () => {
+  it('creates a caution alert for a close radar-backed lead car', () => {
     const alerts = buildLocationAlerts({
       vehicle,
       sensors,
@@ -53,6 +54,21 @@ describe('buildLocationAlerts', () => {
     });
     expect(alerts[0]?.type).toBe('vehicle-too-close');
     expect(alerts[0]?.severity).toBe('caution');
+  });
+
+  it('does not turn camera-only estimated depth into a textual proximity warning', () => {
+    const alerts = buildLocationAlerts({
+      vehicle,
+      sensors,
+      objects: [object({
+        source: 'camera-only',
+        kind: 'person',
+        distanceM: 4,
+        severity: 'safe',
+        confidence: 0.99,
+      })],
+    });
+    expect(alerts).toHaveLength(0);
   });
 
   it('keeps ordinary left/right proximity spatial-only', () => {
