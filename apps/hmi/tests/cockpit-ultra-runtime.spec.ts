@@ -24,18 +24,20 @@ function payloadFor(mode: Mode) {
   };
 }
 
+const corsHeaders = { 'Access-Control-Allow-Origin': '*' };
+
 test('cockpit consumes C3 telemetry and switches bench danger/degraded states', async ({ page }) => {
   let mode: Mode = 'SAFE';
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
   await page.route('http://192.168.4.1/api/telemetry', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payloadFor(mode)) });
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: corsHeaders, body: JSON.stringify(payloadFor(mode)) });
   });
   await page.route(/http:\/\/192\.168\.4\.1\/api\/mode\?state=.*/, async (route) => {
-    const state = new URL(route.request().url()).searchParams.get('state')?.toUpperCase().replace('_', '_') as Mode | undefined;
+    const state = new URL(route.request().url()).searchParams.get('state')?.toUpperCase() as Mode | undefined;
     if (state === 'SAFE' || state === 'WATCH' || state === 'WARNING' || state === 'DANGER' || state === 'SENSOR_LOST') mode = state;
-    await route.fulfill({ status: 200, contentType: 'text/plain', body: 'OK' });
+    await route.fulfill({ status: 200, contentType: 'text/plain', headers: corsHeaders, body: 'OK' });
   });
 
   await page.goto('/esp32-live');
