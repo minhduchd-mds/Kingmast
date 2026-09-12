@@ -1,0 +1,232 @@
+/* KINGMAST cockpit sidebar refinement
+   Keeps navigation labels on one line and upgrades the lower system area.
+   Scoped to the new cockpit only so legacy HMI screens are unaffected. */
+
+main[data-testid="kingmast-cockpit-ultra"]{
+  grid-template-columns:190px 246px minmax(480px,1fr) 390px;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]){
+  padding:14px 12px 14px;
+  border-right:1px solid rgba(49,163,238,.22);
+  background:
+    radial-gradient(circle at 42% 12%,rgba(30,167,255,.055),transparent 28%),
+    linear-gradient(180deg,rgba(3,14,26,.985),rgba(3,12,22,.995));
+  box-shadow:inset -1px 0 0 rgba(79,228,255,.025);
+}
+
+nav[aria-label="KINGMAST navigation"]{
+  gap:6px!important;
+}
+
+nav[aria-label="KINGMAST navigation"] > button{
+  min-width:0;
+  height:46px!important;
+  grid-template-columns:24px minmax(0,1fr) auto!important;
+  gap:10px!important;
+  padding:0 12px!important;
+  border-radius:13px!important;
+  white-space:nowrap;
+  overflow:hidden;
+  line-height:1;
+  font-size:12px!important;
+}
+
+nav[aria-label="KINGMAST navigation"] > button > span{
+  display:block!important;
+  min-width:0;
+  white-space:nowrap!important;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.15;
+}
+
+nav[aria-label="KINGMAST navigation"] > button svg{
+  width:19px;
+  height:19px;
+  flex:0 0 auto;
+}
+
+nav[aria-label="KINGMAST navigation"] > button[aria-current="page"]{
+  position:relative;
+  overflow:visible;
+  background:
+    linear-gradient(90deg,rgba(24,123,238,.94),rgba(18,92,190,.88))!important;
+  border-color:rgba(72,220,255,.8)!important;
+  box-shadow:
+    0 0 0 1px rgba(15,136,255,.18),
+    0 0 25px rgba(24,137,255,.23),
+    inset 0 1px 0 rgba(255,255,255,.09)!important;
+}
+
+nav[aria-label="KINGMAST navigation"] > button[aria-current="page"]::before{
+  content:"";
+  position:absolute;
+  left:-4px;
+  top:8px;
+  bottom:8px;
+  width:3px;
+  border-radius:999px;
+  background:#52e8ff;
+  box-shadow:0 0 13px rgba(82,232,255,.92);
+}
+
+/* Bottom system rail */
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child{
+  margin-top:auto!important;
+  padding:15px 0 0!important;
+  border-top:1px solid rgba(72,157,219,.2)!important;
+  gap:9px!important;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:first-child{
+  position:relative;
+  display:grid!important;
+  grid-template-columns:42px minmax(0,1fr) 16px;
+  align-items:center;
+  gap:10px!important;
+  min-height:62px;
+  padding:9px 10px!important;
+  border:1px solid rgba(55,149,218,.3);
+  border-radius:15px;
+  background:
+    radial-gradient(circle at 18% 28%,rgba(31,202,255,.12),transparent 34%),
+    linear-gradient(180deg,rgba(9,32,53,.91),rgba(5,21,37,.94));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 25px rgba(0,0,0,.16);
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:first-child::after{
+  content:"›";
+  justify-self:end;
+  color:#86cfff;
+  font-size:22px;
+  font-weight:300;
+  line-height:1;
+  opacity:.82;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:first-child > span:first-child{
+  width:42px!important;
+  height:42px!important;
+  border-radius:13px!important;
+  border:1px solid rgba(70,215,255,.42)!important;
+  background:
+    radial-gradient(circle at 48% 30%,rgba(83,236,255,.27),rgba(8,54,83,.85) 62%,rgba(5,29,47,.96))!important;
+  box-shadow:0 0 18px rgba(50,205,255,.14),inset 0 0 16px rgba(66,219,255,.08)!important;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:first-child > span:last-child{
+  min-width:0;
+  gap:3px!important;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:first-child strong{
+  display:block;
+  white-space:nowrap;
+  font-size:11px!important;
+  letter-spacing:.015em;
+  color:#f2f8ff;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:first-child small{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:8px!important;
+  color:#829ab1!important;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:nth-child(2){
+  min-height:35px;
+  padding:0 11px;
+  border:1px solid rgba(255,98,114,.19);
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(34,18,29,.76),rgba(18,16,27,.74));
+  color:#ff9da8!important;
+  font-size:9px!important;
+  font-weight:650;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:nth-child(2) i{
+  flex:0 0 auto;
+  width:7px!important;
+  height:7px!important;
+  box-shadow:0 0 12px currentColor!important;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > button:last-child{
+  width:100%!important;
+  min-height:40px!important;
+  border-radius:13px!important;
+  border:1px solid rgba(39,164,235,.44)!important;
+  background:linear-gradient(180deg,rgba(9,48,78,.86),rgba(6,30,52,.92))!important;
+  color:#e8f7ff!important;
+  justify-content:flex-start!important;
+  padding:0 12px!important;
+  gap:9px!important;
+  font-size:11px!important;
+  font-weight:650;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  cursor:pointer;
+}
+
+main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > button:last-child:hover{
+  border-color:rgba(79,228,255,.68)!important;
+  background:linear-gradient(180deg,rgba(13,67,107,.93),rgba(7,39,67,.96))!important;
+  box-shadow:0 0 18px rgba(30,167,255,.13),inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+@media(max-width:1550px){
+  main[data-testid="kingmast-cockpit-ultra"]{
+    grid-template-columns:182px 226px minmax(430px,1fr) 360px;
+  }
+}
+
+@media(max-width:1366px){
+  main[data-testid="kingmast-cockpit-ultra"]{
+    grid-template-columns:174px 198px minmax(390px,1fr) 318px;
+  }
+  nav[aria-label="KINGMAST navigation"] > button{
+    height:43px!important;
+    padding:0 10px!important;
+    gap:8px!important;
+    font-size:11px!important;
+  }
+  main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]){
+    padding-left:9px;
+    padding-right:9px;
+  }
+}
+
+@media(max-width:1180px){
+  main[data-testid="kingmast-cockpit-ultra"]{
+    grid-template-columns:78px 188px minmax(390px,1fr) 294px;
+  }
+  main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]){
+    padding-left:8px;
+    padding-right:8px;
+  }
+  nav[aria-label="KINGMAST navigation"] > button{
+    grid-template-columns:1fr!important;
+    place-items:center;
+    padding:0!important;
+  }
+  nav[aria-label="KINGMAST navigation"] > button > span{
+    display:none!important;
+  }
+  main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:first-child,
+  main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > div:nth-child(2){
+    display:none!important;
+  }
+  main[data-testid="kingmast-cockpit-ultra"] > aside:has(nav[aria-label="KINGMAST navigation"]) > div:last-child > button:last-child{
+    width:42px!important;
+    min-width:42px;
+    padding:0!important;
+    justify-content:center!important;
+    font-size:0!important;
+  }
+}
