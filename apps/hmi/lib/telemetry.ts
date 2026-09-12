@@ -22,6 +22,15 @@ const SENSOR_HEALTH: SensorHealth = {
   ecu: 'ok',
 };
 
+const GPS_ONLY_SENSOR_HEALTH: SensorHealth = {
+  radarFront: 'unavailable',
+  radarRear: 'unavailable',
+  camera: 'unavailable',
+  can: 'unavailable',
+  gnssImu: 'ok',
+  ecu: 'unavailable',
+};
+
 const scenarioObjects: Array<
   Array<{
     id: string;
@@ -165,6 +174,7 @@ export function createSimulationFrame(sequence: number, origin: GeoPoint = BASE_
       relativeSpeedMps: item.relativeSpeedMps,
       position: projectPoint(vehicle, bearingDeg, item.distanceM),
       timestampMs,
+      source: 'simulator',
     };
   });
 
@@ -193,6 +203,17 @@ export function createSimulationFrame(sequence: number, origin: GeoPoint = BASE_
 }
 
 export function withDevicePosition(frame: TelemetryFrame, position: VehiclePosition): TelemetryFrame {
+  if (frame.vehicle.source === 'simulator' && position.source === 'device-gps') {
+    return {
+      sequence: frame.sequence,
+      vehicle: position,
+      sensors: GPS_ONLY_SENSOR_HEALTH,
+      objects: [],
+      alerts: [],
+      assist: undefined,
+    };
+  }
+
   const objects = frame.objects.map((object) => ({
     ...object,
     position: projectPoint(position, object.bearingDeg, object.distanceM),

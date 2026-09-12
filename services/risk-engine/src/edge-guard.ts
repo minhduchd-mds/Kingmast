@@ -10,12 +10,17 @@ const CAMERA_STALE_MS = 500;
 const DEFAULT_MAX_SESSIONS = 2_048;
 const DEFAULT_SESSION_TTL_MS = 24*60*60*1_000;
 const MAX_PRUNE_INTERVAL_MS = 60_000;
+const BOOT_HISTORY_LIMIT = 8;
+const BOOT_CHANGE_WINDOW_MS = 60_000;
+const MAX_BOOT_CHANGES_PER_WINDOW = 3;
 
 export type EdgePacketGuardReason =
   | 'unsupported-protocol'
   | 'clock-skew'
   | 'gnss-clock-mismatch'
   | 'sequence-replay'
+  | 'boot-replay'
+  | 'boot-churn'
   | 'clock-regression'
   | 'session-capacity';
 
@@ -28,6 +33,9 @@ interface DeviceSession {
   lastSequence:number;
   lastTimestampMs:number;
   lastSeenAtMs:number;
+  recentBootIds:string[];
+  bootWindowStartedAtMs:number;
+  bootChangesInWindow:number;
 }
 
 export interface EdgePacketGuardOptions {
@@ -70,9 +78,34 @@ export class EdgePacketGuard {
 
     const previous = this.sessions.get(packet.deviceId);
     if (!previous && this.sessions.size >= this.maxSessions) return reject('session-capacity');
+    if (previous && packet.timestampMs < previous.lastTimestampMs-2_000) return reject('clock-regression');
+
     if (previous && previous.bootId === packet.bootId) {
       if (packet.sequence <= previous.lastSequence) return reject('sequence-replay');
-      if (packet.timestampMs < previous.lastTimestampMs-2_000) return reject('clock-regression');
+      this.sessions.set(packet.deviceId, {
+        ...previous,
+        lastSequence:packet.sequence,
+        lastTimestampMs:packet.timestampMs,
+        lastSeenAtMs:nowMs,
+      });
+      return { ok:true };
+    }
+
+    if (previous) {
+      if (previous.recentBootIds.includes(packet.bootId)) return reject('boot-replay');
+      const inWindow=nowMs-previous.bootWindowStartedAtMs<=BOOT_CHANGE_WINDOW_MS;
+      const bootChangesInWindow=inWindow?previous.bootChangesInWindow:0;
+      if (bootChangesInWindow>=MAX_BOOT_CHANGES_PER_WINDOW) return reject('boot-churn');
+      this.sessions.set(packet.deviceId, {
+        bootId:packet.bootId,
+        lastSequence:packet.sequence,
+        lastTimestampMs:packet.timestampMs,
+        lastSeenAtMs:nowMs,
+        recentBootIds:[...previous.recentBootIds.slice(-(BOOT_HISTORY_LIMIT-1)),packet.bootId],
+        bootWindowStartedAtMs:inWindow?previous.bootWindowStartedAtMs:nowMs,
+        bootChangesInWindow:bootChangesInWindow+1,
+      });
+      return { ok:true };
     }
 
     this.sessions.set(packet.deviceId, {
@@ -80,6 +113,9 @@ export class EdgePacketGuard {
       lastSequence:packet.sequence,
       lastTimestampMs:packet.timestampMs,
       lastSeenAtMs:nowMs,
+      recentBootIds:[packet.bootId],
+      bootWindowStartedAtMs:nowMs,
+      bootChangesInWindow:0,
     });
     return { ok:true };
   }

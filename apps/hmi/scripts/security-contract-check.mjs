@@ -8,10 +8,12 @@ const telemetry=read('lib/telemetry.ts');
 const sessionRoute=read('app/api/kingmast/session/route.ts');
 const clientErrorRoute=read('app/api/kingmast/client-error/route.ts');
 const viewerSession=read('../../packages/contracts/src/viewer-session.ts');
+const realtimeHealth=read('../../packages/contracts/src/realtime-health.ts');
 const vehicleReadOnly=read('../../packages/contracts/src/vehicle-readonly.ts');
 const contractsPackage=read('../../packages/contracts/package.json');
 const envExample=read('../../.env.example');
 const riskServer=read('../../services/risk-engine/src/server.ts');
+const edgeGuard=read('../../services/risk-engine/src/edge-guard.ts');
 const failures=[];
 function expect(name,condition){if(!condition)failures.push(name);}
 
@@ -23,6 +25,10 @@ expect('viewer session is short lived and read-only scoped',viewerSession.includ
 expect('viewer session signature uses HMAC SHA-256 and constant-time verification',viewerSession.includes("createHmac('sha256'")&&viewerSession.includes('timingSafeEqual'));
 expect('viewer session exposes verified expiry claims for realtime enforcement',viewerSession.includes('readViewerSession')&&viewerSession.includes('expiresAtMs:expiresAtS*1000'));
 expect('session bootstrap rejects cross-origin issuance',sessionRoute.includes("error:'viewer-session-origin-rejected'")&&sessionRoute.includes('sameOrigin(request)'));
+expect('session bootstrap compares the full origin, not host only',sessionRoute.includes("new URL(origin).origin===request.nextUrl.origin"));
+expect('session bootstrap fails closed when origin metadata is absent',sessionRoute.includes("request.headers.get('sec-fetch-site')")&&sessionRoute.includes("fetchSite==='same-origin'")&&sessionRoute.includes('return false;'));
+expect('loopback development bypass remains host scoped',sessionRoute.includes('isLoopbackHost(request.nextUrl.host)')&&sessionRoute.includes("KINGMAST_ALLOW_INSECURE_LOCAL_DEV==='1'"));
+expect('session bootstrap returns same-origin and no-sniff response policy',sessionRoute.includes("'cross-origin-resource-policy':'same-origin'")&&sessionRoute.includes("'x-content-type-options':'nosniff'")&&sessionRoute.includes("'referrer-policy':'no-referrer'"));
 expect('session bootstrap refuses missing production token',sessionRoute.includes("error:'viewer-session-unavailable'")&&sessionRoute.includes('status:503'));
 expect('session bootstrap supports explicit loopback development',sessionRoute.includes("KINGMAST_ALLOW_INSECURE_LOCAL_DEV==='1'")&&sessionRoute.includes("mode:'loopback-dev'"));
 expect('viewer cookie domain is explicitly configurable',sessionRoute.includes('KINGMAST_VIEWER_COOKIE_DOMAIN'));
@@ -34,6 +40,11 @@ expect('realtime establishes viewer session before websocket',realtime.indexOf('
 expect('realtime session request includes credentials',realtime.includes("credentials:'include'"));
 expect('realtime aborts pending session request on teardown',realtime.includes('sessionAbort.abort()'));
 expect('missing or invalid production viewer session fails closed without retry loop',realtime.includes("payload.error==='viewer-session-unavailable'")&&realtime.includes("payload.error==='viewer-session-misconfigured'")&&realtime.includes("sessionResult==='unavailable'")&&realtime.includes('sessionUnavailable=true')&&realtime.includes('if(disposed||sessionUnavailable||retryTimer!==null)return'));
+expect('realtime bounds websocket payload and rendered collection sizes',realtime.includes('MAX_REALTIME_PAYLOAD_CHARS=256_000')&&realtime.includes('MAX_REALTIME_OBJECTS=256')&&realtime.includes('MAX_REALTIME_ALERTS=128'));
+expect('realtime validates telemetry provenance before publishing',realtime.includes("source==='edge'&&frame.vehicle.source!=='gnss'")&&realtime.includes("source==='simulator'&&frame.vehicle.source!=='simulator'"));
+expect('realtime rejects old or future envelopes',realtime.includes('MAX_ENVELOPE_AGE_MS=5_000')&&realtime.includes('MAX_ENVELOPE_FUTURE_MS=5_000'));
+expect('realtime invalidates stale snapshots instead of rendering old telemetry',realtime.includes('const invalidateSnapshot=()=>{telemetryAt=null;setFrame(null);setLastReceivedAt(null);setDiagnostics(null);}')&&realtime.includes("degrade('stale','degraded')")&&realtime.includes("degrade('offline','none')"));
+expect('duplicate realtime sequences are rejected',realtimeHealth.includes('if(input.sequence<=this.lastSequence)'));
 expect('client error route rejects cross-origin reports',clientErrorRoute.includes("error:'client-report-origin-rejected'")&&clientErrorRoute.includes('sameOrigin(request)'));
 expect('client error route has bounded in-memory rate limiting',clientErrorRoute.includes('RATE_LIMIT=20')&&clientErrorRoute.includes('MAX_RATE_KEYS=256')&&clientErrorRoute.includes("error:'client-report-rate-limited'"));
 expect('client error route redacts likely secrets before logging',clientErrorRoute.includes('function redact(')&&clientErrorRoute.includes('[redacted]'));
@@ -41,6 +52,10 @@ expect('client error route strips path query/hash data',clientErrorRoute.include
 expect('vehicle integration contract exposes read-only authority only',vehicleReadOnly.includes("VEHICLE_PORT_AUTHORITY='read-only'")&&vehicleReadOnly.includes('interface ReadOnlyVehiclePort')&&!vehicleReadOnly.includes('writeSnapshot'));
 expect('read-only vehicle contract is an explicit package export',contractsPackage.includes('"./vehicle-readonly":"./src/vehicle-readonly.ts"'));
 expect('simulator keeps left/right detections spatial-only',telemetry.includes("const lateralOnly = object.zone === 'left' || object.zone === 'right';")&&telemetry.includes('if (lateralOnly) return null;'));
+expect('device GPS cannot inherit simulator objects or alerts',telemetry.includes("frame.vehicle.source === 'simulator' && position.source === 'device-gps'")&&telemetry.includes('sensors: GPS_ONLY_SENSOR_HEALTH')&&telemetry.includes('objects: []')&&telemetry.includes('alerts: []'));
+expect('edge guard blocks replay of prior boot identities',edgeGuard.includes("reason:'boot-replay'")||edgeGuard.includes("return reject('boot-replay')"));
+expect('edge guard rate limits boot-id churn with bounded history',edgeGuard.includes('BOOT_HISTORY_LIMIT = 8')&&edgeGuard.includes('MAX_BOOT_CHANGES_PER_WINDOW = 3')&&edgeGuard.includes("return reject('boot-churn')"));
+expect('edge guard checks clock regression across boot transitions',edgeGuard.includes("packet.timestampMs < previous.lastTimestampMs-2_000")&&edgeGuard.indexOf("packet.timestampMs < previous.lastTimestampMs-2_000")<edgeGuard.indexOf("previous.bootId === packet.bootId"));
 expect('telemetry reads preview alert state without committing it',riskServer.includes("commit?alertStabilizer.update(rawAlerts,nowMs):alertStabilizer.preview(rawAlerts,nowMs)"));
 expect('event history is committed only on publish',riskServer.includes("currentEnvelope(source,true)")&&riskServer.includes('eventBuffer.ingest(envelope.frame)')&&!riskServer.includes('eventBuffer.ingest(frame)'));
 expect('strict device-auth mode is available for edge and sensor ingress',riskServer.includes("KINGMAST_REQUIRE_DEVICE_AUTH")&&riskServer.includes('requireDeviceIngressAuth')&&riskServer.includes('requireEdgePacketAuth'));
