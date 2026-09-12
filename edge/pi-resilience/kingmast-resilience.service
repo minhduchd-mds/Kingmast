@@ -26,7 +26,8 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 LockPersonality=true
 RestrictSUIDSGID=true
-ReadWritePaths=/var/lib/kingmast /mnt/kingmast-sd/history
+# The SD/history mount is intentionally optional: losing the card must not kill the watchdog itself.
+ReadWritePaths=/var/lib/kingmast -/mnt/kingmast-sd/history
 
 [Install]
 WantedBy=multi-user.target
