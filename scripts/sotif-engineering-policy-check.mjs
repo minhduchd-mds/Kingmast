@@ -9,7 +9,10 @@ const expect = (condition, message) => { if (!condition) fail(message); };
 
 const sourceRegister = json('docs/safety/sotif/V008_SOURCE_REGISTER.json');
 const scenarioRegister = json('docs/safety/sotif/V008_TRIGGERING_CONDITION_REGISTRY.json');
+const currentReplay = json('docs/validation/replays/V008_RISK_REPLAY.json');
+const historicalReplay = json('docs/validation/replays/V006_RISK_REPLAY.json');
 const engineering = read('docs/safety/SOTIF_ENGINEERING_V008.md');
+const hara = read('docs/safety/HARA_DRAFT_V006.md');
 const monitor = read('services/risk-engine/src/sotif-monitor.ts');
 const monitorTests = read('services/risk-engine/src/sotif-monitor.test.ts');
 const fusion = read('services/risk-engine/src/edge-fusion.ts');
@@ -18,6 +21,8 @@ const risk = read('services/risk-engine/src/risk.ts');
 const riskTests = read('services/risk-engine/src/risk.test.ts');
 const alerts = read('services/risk-engine/src/object-alerts.ts');
 const alertTests = read('services/risk-engine/src/object-alerts.test.ts');
+const replayTests = read('services/risk-engine/src/sil-replay.test.ts');
+const replayCli = read('services/risk-engine/src/sil-replay-cli.ts');
 
 expect(sourceRegister.schema === 'kingmast-sotif-source-register/v1', 'source-register schema mismatch');
 expect(sourceRegister.productVersion === '0.0.8', 'source register must remain bound to v0.0.8');
@@ -53,6 +58,9 @@ expect(scenarioRegister.controlAuthority === 'none', 'scenario registry must pre
 expect(scenarioRegister.qualificationClaim === 'research-scenario-registry-only-not-sotif-conformity', 'scenario registry must reject SOTIF conformity claim');
 expect(Array.isArray(scenarioRegister.scenarios) && scenarioRegister.scenarios.length >= 32, 'at least 32 traceable SOTIF scenarios are required');
 
+const hazardIds = new Set(hara.match(/HZ-\d{3}/g) ?? []);
+expect(hazardIds.size >= 12, 'HARA hazard register is unexpectedly incomplete');
+
 const scenarioIds = new Set();
 const categories = new Set();
 const classes = new Set();
@@ -69,6 +77,7 @@ for (const scenario of scenarioRegister.scenarios) {
   expect(typeof scenario.expected === 'string' && scenario.expected.length >= 20, `${scenario.id} expected behavior too weak`);
   expect(Array.isArray(scenario.forbiddenClaims) && scenario.forbiddenClaims.length >= 1, `${scenario.id} forbidden claims missing`);
   expect(Array.isArray(scenario.hazards) && scenario.hazards.length >= 1, `${scenario.id} hazard traceability missing`);
+  for (const hazard of scenario.hazards) expect(hazardIds.has(hazard), `${scenario.id} references unknown HARA hazard ${hazard}`);
   expect(Array.isArray(scenario.sourceRefs) && scenario.sourceRefs.length >= 1, `${scenario.id} source references missing`);
   for (const ref of scenario.sourceRefs) expect(sourceIds.has(ref), `${scenario.id} references unknown source ${ref}`);
   expect(scenario.evidenceState === 'software-only-pending-physical', `${scenario.id} must not claim physical evidence`);
@@ -145,4 +154,11 @@ expect(riskTests.includes('Short headway') || riskTests.includes('short headway'
 expect(alerts.includes("object.source === 'camera-only'"), 'camera-only depth must be excluded from textual collision alerts');
 expect(alertTests.includes('camera-only estimated depth'), 'camera-only alert suppression test missing');
 
-console.log(`KINGMAST SOTIF engineering policy passed: ${scenarioRegister.scenarios.length} scenarios, ${sourceRegister.sources.length} authoritative references, no physical/conformity claim.`);
+expect(Array.isArray(currentReplay) && currentReplay.length >= 10, 'current V008 SIL replay corpus must contain at least ten deterministic cases');
+expect(currentReplay.some((item) => item.scenarioId === 'SIL8-RISK-008' && item.expected?.reasonsInclude?.includes('critical-blocked-can-degraded')), 'current replay must cover CAN-degraded critical suppression');
+expect(currentReplay.some((item) => item.scenarioId === 'SIL8-RISK-009' && item.expected?.reasonsInclude?.includes('camera-degraded')), 'current replay must cover camera degradation');
+expect(Array.isArray(historicalReplay) && historicalReplay.some((item) => item.scenarioId === 'SIL-RISK-006' && item.expected?.confidenceMax === 0.49), 'historical V006 replay evidence must remain immutable rather than being silently rewritten');
+expect(replayTests.includes('V008_RISK_REPLAY.json') && replayTests.includes('historical V006 replay corpus'), 'SIL replay tests must separate current behavior from historical evidence');
+expect(replayCli.includes('V008_RISK_REPLAY.json') && replayCli.includes("productVersion:'0.0.8'"), 'SIL replay CLI must emit the current v0.0.8 corpus identity');
+
+console.log(`KINGMAST SOTIF engineering policy passed: ${scenarioRegister.scenarios.length} scenarios, ${sourceRegister.sources.length} authoritative references, ${currentReplay.length} current SIL replay cases, no physical/conformity claim.`);
