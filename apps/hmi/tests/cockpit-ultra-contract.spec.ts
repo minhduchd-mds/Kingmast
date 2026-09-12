@@ -22,7 +22,9 @@ test('cockpit keeps the required automotive HMI surfaces and contextual panel co
   expect(cockpit).toContain('Năng lượng');
   expect(cockpit).toContain('title="Ẩn"');
   expect(cockpit).toContain('title="Ghim"');
-  expect(cockpit).toContain('Thu gọn');
+  expect(cockpit).toContain('setCollapsed((value) => !value)');
+  expect(cockpit).toContain('ChevronUp');
+  expect(cockpit).toContain('ChevronDown');
 });
 
 test('danger and degraded states stay explicit and do not invent sensor measurements', () => {
