@@ -24,7 +24,7 @@ KINGMAST remains SAE Level 0 / warning-only. This skill never grants steering, b
 3. Inspect the current component, CSS, contracts and tests before changing UI architecture.
 4. Reuse established `TelemetryFrame`, sensor health, realtime events and existing KINGMAST assets instead of inventing parallel state.
 
-## Mandatory execution flow
+## Workflow
 
 ### Flow 1 — Audit before coding
 
