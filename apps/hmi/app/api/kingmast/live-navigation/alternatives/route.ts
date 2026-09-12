@@ -6,12 +6,13 @@ import {
   paidRoutingEnabled,
   securityEnvelopeHeaders,
 } from '../../../../../lib/security-envelope';
+import { requireOutboundUrl } from '../../../../../lib/outbound-security';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const MAX_ROUTE_DISTANCE_M = 2_000_000;
 type Backend = 'google' | 'mapbox' | 'osrm';
-
 type OsrmStep = { distance?: number; duration?: number; name?: string; maneuver?: { type?: string; modifier?: string; location?: [number, number] } };
 type OsrmRoute = { distance?: number; duration?: number; geometry?: { coordinates?: Array<[number, number]> }; legs?: Array<{ steps?: OsrmStep[] }> };
 type OsrmResponse = { code?: string; routes?: OsrmRoute[] };
@@ -29,6 +30,16 @@ function point(value: unknown): GeoPoint | null {
   const lng = Number(raw.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
   return { lat, lng };
+}
+
+function directDistanceM(a: GeoPoint, b: GeoPoint) {
+  const toRad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toRad;
+  const dLng = (b.lng - a.lng) * toRad;
+  const lat1 = a.lat * toRad;
+  const lat2 = b.lat * toRad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 12_742_000 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 function durationSeconds(value: unknown) {
@@ -71,21 +82,9 @@ function fromOsrm(raw: OsrmRoute, origin: GeoPoint, destination: GeoPoint): Navi
   const routeGeometry = geometry(raw.geometry?.coordinates);
   const steps: NavigationStep[] = (raw.legs ?? []).flatMap((leg) => leg.steps ?? []).slice(0, 120).map((step) => {
     const location = step.maneuver?.location ?? [origin.lng, origin.lat];
-    return {
-      instruction: osrmInstruction(step),
-      distanceM: Math.max(0, step.distance ?? 0),
-      durationS: Math.max(0, step.duration ?? 0),
-      location: { lng: location[0], lat: location[1] },
-      roadName: step.name?.trim() || null,
-    };
+    return { instruction: osrmInstruction(step), distanceM: Math.max(0, step.distance ?? 0), durationS: Math.max(0, step.duration ?? 0), location: { lng: location[0], lat: location[1] }, roadName: step.name?.trim() || null };
   });
-  return {
-    provider: 'osrm', origin, destination, distanceM, durationS,
-    geometry: routeGeometry.length >= 2 ? routeGeometry : [origin, destination],
-    steps: steps.length ? steps : [fallbackStep(origin, distanceM, durationS)],
-    fetchedAtMs: Date.now(),
-    traffic: { aware: false, source: 'none', delayS: null, observedAtMs: null },
-  };
+  return { provider: 'osrm', origin, destination, distanceM, durationS, geometry: routeGeometry.length >= 2 ? routeGeometry : [origin, destination], steps: steps.length ? steps : [fallbackStep(origin, distanceM, durationS)], fetchedAtMs: Date.now(), traffic: { aware: false, source: 'none', delayS: null, observedAtMs: null } };
 }
 
 function fromMapbox(raw: MapboxRoute, origin: GeoPoint, destination: GeoPoint): NavigationRoute {
@@ -95,21 +94,9 @@ function fromMapbox(raw: MapboxRoute, origin: GeoPoint, destination: GeoPoint): 
   const routeGeometry = geometry(raw.geometry?.coordinates);
   const steps: NavigationStep[] = (raw.legs ?? []).flatMap((leg) => leg.steps ?? []).slice(0, 120).map((step) => {
     const location = step.maneuver?.location ?? [origin.lng, origin.lat];
-    return {
-      instruction: (step.maneuver?.instruction ?? 'Tiếp tục').trim().slice(0, 500),
-      distanceM: Math.max(0, step.distance ?? 0),
-      durationS: Math.max(0, step.duration ?? 0),
-      location: { lng: location[0], lat: location[1] },
-      roadName: step.name?.trim() || null,
-    };
+    return { instruction: (step.maneuver?.instruction ?? 'Tiếp tục').trim().slice(0, 500), distanceM: Math.max(0, step.distance ?? 0), durationS: Math.max(0, step.duration ?? 0), location: { lng: location[0], lat: location[1] }, roadName: step.name?.trim() || null };
   });
-  return {
-    provider: 'mapbox', origin, destination, distanceM, durationS,
-    geometry: routeGeometry.length >= 2 ? routeGeometry : [origin, destination],
-    steps: steps.length ? steps : [fallbackStep(origin, distanceM, durationS)],
-    fetchedAtMs: Date.now(),
-    traffic: { aware: true, source: 'mapbox-live', delayS: typical > 0 ? Math.max(0, durationS - typical) : null, observedAtMs: Date.now() },
-  };
+  return { provider: 'mapbox', origin, destination, distanceM, durationS, geometry: routeGeometry.length >= 2 ? routeGeometry : [origin, destination], steps: steps.length ? steps : [fallbackStep(origin, distanceM, durationS)], fetchedAtMs: Date.now(), traffic: { aware: true, source: 'mapbox-live', delayS: typical > 0 ? Math.max(0, durationS - typical) : null, observedAtMs: Date.now() } };
 }
 
 function fromGoogle(raw: GoogleRoute, origin: GeoPoint, destination: GeoPoint): NavigationRoute {
@@ -120,21 +107,9 @@ function fromGoogle(raw: GoogleRoute, origin: GeoPoint, destination: GeoPoint): 
   const steps: NavigationStep[] = (raw.legs ?? []).flatMap((leg) => leg.steps ?? []).slice(0, 120).map((step) => {
     const lat = step.startLocation?.latLng?.latitude;
     const lng = step.startLocation?.latLng?.longitude;
-    return {
-      instruction: (step.navigationInstruction?.instructions ?? 'Tiếp tục').trim().slice(0, 500),
-      distanceM: Math.max(0, step.distanceMeters ?? 0),
-      durationS: durationSeconds(step.staticDuration),
-      location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat: lat!, lng: lng! } : origin,
-      roadName: null,
-    };
+    return { instruction: (step.navigationInstruction?.instructions ?? 'Tiếp tục').trim().slice(0, 500), distanceM: Math.max(0, step.distanceMeters ?? 0), durationS: durationSeconds(step.staticDuration), location: Number.isFinite(lat) && Number.isFinite(lng) ? { lat: lat!, lng: lng! } : origin, roadName: null };
   });
-  return {
-    provider: 'google-routes', origin, destination, distanceM, durationS,
-    geometry: routeGeometry.length >= 2 ? routeGeometry : [origin, destination],
-    steps: steps.length ? steps : [fallbackStep(origin, distanceM, durationS)],
-    fetchedAtMs: Date.now(),
-    traffic: { aware: true, source: 'google-live', delayS: staticDuration > 0 ? Math.max(0, durationS - staticDuration) : null, observedAtMs: Date.now() },
-  };
+  return { provider: 'google-routes', origin, destination, distanceM, durationS, geometry: routeGeometry.length >= 2 ? routeGeometry : [origin, destination], steps: steps.length ? steps : [fallbackStep(origin, distanceM, durationS)], fetchedAtMs: Date.now(), traffic: { aware: true, source: 'google-live', delayS: staticDuration > 0 ? Math.max(0, durationS - staticDuration) : null, observedAtMs: Date.now() } };
 }
 
 function backendOrder(): Backend[] {
@@ -153,19 +128,11 @@ async function requestGoogle(origin: GeoPoint, destination: GeoPoint) {
   const key = process.env.GOOGLE_ROUTES_API_KEY?.trim();
   if (!key) throw new Error('google-not-configured');
   const base = (process.env.GOOGLE_ROUTES_BASE_URL?.trim() || 'https://routes.googleapis.com').replace(/\/$/, '');
-  const response = await fetch(`${base}/directions/v2:computeRoutes`, {
+  const url = requireOutboundUrl(`${base}/directions/v2:computeRoutes`, 'navigation-google');
+  const response = await fetch(url, {
     method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(6500),
-    headers: {
-      'content-type': 'application/json',
-      'x-goog-api-key': key,
-      'x-goog-fieldmask': 'routes.distanceMeters,routes.duration,routes.staticDuration,routes.polyline.geoJsonLinestring,routes.legs.steps.distanceMeters,routes.legs.steps.staticDuration,routes.legs.steps.startLocation,routes.legs.steps.navigationInstruction.instructions',
-    },
-    body: JSON.stringify({
-      origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
-      destination: { location: { latLng: { latitude: destination.lat, longitude: destination.lng } } },
-      travelMode: 'DRIVE', routingPreference: 'TRAFFIC_AWARE_OPTIMAL', computeAlternativeRoutes: true,
-      polylineQuality: 'OVERVIEW', polylineEncoding: 'GEO_JSON_LINESTRING', languageCode: 'vi',
-    }),
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': key, 'x-goog-fieldmask': 'routes.distanceMeters,routes.duration,routes.staticDuration,routes.polyline.geoJsonLinestring,routes.legs.steps.distanceMeters,routes.legs.steps.staticDuration,routes.legs.steps.startLocation,routes.legs.steps.navigationInstruction.instructions' },
+    body: JSON.stringify({ origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } }, destination: { location: { latLng: { latitude: destination.lat, longitude: destination.lng } } }, travelMode: 'DRIVE', routingPreference: 'TRAFFIC_AWARE_OPTIMAL', computeAlternativeRoutes: true, polylineQuality: 'OVERVIEW', polylineEncoding: 'GEO_JSON_LINESTRING', languageCode: 'vi' }),
   });
   if (!response.ok) throw new Error(`google-${response.status}`);
   const raw = (await response.json()) as GoogleResponse;
@@ -178,7 +145,7 @@ async function requestMapbox(origin: GeoPoint, destination: GeoPoint) {
   const token = process.env.MAPBOX_ACCESS_TOKEN?.trim();
   if (!token) throw new Error('mapbox-not-configured');
   const base = (process.env.MAPBOX_DIRECTIONS_BASE_URL?.trim() || 'https://api.mapbox.com').replace(/\/$/, '');
-  const url = new URL(`${base}/directions/v5/mapbox/driving-traffic/${origin.lng},${origin.lat};${destination.lng},${destination.lat}`);
+  const url = requireOutboundUrl(`${base}/directions/v5/mapbox/driving-traffic/${origin.lng},${origin.lat};${destination.lng},${destination.lat}`, 'navigation-mapbox');
   url.searchParams.set('access_token', token);
   url.searchParams.set('alternatives', 'true');
   url.searchParams.set('overview', 'full');
@@ -195,7 +162,7 @@ async function requestMapbox(origin: GeoPoint, destination: GeoPoint) {
 
 async function requestOsrm(origin: GeoPoint, destination: GeoPoint) {
   const base = (process.env.ROUTING_BASE_URL?.trim() || 'https://router.project-osrm.org').replace(/\/$/, '');
-  const url = `${base}/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
+  const url = requireOutboundUrl(`${base}/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`, 'navigation-osrm');
   const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6500), headers: { 'user-agent': 'KINGMAST-live-navigation/0.0.8' } });
   if (!response.ok) throw new Error(`osrm-${response.status}`);
   const raw = (await response.json()) as OsrmResponse;
@@ -221,45 +188,23 @@ function toOptions(items: NavigationRoute[]): NavigationRouteOption[] {
   const ranked = [...items].sort((a, b) => a.durationS - b.durationS);
   return ranked.map((route, index) => {
     const energyKwh = Math.max(0, route.distanceM) * 165 / 1_000_000;
-    return {
-      id: `route-${route.provider}-${index}-${Math.round(route.distanceM)}-${Math.round(route.durationS)}`,
-      label: index === 0 ? (route.traffic?.aware ? 'Khuyến nghị · traffic live' : 'Khuyến nghị · tuyến thật') : `Tuyến ${index + 1}`,
-      route,
-      estimatedEnergyKwh: energyKwh,
-      estimatedArrivalBatteryPct: 0,
-      reserveMarginPct: 0,
-      recommended: index === 0,
-      score: route.durationS,
-    };
+    return { id: `route-${route.provider}-${index}-${Math.round(route.distanceM)}-${Math.round(route.durationS)}`, label: index === 0 ? (route.traffic?.aware ? 'Khuyến nghị · traffic live' : 'Khuyến nghị · tuyến thật') : `Tuyến ${index + 1}`, route, estimatedEnergyKwh: energyKwh, estimatedArrivalBatteryPct: 0, reserveMarginPct: 0, recommended: index === 0, score: route.durationS };
   });
 }
 
 export async function POST(request: NextRequest) {
   const admission = admitNavigationRequest(request, 'navigation:route');
-  if (!admission.ok) {
-    return NextResponse.json(
-      { error: admission.reason },
-      { status: admission.status, headers: securityEnvelopeHeaders(admission.reason) },
-    );
-  }
+  if (!admission.ok) return NextResponse.json({ error: admission.reason }, { status: admission.status, headers: securityEnvelopeHeaders(admission.reason) });
 
   try {
     const body = await request.json() as { origin?: unknown; destination?: unknown };
     const origin = point(body.origin);
     const destination = point(body.destination);
-    if (!origin || !destination) {
-      return NextResponse.json({ error: 'invalid-route-request' }, { status: 400, headers: securityEnvelopeHeaders() });
-    }
+    if (!origin || !destination) return NextResponse.json({ error: 'invalid-route-request' }, { status: 400, headers: securityEnvelopeHeaders() });
+    if (directDistanceM(origin, destination) > MAX_ROUTE_DISTANCE_M) return NextResponse.json({ error: 'route-distance-exceeds-policy' }, { status: 400, headers: securityEnvelopeHeaders('route-distance-exceeds-policy') });
     const result = toOptions(await routes(origin, destination));
-    return NextResponse.json({
-      routes: result,
-      trafficAvailable: Boolean(result.some((item) => item.route.traffic?.aware)),
-      trafficSource: result.find((item) => item.route.traffic?.aware)?.route.traffic?.source ?? 'none',
-    }, { headers: securityEnvelopeHeaders() });
+    return NextResponse.json({ routes: result, trafficAvailable: Boolean(result.some((item) => item.route.traffic?.aware)), trafficSource: result.find((item) => item.route.traffic?.aware)?.route.traffic?.source ?? 'none' }, { headers: securityEnvelopeHeaders() });
   } catch {
-    return NextResponse.json(
-      { error: 'navigation-provider-unavailable' },
-      { status: 503, headers: securityEnvelopeHeaders('provider-unavailable') },
-    );
+    return NextResponse.json({ error: 'navigation-provider-unavailable' }, { status: 503, headers: securityEnvelopeHeaders('provider-unavailable') });
   }
 }
