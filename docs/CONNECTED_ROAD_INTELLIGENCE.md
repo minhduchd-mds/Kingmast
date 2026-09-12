@@ -1,6 +1,6 @@
-# KINGMAST v0.0.7 — Connected Road Intelligence
+# KINGMAST v0.0.8 — Connected Road Intelligence
 
-This document is carried forward into the active **v0.0.7** software checkpoint. The safety boundary remains **warning-only Level 0** with no steering, braking, throttle, drivetrain or CAN-write authority.
+This document is carried forward into the active **v0.0.8** software checkpoint. The safety boundary remains **warning-only Level 0** with no steering, braking, throttle, drivetrain or CAN-write authority.
 
 ## Consolidated capabilities
 1. Normalized V2X/SPaT abstraction for intersection phase data.
@@ -81,8 +81,8 @@ Before a connected-road provider can be considered production-ready:
 - define location-retention/privacy policy;
 - prove that collision-critical warnings always preempt connected-road and Assistant context;
 - test English/Vietnamese presentation, sunlight, night, vibration and glanceability on target displays;
-- generate new v0.0.7 target evidence before making physical/HIL qualification claims.
+- generate new v0.0.8 target evidence before making physical/HIL qualification claims.
 
-Historical files explicitly named `V006` remain bound to the v0.0.6 evidence campaign and are not relabelled by this software checkpoint.
+Historical files explicitly named `V006` and prior v0.0.7 release evidence remain bound to their original evidence campaigns and are not relabelled by this software checkpoint.
 
 KINGMAST remains Apple-inspired and is not an official Apple CarPlay app or a homologated ADAS product.

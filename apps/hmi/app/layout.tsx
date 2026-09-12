@@ -42,7 +42,7 @@ import CameraRuntimeDiagnosticsPanel from '../components/CameraRuntimeDiagnostic
 
 export const metadata={
   title:'KINGMAST Driver Safety',
-  description:'KINGMAST v0.0.7 Apple-inspired warning-only automotive navigation and connected-road safety HMI',
+  description:'KINGMAST v0.0.8 Apple-inspired warning-only automotive navigation and connected-road safety HMI',
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){

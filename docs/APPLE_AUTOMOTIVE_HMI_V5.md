@@ -1,8 +1,8 @@
-# KINGMAST v0.0.7 — Route Intelligence, EV and Surround Safety
+# KINGMAST v0.0.8 — Route Intelligence, EV and Surround Safety
 
-This feature document is carried forward into the active **v0.0.7** software checkpoint while preserving the project safety boundary: **warning-only Level 0 driver assistance**. Nothing in this batch can command steering, braking, throttle, drivetrain, gear selection or CAN writes.
+This feature document is carried forward into the active **v0.0.8** software checkpoint while preserving the project safety boundary: **warning-only Level 0 driver assistance**. Nothing in this batch can command steering, braking, throttle, drivetrain, gear selection or CAN writes.
 
-> Versioning note: `V5` in this filename describes an HMI feature/design generation, not the KINGMAST product version. The current product checkpoint is v0.0.7. See `docs/VERSIONING.md`.
+> Versioning note: `V5` in this filename describes an HMI feature/design generation, not the KINGMAST product version. The current product checkpoint is v0.0.8. See `docs/VERSIONING.md`.
 
 ## Consolidated capabilities
 1. OSRM route alternatives instead of assuming a single route is always best.
@@ -69,6 +69,6 @@ Energy estimates use route distance and the configured consumption profile. Char
 - Vietnamese and English localization preserve identical safety authority;
 - reduced-motion remains supported.
 
-Historical v0.0.6 physical/HIL evidence remains version-bound and is not promoted by this software checkpoint.
+Historical v0.0.6/v0.0.7 physical/HIL evidence remains version-bound and is not promoted by this software checkpoint.
 
 KINGMAST is Apple-inspired but is **not** an official Apple CarPlay implementation and is not a homologated ADAS product.

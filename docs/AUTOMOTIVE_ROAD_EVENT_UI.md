@@ -1,6 +1,6 @@
-# KINGMAST v0.0.7 — Road-event HMI rules
+# KINGMAST v0.0.8 — Road-event HMI rules
 
-This document is part of the active `v0.0.7` software checkpoint and extends the warning-only HMI. It does not add steering, braking, throttle, drivetrain or CAN-write authority.
+This document is part of the active `v0.0.8` software checkpoint and extends the warning-only HMI. It does not add steering, braking, throttle, drivetrain or CAN-write authority.
 
 ## Rules
 
@@ -27,4 +27,4 @@ This document is part of the active `v0.0.7` software checkpoint and extends the
 21. Product-owned road-event shell copy may be localized to Vietnamese, but provider-authored event text must remain source-authored unless a trusted translation path exists.
 22. Assistant explanations may reference a grounded road event but must not alter its severity, dismiss the underlying warning, or claim vehicle-control authority.
 
-Historical `V006` evidence remains bound to the v0.0.6 evidence cycle; these v0.0.7 HMI rules do not imply new physical validation.
+Historical `V006` evidence remains bound to the v0.0.6 evidence cycle; these v0.0.8 HMI rules do not imply new physical validation.

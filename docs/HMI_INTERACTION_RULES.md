@@ -1,4 +1,4 @@
-# KINGMAST v0.0.7 — Automotive Interaction Rules
+# KINGMAST v0.0.8 — Automotive Interaction Rules
 
 This document defines the interaction layer for the development HMI. KINGMAST remains warning-only and does not command steering, braking, throttle, drivetrain or CAN writes.
 

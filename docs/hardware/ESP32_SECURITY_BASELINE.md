@@ -1,6 +1,6 @@
-# KINGMAST ESP32 security baseline — v0.0.7 research
+# KINGMAST ESP32 security baseline — v0.0.8 research
 
-Status: research/bench security baseline for the active v0.0.7 software checkpoint. This is not an automotive ECU certification claim and does not promote historical v0.0.6 physical evidence.
+Status: research/bench security baseline for the active v0.0.8 software checkpoint. This is not an automotive ECU certification claim and does not promote historical v0.0.6/v0.0.7 physical evidence.
 
 ## Boundary
 
@@ -16,7 +16,7 @@ The ESP32 publisher is allowed to collect and transmit sensing/position data onl
 6. Device time must be synchronized before safety telemetry is accepted.
 7. Stale radar/GNSS state must degrade or become unavailable rather than being silently reused.
 8. Shared edge tokens are migration-only. The bundled consolidated `/v3/edge/frame` publisher can add a per-device HMAC-SHA256 signature bound to device ID, key ID, boot ID, sequence, timestamp and canonical packet body.
-9. Canonical packet serialization in the research publisher keeps object keys in lexical order before signing. This remains a research interoperability mechanism in v0.0.7, not a final fleet protocol standard; production should use a formally specified canonical encoding and independently tested SDK/firmware implementation.
+9. Canonical packet serialization in the research publisher keeps object keys in lexical order before signing. This remains a research interoperability mechanism in v0.0.8, not a final fleet protocol standard; production should use a formally specified canonical encoding and independently tested SDK/firmware implementation.
 10. `KINGMAST_REQUIRE_DEVICE_AUTH=1` on the gateway rejects the shared token as a substitute for a valid per-device packet signature. Device HMAC secrets remain transitional and should move out of ordinary firmware configuration into hardware-protected non-exportable key storage.
 11. Production hardware shall use secure boot, signed firmware, flash encryption where supported, anti-rollback, watchdogs and hardware-protected key storage. These controls are not considered implemented merely because they are documented here.
 12. Vehicle CAN remains read-only by architecture and hardware. No TX-capable production adapter is approved by this research baseline.
@@ -57,7 +57,7 @@ Firmware is not installable merely because it compiled. Release evidence shall i
 - secure-boot/signing evidence for the target board;
 - rollback/known-good image strategy.
 
-A v0.0.7 physical firmware qualification claim requires newly generated version-bound target evidence. Files explicitly named `V006` remain historical evidence for the v0.0.6 campaign.
+A v0.0.8 physical firmware qualification claim requires newly generated version-bound target evidence. Files explicitly named `V006` and prior v0.0.7 evidence remain historical.
 
 ## CI policy
 

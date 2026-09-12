@@ -1,4 +1,4 @@
-# KINGMAST v0.0.7 — Route Recovery UX
+# KINGMAST v0.0.8 — Route Recovery UX
 
 KINGMAST remains a warning-only Level 0 driver-assistance HMI. Route recovery never creates steering, braking, throttle, drivetrain, gear, torque, or CAN-write authority.
 
@@ -49,4 +49,4 @@ Product-owned recovery labels and actions are available in English and Vietnames
 
 Automated UI tests verify that offline mode disables destination search while preserving the HMI, that ending cached guidance requires an explicit reversible confirmation, and that bilingual recovery surfaces preserve the same safety behavior. Target-vehicle testing must still validate provider timeouts, offline-map availability, ignition cycles, poor-connectivity transitions, and physical controls.
 
-Historical v0.0.6 physical/HIL evidence is not promoted by this v0.0.7 UX checkpoint.
+Historical v0.0.6 physical/HIL evidence is not promoted by this v0.0.8 UX checkpoint.
