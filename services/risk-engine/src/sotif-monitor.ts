@@ -287,8 +287,12 @@ export function assessSotifRuntime(input: SotifMonitorInput): SotifRuntimeAssess
   } else if (input.feature === 'navigation-context') {
     if (!gnssUsable) state = worsen(state, 'unavailable');
     else if (policy.maxGnssAccuracyM === null) state = worsen(state, 'degraded');
-  } else if (!radarUsable && !cameraUsable) {
-    state = worsen(state, 'unavailable');
+  } else {
+    // Object awareness is multimodal: losing both modalities makes the feature unavailable,
+    // while losing either radar geometry or camera classification must be surfaced as degraded.
+    // This prevents invalid calibration, stale data or a missing sensor from looking nominal.
+    if (!radarUsable && !cameraUsable) state = worsen(state, 'unavailable');
+    else if (!radarUsable || !cameraUsable) state = worsen(state, 'degraded');
   }
 
   const degradationReasons = new Set<SotifReasonCode>([

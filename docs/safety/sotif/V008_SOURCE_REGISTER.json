@@ -33,6 +33,15 @@
       "notes": "Used to keep conventional fault handling and safety lifecycle distinct from SOTIF insufficiency analysis."
     },
     {
+      "id": "ISO-PAS-8800-2024",
+      "publisher": "ISO",
+      "title": "ISO/PAS 8800:2024 Road vehicles — Safety and artificial intelligence",
+      "status": "published",
+      "role": "ai-safety-complementary-reference",
+      "url": "https://www.iso.org/standard/83303.html",
+      "notes": "Public ISO abstract confirms scope for safety-related road-vehicle E/E systems using AI and risks from AI output insufficiencies, systematic errors and random hardware errors. KINGMAST uses it only as a complementary research reference for ML perception/monitoring; no ISO/PAS 8800 conformity claim is made."
+    },
+    {
       "id": "ISO-34502-2022",
       "publisher": "ISO",
       "title": "ISO 34502:2022 Road vehicles — Test scenarios for automated driving systems — Scenario based safety evaluation framework",

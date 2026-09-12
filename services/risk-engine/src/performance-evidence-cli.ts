@@ -32,7 +32,9 @@ function sample(overrides:Partial<VehicleSample>):VehicleSample{
 
 const scenarios:Scenario[]=[
   {name:'safe-following',sample:sample({}),expectedSeverity:'safe'},
-  {name:'short-headway-caution',sample:sample({targetSpeedMps:15,rangeM:25}),expectedSeverity:'caution',expectedReason:'closing-gap'},
+  // This vector has TTC=5s (not a closing-gap caution under the 3.2s gate) but THW=1.25s,
+  // so the correct SOTIF reason is short-headway. Keep this distinct from collision-critical TTC.
+  {name:'short-headway-caution',sample:sample({targetSpeedMps:15,rangeM:25}),expectedSeverity:'caution',expectedReason:'short-headway'},
   {name:'closing-gap-critical',sample:sample({targetSpeedMps:0,rangeM:10}),expectedSeverity:'critical',expectedReason:'closing-gap'},
   {name:'stale-rejected',sample:sample({timestampMs:NOW_MS-1_000}),expectedSeverity:'safe',expectedReason:'stale-data-rejected'},
   {name:'future-rejected',sample:sample({timestampMs:NOW_MS+100}),expectedSeverity:'safe',expectedReason:'future-data-rejected'},
@@ -117,5 +119,13 @@ const report={
   allPassed,
 };
 
-console.log(JSON.stringify(report,null,2));
-if(!allPassed)process.exitCode=1;
+const serialized=JSON.stringify(report,null,2);
+console.log(serialized);
+if(!allPassed){
+  // CI redirects stdout to the evidence artifact. Mirror a bounded diagnostic summary to stderr
+  // so a failed regression gate is debuggable without weakening or bypassing the timing budget.
+  console.error('[risk-performance] regression gate failed');
+  console.error(`[risk-performance] p50=${latencyMs.p50}ms p95=${latencyMs.p95}ms p99=${latencyMs.p99}ms max=${latencyMs.max}ms budget.p99=${p99BudgetMs}ms`);
+  if(classificationFailures.length)console.error(`[risk-performance] classification failures: ${classificationFailures.slice(0,8).join(' | ')}`);
+  process.exitCode=1;
+}

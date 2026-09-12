@@ -56,13 +56,13 @@ describe('assessSotifRuntime', () => {
     expect(result.qualificationClaim).toBe('research-runtime-monitor-only');
   });
 
-  it('does not silently claim a physically validated speed envelope by default', () => {
+  it('[S8-034] does not silently claim a physically validated speed envelope by default', () => {
     const result = assessSotifRuntime(input({ policy: { maxGnssAccuracyM: 10 } }));
     expect(result.state).toBe('degraded');
     expect(result.reasons).toContain('speed-envelope-unverified');
   });
 
-  it('makes FCW unavailable when radar evidence is stale', () => {
+  it('[S8-027] makes FCW unavailable when radar evidence is stale', () => {
     const result = assessSotifRuntime(input({
       radar: { ...radar, timestampMs: now - 700, tracks: radar.tracks.map((track) => ({ ...track, timestampMs: now - 700 })) },
     }));
@@ -72,7 +72,7 @@ describe('assessSotifRuntime', () => {
     expect(result.allowedClaims.criticalCollisionWarning).toBe(false);
   });
 
-  it('rejects future-dated radar evidence outside clock tolerance', () => {
+  it('[S8-028] rejects future-dated radar evidence outside clock tolerance', () => {
     const result = assessSotifRuntime(input({
       radar: { ...radar, timestampMs: now + 200, tracks: radar.tracks.map((track) => ({ ...track, timestampMs: now + 200 })) },
     }));
@@ -81,7 +81,7 @@ describe('assessSotifRuntime', () => {
     expect(result.confidenceCeiling).toBe(0);
   });
 
-  it('records heavy rain and glare as observed triggering conditions without inventing a sensor failure', () => {
+  it('[S8-017][S8-019] records heavy rain and glare as observed triggering conditions without inventing a sensor failure', () => {
     const result = assessSotifRuntime(input({
       environment: {
         observedAtMs: now,
@@ -102,7 +102,7 @@ describe('assessSotifRuntime', () => {
     expect(result.confidenceCeiling).toBeLessThanOrEqual(0.65);
   });
 
-  it('blocks camera-derived claims when camera obstruction is actually observed while preserving radar range', () => {
+  it('[S8-021] blocks camera-derived claims when camera obstruction is actually observed while preserving radar range', () => {
     const result = assessSotifRuntime(input({
       feature: 'object-awareness',
       environment: {
@@ -120,7 +120,7 @@ describe('assessSotifRuntime', () => {
     expect(result.triggeringConditions).toContain('camera-obstructed-observed');
   });
 
-  it('degrades on cross-sensor disagreement instead of increasing certainty', () => {
+  it('[S8-024][S8-026] degrades on cross-sensor disagreement instead of increasing certainty', () => {
     const result = assessSotifRuntime(input({
       fusion: {
         radarTrackCount: 4,
@@ -135,7 +135,7 @@ describe('assessSotifRuntime', () => {
     expect(result.confidenceCeiling).toBeLessThanOrEqual(0.55);
   });
 
-  it('blocks critical FCW authority when time synchronization is invalid', () => {
+  it('[S8-026] blocks critical FCW authority when time synchronization is invalid', () => {
     const result = assessSotifRuntime(input({
       assurance: { ...verified, timeSync: 'invalid' },
     }));
@@ -144,7 +144,7 @@ describe('assessSotifRuntime', () => {
     expect(result.allowedClaims.criticalCollisionWarning).toBe(false);
   });
 
-  it('marks operation outside an explicitly validated speed range', () => {
+  it('[S8-034] marks operation outside an explicitly validated speed range', () => {
     const result = assessSotifRuntime(input({
       vehicle: { ...vehicle, speedKmh: 95 },
       policy: { validatedSpeedRangeKmh: { min: 0, max: 80 }, maxGnssAccuracyM: 10 },
@@ -153,12 +153,25 @@ describe('assessSotifRuntime', () => {
     expect(result.triggeringConditions).toContain('outside-validated-speed-envelope');
   });
 
-  it('degrades navigation when no GNSS accuracy envelope has been validated', () => {
+  it('[S8-030] degrades navigation when no GNSS accuracy envelope has been validated', () => {
     const result = assessSotifRuntime(input({
       feature: 'navigation-context',
       policy: { validatedSpeedRangeKmh: { min: 0, max: 80 } },
     }));
     expect(result.state).toBe('degraded');
     expect(result.reasons).toContain('gnss-accuracy-envelope-unverified');
+  });
+
+  it('[S8-036] degrades object awareness after camera calibration is invalidated while preserving separately valid radar geometry', () => {
+    const result = assessSotifRuntime(input({
+      feature: 'object-awareness',
+      assurance: { ...verified, cameraCalibration: 'invalid' },
+    }));
+    expect(result.state).toBe('degraded');
+    expect(result.reasons).toContain('camera-calibration-invalid');
+    expect(result.allowedClaims.objectClassification).toBe(false);
+    expect(result.allowedClaims.laneGeometry).toBe(false);
+    expect(result.allowedClaims.radarRange).toBe(true);
+    expect(result.controlAuthority).toBe('none');
   });
 });

@@ -1,0 +1,131 @@
+{
+  "schema": "kingmast-sotif-research-operating-domain/v1",
+  "profileId": "KINGMAST-V008-RESEARCH-OD",
+  "productVersion": "0.0.8",
+  "reviewedAt": "2026-09-12",
+  "controlAuthority": "none",
+  "qualificationClaim": "research-operating-domain-model-only-not-validated-odd-or-compliance",
+  "purpose": "Machine-readable operating-condition model for Level-0 warning/advisory research, scenario selection and future simulator interchange. It is not a validated production ODD.",
+  "referenceModel": {
+    "iso34503": {
+      "sourceRef": "ISO-34503-2023",
+      "usage": "hierarchical operating-condition taxonomy reference only"
+    },
+    "asamOpenOdd": {
+      "sourceRef": "ASAM-OPENODD-1.0.0",
+      "targetVersion": "1.0.0",
+      "mappingStatus": "conceptual-mapping-only-not-schema-validated"
+    },
+    "asamOpenScenarioXml": {
+      "sourceRef": "ASAM-OPENSCENARIO-XML",
+      "targetVersion": "1.4.0",
+      "mappingStatus": "dynamic-scenario-bridge-target-only-not-schema-validated"
+    }
+  },
+  "systemBoundary": {
+    "automationLevel": "SAE-Level-0-warning-only",
+    "observeAnalyzeWarn": true,
+    "vehicleActuation": false,
+    "automaticBraking": false,
+    "automaticSteering": false,
+    "throttleAuthority": false,
+    "gearAuthority": false,
+    "genericCanWrite": false
+  },
+  "operatingConditions": {
+    "scenery": {
+      "roadContexts": [
+        "urban",
+        "rural",
+        "highway",
+        "multilane",
+        "intersection",
+        "parking-area",
+        "controlled-track",
+        "bench"
+      ],
+      "geometry": ["straight", "curve", "junction", "crossing", "merge", "unknown"],
+      "laneMarkingCondition": ["clear", "faded", "missing", "temporary", "unknown"],
+      "roadSurfaceObservation": ["dry", "wet", "standing-water", "unknown"]
+    },
+    "environment": {
+      "illumination": ["normal", "low", "glare", "transition", "unknown"],
+      "precipitation": ["none", "rain", "heavy-rain", "unknown"],
+      "visibility": ["normal", "reduced", "severely-reduced", "unknown"],
+      "weatherMustBeObserved": true,
+      "fabricatedWeatherForbidden": true
+    },
+    "dynamicElements": {
+      "objectKinds": ["person", "car", "motorcycle", "bicycle", "truck", "bus", "obstacle", "unknown"],
+      "conflictFamilies": [
+        "stationary-lead",
+        "slower-lead",
+        "braking-lead",
+        "cut-in",
+        "cut-out",
+        "crossing-path",
+        "turn-across-path",
+        "oncoming",
+        "adjacent-lane",
+        "vru-emergence",
+        "dense-small-targets"
+      ],
+      "associationUncertaintyMustRemainExplicit": true
+    },
+    "sensorAndDataConditions": {
+      "sensorHealth": ["ok", "degraded", "unavailable"],
+      "calibrationAssurance": ["verified", "unknown", "invalid"],
+      "timeSyncAssurance": ["verified", "unknown", "invalid"],
+      "freshnessRequired": true,
+      "futureTimestampRejectionRequired": true,
+      "crossSensorDisagreementMayNotIncreaseConfidence": true,
+      "cameraOnlyDepthMayNotBecomeAuthoritativeCollisionRange": true
+    },
+    "externalContext": {
+      "mapAndRouting": "advisory-source-qualified",
+      "connectedRoad": "advisory-source-qualified",
+      "providerTrustRequiredForLiveClaims": true,
+      "externalContextMayOverrideCollisionCriticalOnVehicleSensing": false
+    }
+  },
+  "physicalValidation": {
+    "status": "pending",
+    "targetHardwareQualified": false,
+    "hilQualified": false,
+    "controlledTrackQualified": false,
+    "publicRoadApproved": false,
+    "validatedSpeedRangeKmh": null,
+    "validatedRadarRangeM": null,
+    "validatedCameraDetectionRangeM": null,
+    "validatedVisibilityRangeM": null,
+    "validatedPrecipitationRangeMmH": null,
+    "validatedIlluminationRangeLux": null,
+    "validatedTemperatureRangeC": null,
+    "maxValidatedGnssAccuracyM": null,
+    "maxValidatedCrossSensorSkewMs": null,
+    "note": "Numeric physical-performance bounds remain null until tied to exact production-intent hardware, mounting, calibration, software/configuration, ground truth and reviewed evidence."
+  },
+  "runtimeInterpretation": {
+    "noPhysicalEnvelopePolicy": "degrade-and-state-unverified",
+    "outsideValidatedEnvelopePolicy": "outside-research-envelope",
+    "missingRequiredSensorPolicy": "unavailable-or-degraded-by-feature",
+    "staleOrFutureEvidencePolicy": "reject-claim",
+    "unknownCalibrationPolicy": "degrade",
+    "invalidCalibrationPolicy": "block-dependent-claim",
+    "controlAuthority": "none"
+  },
+  "explicitExclusions": [
+    "production-qualified-adas-performance",
+    "public-road-autonomy",
+    "automatic-emergency-braking",
+    "automatic-evasive-steering",
+    "guaranteed-collision-avoidance",
+    "asam-openodd-conformance",
+    "asam-openscenario-schema-conformance",
+    "iso-21448-conformity",
+    "iso-26262-certification",
+    "formal-asil-assignment",
+    "euroncap-score-claim",
+    "fmvss-127-compliance"
+  ]
+}

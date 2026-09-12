@@ -48,7 +48,8 @@ function sample(overrides:Partial<VehicleSample>):VehicleSample{
 
 const scenarios:Scenario[]=[
   {name:'safe-following',sample:sample({}),expectedSeverity:'safe'},
-  {name:'short-headway-caution',sample:sample({targetSpeedMps:15,rangeM:25}),expectedSeverity:'caution',expectedReason:'closing-gap'},
+  // TTC=5s while THW=1.25s. This is deliberately a headway caution, not a closing-gap claim.
+  {name:'short-headway-caution',sample:sample({targetSpeedMps:15,rangeM:25}),expectedSeverity:'caution',expectedReason:'short-headway'},
   {name:'closing-gap-critical',sample:sample({targetSpeedMps:0,rangeM:10}),expectedSeverity:'critical',expectedReason:'closing-gap'},
   {name:'stale-rejected',sample:sample({timestampMs:NOW_MS-1_000}),expectedSeverity:'safe',expectedReason:'stale-data-rejected'},
   {name:'future-rejected',sample:sample({timestampMs:NOW_MS+100}),expectedSeverity:'safe',expectedReason:'future-data-rejected'},
@@ -192,5 +193,14 @@ const report={
   ],
 };
 
-console.log(JSON.stringify(report,null,2));
-if(!allPassed)process.exitCode=1;
+const serialized=JSON.stringify(report,null,2);
+console.log(serialized);
+if(!allPassed){
+  // stdout is retained as machine-readable evidence by CI. Emit a bounded summary to stderr
+  // so classification/runtime/memory failures remain diagnosable without weakening any gate.
+  console.error('[host-soak] regression gate failed');
+  console.error(`[host-soak] classification=${classificationPassed} memory=${memoryPassed} eventLoop=${eventLoopPassed} runtimeEnvelope=${runtimeEnvelope.passed} physicalPreflight=${physicalPreflightPassed} operations=${operations}`);
+  console.error(`[host-soak] rssGrowth=${rssGrowthMiB}MiB/${memoryGrowthBudgetMiB}MiB eventLoop.p99=${eventLoopP99Ms}ms/${eventLoopP99BudgetMs}ms`);
+  if(failures.length)console.error(`[host-soak] classification failures: ${failures.slice(0,8).join(' | ')}`);
+  process.exitCode=1;
+}
