@@ -22,7 +22,7 @@ describe('field diagnostics evidence',()=>{
   it('builds a privacy-bounded software-only report using the active package version by default',()=>{
     const report=buildFieldDiagnosticsReport({identity:fieldDiagnosticIdentityFromEnv({})});
     expect(report.schema).toBe('kingmast-field-diagnostics-report/v1');
-    expect(report.productVersion).toBe('0.0.7');
+    expect(report.productVersion).toBe('0.0.8');
     expect(report.controlAuthority).toBe('none');
     expect(report.targetHardwareQualified).toBe(false);
     expect(report.physicalVehicleComputerTest).toBe(false);
