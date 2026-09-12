@@ -64,7 +64,11 @@ class StorageRuntimeTest(unittest.TestCase):
             self.assertEqual(status['discardedPartialBytes'], len(partial))
             self.assertTrue(status['fsyncPerRecord'])
             store.append({'index': 3})
-            lines = [json.loads(line) for path in root.glob('segment-*.jsonl') for line in path.read_text().splitlines()]
+            lines = [
+                json.loads(line)
+                for path in sorted(root.glob('segment-*.jsonl'), key=lambda item: item.name)
+                for line in path.read_text().splitlines()
+            ]
             self.assertEqual([item['index'] for item in lines], [1, 3])
 
     def test_restart_truncates_from_first_corrupt_complete_line(self) -> None:
