@@ -1,29 +1,22 @@
 'use client';
 
-import { Clock3, LocateFixed, MapPin, Navigation, RefreshCw, Route, Search, Signal, TriangleAlert, Wifi, WifiOff } from 'lucide-react';
+import { Clock3, LocateFixed, MapPin, Navigation, RefreshCw, Route, Search, TriangleAlert } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { NavigationPlace, NavigationRoute, NavigationRouteOption, VehiclePosition } from '@kingmast/contracts';
-import KingmastCockpitUltra from './KingmastCockpitUltra';
+import KingmastRealCockpit, { type C3Reachability, type RealViewKey } from './KingmastRealCockpit';
 import NativeNavigationMap from './NativeNavigationMap';
 import styles from './KingmastLiveNavigation.module.css';
 
-type ViewKey = 'drive' | 'navigate' | 'alerts' | 'camera' | 'objects' | 'trip' | 'energy' | 'vehicle' | 'settings';
 type GpsState = 'prompt' | 'requesting' | 'live' | 'denied' | 'unavailable';
-type Capability = { realGeocoding: boolean; realRouting: boolean; liveTraffic: boolean; trafficSource: 'google-live' | 'mapbox-live' | 'none'; fallbackRouting: string };
+type Capability = {
+  realGeocoding: boolean;
+  realRouting: boolean;
+  liveTraffic: boolean;
+  trafficSource: 'google-live' | 'mapbox-live' | 'none';
+  fallbackRouting: string;
+};
 
-function useView() {
-  const [view, setView] = useState<ViewKey>('drive');
-  useEffect(() => {
-    const node = document.querySelector<HTMLElement>('[data-testid="kingmast-cockpit-ultra"]');
-    if (!node) return;
-    const sync = () => setView((node.dataset.view as ViewKey | undefined) ?? 'drive');
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(node, { attributes: true, attributeFilter: ['data-view'] });
-    return () => observer.disconnect();
-  }, []);
-  return view;
-}
+const C3_ENDPOINT = 'http://192.168.4.1';
 
 function useOnline() {
   const [online, setOnline] = useState(true);
@@ -32,7 +25,10 @@ function useOnline() {
     sync();
     window.addEventListener('online', sync);
     window.addEventListener('offline', sync);
-    return () => { window.removeEventListener('online', sync); window.removeEventListener('offline', sync); };
+    return () => {
+      window.removeEventListener('online', sync);
+      window.removeEventListener('offline', sync);
+    };
   }, []);
   return online;
 }
@@ -40,6 +36,8 @@ function useOnline() {
 function useGps() {
   const [state, setState] = useState<GpsState>('prompt');
   const [vehicle, setVehicle] = useState<VehiclePosition | null>(null);
+  const [speedKmh, setSpeedKmh] = useState<number | null>(null);
+  const [headingDeg, setHeadingDeg] = useState<number | null>(null);
   const watchRef = useRef<number | null>(null);
 
   const stop = useCallback(() => {
@@ -48,29 +46,44 @@ function useGps() {
   }, []);
 
   const start = useCallback(() => {
-    if (!navigator.geolocation) { setState('unavailable'); return; }
+    if (!navigator.geolocation) {
+      setState('unavailable');
+      return;
+    }
     stop();
     setState('requesting');
     watchRef.current = navigator.geolocation.watchPosition(
       (position) => {
+        const measuredSpeed = position.coords.speed == null ? null : Math.max(0, position.coords.speed * 3.6);
+        const measuredHeading = position.coords.heading == null ? null : position.coords.heading;
+        setSpeedKmh(measuredSpeed);
+        setHeadingDeg(measuredHeading);
         setVehicle({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-          speedKmh: position.coords.speed == null ? 0 : Math.max(0, position.coords.speed * 3.6),
-          headingDeg: position.coords.heading ?? 0,
+          speedKmh: measuredSpeed ?? 0,
+          headingDeg: measuredHeading ?? 0,
           accuracyM: position.coords.accuracy,
           timestampMs: position.timestamp,
           source: 'device-gps',
         });
         setState('live');
       },
-      () => { setVehicle(null); setState('denied'); },
+      () => {
+        setVehicle(null);
+        setSpeedKmh(null);
+        setHeadingDeg(null);
+        setState('denied');
+      },
       { enableHighAccuracy: true, maximumAge: 1000, timeout: 12000 },
     );
   }, [stop]);
 
   useEffect(() => {
-    if (!navigator.geolocation) { setState('unavailable'); return; }
+    if (!navigator.geolocation) {
+      setState('unavailable');
+      return;
+    }
     if (!navigator.permissions) return;
     let alive = true;
     void navigator.permissions.query({ name: 'geolocation' }).then((permission) => {
@@ -80,13 +93,69 @@ function useGps() {
       permission.onchange = () => {
         if (!alive) return;
         if (permission.state === 'granted') start();
-        else { stop(); setVehicle(null); setState(permission.state === 'denied' ? 'denied' : 'prompt'); }
+        else {
+          stop();
+          setVehicle(null);
+          setSpeedKmh(null);
+          setHeadingDeg(null);
+          setState(permission.state === 'denied' ? 'denied' : 'prompt');
+        }
       };
     }).catch(() => {});
-    return () => { alive = false; stop(); };
+    return () => {
+      alive = false;
+      stop();
+    };
   }, [start, stop]);
 
-  return { state, vehicle, start };
+  return { state, vehicle, speedKmh, headingDeg, start };
+}
+
+function useC3Reachability() {
+  const [state, setState] = useState<C3Reachability>('checking');
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (window.location.protocol === 'https:') {
+      setState('blocked');
+      setLatencyMs(null);
+      return;
+    }
+
+    let disposed = false;
+    let controller: AbortController | null = null;
+    const poll = async () => {
+      controller?.abort();
+      controller = new AbortController();
+      const timeout = window.setTimeout(() => controller?.abort(), 900);
+      const started = performance.now();
+      try {
+        const response = await fetch(`${C3_ENDPOINT}/api/telemetry`, { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) throw new Error(`c3-${response.status}`);
+        await response.json();
+        if (disposed) return;
+        setLatencyMs(Math.max(1, Math.round(performance.now() - started)));
+        setState('live');
+      } catch {
+        if (!disposed) {
+          setLatencyMs(null);
+          setState('offline');
+        }
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), 2000);
+    return () => {
+      disposed = true;
+      controller?.abort();
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  return { state, latencyMs };
 }
 
 function duration(seconds: number) {
@@ -119,9 +188,10 @@ function traffic(route: NavigationRoute | null) {
 }
 
 export default function KingmastLiveNavigation() {
-  const view = useView();
+  const [view, setView] = useState<RealViewKey>('drive');
   const online = useOnline();
-  const { state: gpsState, vehicle, start: startGps } = useGps();
+  const { state: gpsState, vehicle, speedKmh, headingDeg, start: startGps } = useGps();
+  const { state: c3State, latencyMs: c3LatencyMs } = useC3Reachability();
   const vehicleRef = useRef<VehiclePosition | null>(null);
   const selectedRef = useRef(0);
   const optionsRef = useRef<NavigationRouteOption[]>([]);
@@ -135,6 +205,25 @@ export default function KingmastLiveNavigation() {
   const [routing, setRouting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updated, setUpdated] = useState<number | null>(null);
+
+  useEffect(() => {
+    const sync = () => {
+      const raw = new URLSearchParams(window.location.search).get('view');
+      const allowed: RealViewKey[] = ['drive', 'navigate', 'alerts', 'camera', 'objects', 'trip', 'energy', 'vehicle', 'settings'];
+      setView(allowed.includes(raw as RealViewKey) ? raw as RealViewKey : 'drive');
+    };
+    sync();
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+
+  const changeView = useCallback((next: RealViewKey) => {
+    setView(next);
+    const url = new URL(window.location.href);
+    if (next === 'drive') url.searchParams.delete('view');
+    else url.searchParams.set('view', next);
+    window.history.pushState({}, '', url);
+  }, []);
 
   useEffect(() => { vehicleRef.current = vehicle; }, [vehicle]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
@@ -151,11 +240,17 @@ export default function KingmastLiveNavigation() {
 
   const loadRoutes = useCallback(async (place: NavigationPlace, preserve: boolean) => {
     const origin = vehicleRef.current;
-    if (!origin) { setError('Cần GPS thật trước khi tính tuyến.'); return; }
-    setRouting(true); setError(null);
+    if (!origin) {
+      setError('Cần GPS thật trước khi tính tuyến.');
+      return;
+    }
+    setRouting(true);
+    setError(null);
     try {
       const response = await fetch('/api/kingmast/live-navigation/alternatives', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify({ origin: { lat: origin.lat, lng: origin.lng }, destination: place.position }),
       });
       if (!response.ok) throw new Error('route');
@@ -169,14 +264,23 @@ export default function KingmastLiveNavigation() {
           let best = Number.POSITIVE_INFINITY;
           next.forEach((item, index) => {
             const score = (item.route.provider === previous.provider ? 0 : 1_000_000) + Math.abs(item.route.distanceM - previous.distanceM);
-            if (score < best) { best = score; nextSelected = index; }
+            if (score < best) {
+              best = score;
+              nextSelected = index;
+            }
           });
         }
       }
-      setDestination(place); setOptions(next); setSelected(nextSelected); setUpdated(Date.now());
+      setDestination(place);
+      setOptions(next);
+      setSelected(nextSelected);
+      setUpdated(Date.now());
     } catch {
-      setOptions([]); setError('Không lấy được tuyến thật. Không dùng dữ liệu mô phỏng thay thế.');
-    } finally { setRouting(false); }
+      setOptions([]);
+      setError('Không lấy được tuyến thật. Không dùng dữ liệu mô phỏng thay thế.');
+    } finally {
+      setRouting(false);
+    }
   }, []);
 
   const search = useCallback(async (event: FormEvent) => {
@@ -184,18 +288,29 @@ export default function KingmastLiveNavigation() {
     const origin = vehicleRef.current;
     const value = query.trim();
     if (!origin || value.length < 2) return;
-    setSearching(true); setError(null);
+    setSearching(true);
+    setError(null);
     try {
       const response = await fetch(`/api/kingmast/live-navigation/search?q=${encodeURIComponent(value)}&lat=${origin.lat}&lng=${origin.lng}`, { cache: 'no-store' });
       if (!response.ok) throw new Error('search');
       const payload = await response.json() as { places?: NavigationPlace[] };
       setPlaces(Array.isArray(payload.places) ? payload.places : []);
-    } catch { setPlaces([]); setError('Không tìm được địa điểm từ nguồn thật.'); }
-    finally { setSearching(false); }
+    } catch {
+      setPlaces([]);
+      setError('Không tìm được địa điểm từ nguồn thật.');
+    } finally {
+      setSearching(false);
+    }
   }, [query]);
 
-  const choose = (place: NavigationPlace) => { setQuery(place.name); setPlaces([]); void loadRoutes(place, false); };
-  const refresh = useCallback(() => { if (destination) void loadRoutes(destination, true); }, [destination, loadRoutes]);
+  const choose = (place: NavigationPlace) => {
+    setQuery(place.name);
+    setPlaces([]);
+    void loadRoutes(place, false);
+  };
+  const refresh = useCallback(() => {
+    if (destination) void loadRoutes(destination, true);
+  }, [destination, loadRoutes]);
 
   useEffect(() => {
     if (!destination) return;
@@ -203,47 +318,80 @@ export default function KingmastLiveNavigation() {
     return () => window.clearInterval(timer);
   }, [destination, refresh]);
 
-  return (
-    <div className={styles.root}>
-      <KingmastCockpitUltra />
+  const mapSlot = (
+    <section className={styles.mapSlot} aria-label="Bản đồ thật KINGMAST">
+      {vehicle ? <>
+        <NativeNavigationMap vehicle={vehicle} objects={[]} cameras={[]} route={route} headingUp compact />
+        <div className={styles.liveChip}><i />GPS THẬT</div>
+        <div className={`${styles.trafficChip} ${styles[`tone_${trafficState.tone}`]}`}><strong>{trafficState.label}</strong><small>{trafficState.detail}</small></div>
+        {destination ? <div className={styles.destChip}><MapPin size={13} />{destination.name}</div> : null}
+      </> : <div className={styles.gpsGate}>
+        <LocateFixed size={27} />
+        <strong>Cần vị trí thật</strong>
+        <span>Không sử dụng tọa độ demo cho bản đồ hoặc giao thông.</span>
+        <button type="button" onClick={startGps} disabled={gpsState === 'requesting'}>{gpsState === 'requesting' ? 'Đang lấy GPS…' : 'Cho phép vị trí'}</button>
+      </div>}
+    </section>
+  );
 
-      <div className={styles.realTop} aria-label="Trạng thái dữ liệu thật">
-        <span className={vehicle ? styles.ok : styles.warn}><LocateFixed size={14} />{vehicle ? `GPS ±${Math.round(vehicle.accuracyM)} m` : 'GPS chưa cấp quyền'}</span>
-        <span className={online ? styles.ok : styles.bad}>{online ? <Wifi size={14} /> : <WifiOff size={14} />}{online ? 'Internet online' : 'Mất Internet'}</span>
-        <span className={capability?.liveTraffic ? styles.ok : styles.warn}><Signal size={14} />{capability?.liveTraffic ? `Traffic ${capability.trafficSource}` : 'Traffic live chưa cấu hình'}</span>
+  const navigationSlot = (
+    <section className={styles.navWorkspace} aria-label="Dẫn đường thật KINGMAST">
+      <header>
+        <div><b>LIVE NAVIGATION</b><h2>Dẫn đường & giao thông</h2><p>GPS thật · địa điểm thật · tuyến thật. Traffic chỉ được gắn nhãn LIVE khi nhà cung cấp traffic thực sự phản hồi.</p></div>
+        <span className={vehicle ? styles.gpsLive : styles.gpsOff}><LocateFixed size={17} />{vehicle ? `GPS ±${Math.round(vehicle.accuracyM)} m` : 'Chưa có GPS'}</span>
+      </header>
+
+      <form className={styles.search} onSubmit={search}>
+        <Search size={18} />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nhập điểm đến…" disabled={!vehicle || searching} />
+        <button disabled={!vehicle || searching || query.trim().length < 2}>{searching ? 'Đang tìm' : 'Tìm đường'}</button>
+      </form>
+      {places.length ? <div className={styles.results}>{places.map((place) => <button type="button" key={place.id} onClick={() => choose(place)}><MapPin size={16} /><span><strong>{place.name}</strong><small>{place.subtitle ?? 'Địa điểm'}</small></span></button>)}</div> : null}
+      {error ? <div className={styles.error}><TriangleAlert size={17} />{error}</div> : null}
+
+      <div className={styles.summary}>
+        <div className={`${styles.trafficStatus} ${styles[`tone_${trafficState.tone}`]}`}><i /><span><strong>{trafficState.label}</strong><small>{trafficState.detail}</small></span></div>
+        <div><Route size={17} /><span><small>Quãng đường</small><strong>{route ? distance(route.distanceM) : '--'}</strong></span></div>
+        <div><Clock3 size={17} /><span><small>Thời gian</small><strong>{route ? duration(route.durationS) : '--'}</strong></span></div>
+        <button type="button" onClick={refresh} disabled={!destination || routing}><RefreshCw size={15} className={routing ? styles.spin : ''} />{routing ? 'Đang cập nhật' : 'Cập nhật traffic'}</button>
       </div>
 
-      <section className={styles.mapSlot} aria-label="Bản đồ thật KINGMAST">
-        {vehicle ? <>
-          <NativeNavigationMap vehicle={vehicle} objects={[]} cameras={[]} route={route} headingUp compact />
-          <div className={styles.liveChip}><i />GPS THẬT</div>
-          <div className={`${styles.trafficChip} ${styles[`tone_${trafficState.tone}`]}`}><strong>{trafficState.label}</strong><small>{trafficState.detail}</small></div>
-          {destination ? <div className={styles.destChip}><MapPin size={13} />{destination.name}</div> : null}
-        </> : <div className={styles.gpsGate}><LocateFixed size={27} /><strong>Cần vị trí thật</strong><span>Không sử dụng tọa độ demo cho bản đồ hoặc giao thông.</span><button type="button" onClick={startGps} disabled={gpsState === 'requesting'}>{gpsState === 'requesting' ? 'Đang lấy GPS…' : 'Cho phép vị trí'}</button></div>}
-      </section>
+      <div className={styles.routesHead}>
+        <span><strong>Tuyến thay thế</strong><small>{updated ? `Cập nhật ${new Date(updated).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Chưa tính tuyến'}</small></span>
+        <b className={capability?.liveTraffic ? styles.liveProvider : styles.noProvider}>{capability?.liveTraffic ? `LIVE · ${capability.trafficSource}` : 'REAL ROUTE · NO LIVE TRAFFIC'}</b>
+      </div>
+      <div className={styles.routes}>{options.length ? options.map((option, index) => {
+        const info = traffic(option.route);
+        return <button type="button" key={option.id} className={index === selected ? styles.routeActive : ''} onClick={() => setSelected(index)}><i className={`${styles.routeStripe} ${styles[`tone_${info.tone}`]}`} /><span><strong>{option.recommended ? 'Khuyến nghị' : `Tuyến ${index + 1}`}</strong><small>{provider(option.route)}</small></span><span><strong>{duration(option.route.durationS)}</strong><small>{distance(option.route.distanceM)}</small></span><em className={styles[`tone_${info.tone}`]}>{info.label}</em></button>;
+      }) : <div className={styles.empty}><Navigation size={28} /><strong>Chưa có tuyến</strong><span>Cho phép GPS và tìm điểm đến để bắt đầu.</span></div>}</div>
 
-      {view === 'navigate' ? <section className={styles.navWorkspace} aria-label="Dẫn đường thật KINGMAST">
-        <header><div><b>LIVE NAVIGATION</b><h2>Dẫn đường & giao thông</h2><p>GPS thật · địa điểm thật · tuyến thật. Traffic chỉ được gắn nhãn LIVE khi Google/Mapbox traffic thực sự phản hồi.</p></div><span className={vehicle ? styles.gpsLive : styles.gpsOff}><LocateFixed size={17} />{vehicle ? `GPS ±${Math.round(vehicle.accuracyM)} m` : 'Chưa có GPS'}</span></header>
+      {!capability?.liveTraffic ? <div className={styles.providerWarning}><TriangleAlert size={17} /><span><strong>Chưa có nhà cung cấp traffic live</strong><small>Định tuyến vẫn dùng đường thật qua OSRM. KINGMAST không suy diễn tình trạng ùn tắc. Khi cấu hình Google Routes hoặc Mapbox Traffic ở server, nhãn LIVE mới được bật.</small></span></div> : null}
+    </section>
+  );
 
-        <form className={styles.search} onSubmit={search}><Search size={18} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nhập điểm đến…" disabled={!vehicle || searching} /><button disabled={!vehicle || searching || query.trim().length < 2}>{searching ? 'Đang tìm' : 'Tìm đường'}</button></form>
-        {places.length ? <div className={styles.results}>{places.map((place) => <button type="button" key={place.id} onClick={() => choose(place)}><MapPin size={16} /><span><strong>{place.name}</strong><small>{place.subtitle ?? 'Địa điểm'}</small></span></button>)}</div> : null}
-        {error ? <div className={styles.error}><TriangleAlert size={17} />{error}</div> : null}
-
-        <div className={styles.summary}>
-          <div className={`${styles.trafficStatus} ${styles[`tone_${trafficState.tone}`]}`}><i /><span><strong>{trafficState.label}</strong><small>{trafficState.detail}</small></span></div>
-          <div><Route size={17} /><span><small>Quãng đường</small><strong>{route ? distance(route.distanceM) : '--'}</strong></span></div>
-          <div><Clock3 size={17} /><span><small>Thời gian</small><strong>{route ? duration(route.durationS) : '--'}</strong></span></div>
-          <button type="button" onClick={refresh} disabled={!destination || routing}><RefreshCw size={15} className={routing ? styles.spin : ''} />{routing ? 'Đang cập nhật' : 'Cập nhật traffic'}</button>
-        </div>
-
-        <div className={styles.routesHead}><span><strong>Tuyến thay thế</strong><small>{updated ? `Cập nhật ${new Date(updated).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Chưa tính tuyến'}</small></span><b className={capability?.liveTraffic ? styles.liveProvider : styles.noProvider}>{capability?.liveTraffic ? `LIVE · ${capability.trafficSource}` : 'REAL ROUTE · NO LIVE TRAFFIC'}</b></div>
-        <div className={styles.routes}>{options.length ? options.map((option, index) => {
-          const info = traffic(option.route);
-          return <button type="button" key={option.id} className={index === selected ? styles.routeActive : ''} onClick={() => setSelected(index)}><i className={`${styles.routeStripe} ${styles[`tone_${info.tone}`]}`} /><span><strong>{option.recommended ? 'Khuyến nghị' : `Tuyến ${index + 1}`}</strong><small>{provider(option.route)}</small></span><span><strong>{duration(option.route.durationS)}</strong><small>{distance(option.route.distanceM)}</small></span><em className={styles[`tone_${info.tone}`]}>{info.label}</em></button>;
-        }) : <div className={styles.empty}><Navigation size={28} /><strong>Chưa có tuyến</strong><span>Cho phép GPS và tìm điểm đến để bắt đầu.</span></div>}</div>
-
-        {!capability?.liveTraffic ? <div className={styles.providerWarning}><TriangleAlert size={17} /><span><strong>Chưa có nhà cung cấp traffic live</strong><small>Định tuyến vẫn dùng đường thật qua OSRM. Muốn biết ùn tắc trực tiếp cần cấu hình GOOGLE_ROUTES_API_KEY hoặc MAPBOX_ACCESS_TOKEN ở server.</small></span></div> : null}
-      </section> : null}
+  return (
+    <div className={styles.root}>
+      <KingmastRealCockpit
+        view={view}
+        onViewChange={changeView}
+        gpsState={gpsState}
+        latitude={vehicle?.lat ?? null}
+        longitude={vehicle?.lng ?? null}
+        gpsAccuracyM={vehicle?.accuracyM ?? null}
+        gpsSpeedKmh={speedKmh}
+        headingDeg={headingDeg}
+        online={online}
+        trafficLive={Boolean(capability?.liveTraffic)}
+        trafficSource={capability?.trafficSource ?? 'none'}
+        routeProvider={route ? provider(route) : null}
+        routeDistanceLabel={route ? distance(route.distanceM) : null}
+        routeDurationLabel={route ? duration(route.durationS) : null}
+        destinationName={destination?.name ?? null}
+        c3State={c3State}
+        c3LatencyMs={c3LatencyMs}
+        mapSlot={mapSlot}
+        navigationSlot={navigationSlot}
+      />
     </div>
   );
 }
