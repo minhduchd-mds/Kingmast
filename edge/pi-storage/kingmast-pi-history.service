@@ -1,0 +1,22 @@
+[Unit]
+Description=KINGMAST Raspberry Pi history-only SD gateway
+After=network-online.target mnt-kingmast\x2dsd.mount
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kingmast
+Group=kingmast
+WorkingDirectory=/opt/kingmast/edge/pi-storage
+EnvironmentFile=-/etc/kingmast/history.env
+ExecStart=/usr/bin/python3 /opt/kingmast/edge/pi-storage/history_gateway.py --host 0.0.0.0 --port 4100 --storage-dir /mnt/kingmast-sd/history --tls-cert /etc/kingmast/tls/pi.crt --tls-key /etc/kingmast/tls/pi.key
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/kingmast-sd/history
+
+[Install]
+WantedBy=multi-user.target
