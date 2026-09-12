@@ -63,6 +63,7 @@
     "security:config-auth": "node scripts/configuration-auth-policy-check.mjs",
     "security:provider-auth": "node scripts/provider-identity-policy-check.mjs",
     "security:route-rate-limit": "node scripts/route-rate-limit-policy-check.mjs",
+    "security:vehicle-zones": "node scripts/vehicle-security-zone-policy-check.mjs",
     "security:workflow-policy": "node scripts/workflow-security-policy-check.mjs",
     "security:audit": "pnpm audit --audit-level=moderate",
     "audit:integrity": "node scripts/audit-integrity-policy-check.mjs",
