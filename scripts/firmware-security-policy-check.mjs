@@ -10,6 +10,7 @@ const config=read(configPath);
 const firmware=read(firmwarePath);
 
 if(!config.includes('#define KINGMAST_API_URL "https://'))failures.push('ESP32 example endpoint must remain HTTPS');
+if(!config.includes('#define KINGMAST_HISTORY_URL "https://'))failures.push('ESP32 history endpoint must remain HTTPS');
 if(!config.includes('KINGMAST_TLS_CA_CERT'))failures.push('ESP32 example must provision an explicit gateway CA certificate');
 if(!config.includes('KINGMAST_DEVICE_KEY_ID')||!config.includes('KINGMAST_DEVICE_HMAC_SECRET'))failures.push('ESP32 example must preserve per-device signing configuration placeholders');
 if(/setInsecure\s*\(/.test(firmware))failures.push('ESP32 firmware must never disable TLS certificate validation');
@@ -21,6 +22,13 @@ if(/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(config+firmware))fai
 if(/http:\/\//i.test(config+firmware))failures.push('ESP32 production telemetry source must not contain plaintext HTTP endpoints');
 if(!firmware.includes('secureConfigurationValid()'))failures.push('ESP32 firmware must fail closed on insecure/placeholder configuration');
 if(!firmware.includes('epochMillis()')||!firmware.includes('syncClock()'))failures.push('ESP32 publisher must keep explicit clock synchronization/fresh timestamp support');
+if(!firmware.includes('#include <SD.h>')||!firmware.includes('#include <SPI.h>'))failures.push('ESP32 offline spool must use the bounded microSD path');
+if(!config.includes('SD_SPOOL_PERCENT')||!config.includes('SD_RESERVE_PERCENT')||!config.includes('SD_SPOOL_MAX_BYTES'))failures.push('ESP32 SD spool must preserve quota and free-space reserve bounds');
+if(!firmware.includes('pruneSpool(incomingBytes)'))failures.push('ESP32 must prune bounded history before a write can exhaust the card');
+if(!firmware.includes('maintainSdSpool()')||!config.includes('SD_REMOUNT_INTERVAL_MS'))failures.push('ESP32 must retry SD mounting without blocking realtime telemetry');
+if(!firmware.includes('corruptTail')||!firmware.includes('discarded unrecoverable partial SD segment'))failures.push('ESP32 history drain must handle interrupted trailing records without wedging the queue');
+if(!firmware.includes('bool shouldSpoolStatus(int status){return status<=0||status==408||status==425||status==429||status>=500;}'))failures.push('ESP32 must spool only transient/ambiguous realtime delivery failures');
+if(!config.includes('Old packets must never be replayed into /v3/edge/frame'))failures.push('ESP32 config must preserve the history-only replay boundary');
 
 if(failures.length){console.error('KINGMAST firmware security policy failed:\n'+failures.map((item)=>`- ${item}`).join('\n'));process.exit(1);}
 console.log('KINGMAST firmware security policy passed.');

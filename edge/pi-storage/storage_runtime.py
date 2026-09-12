@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, asdict
 import json
+import os
 from pathlib import Path
 import shutil
 import time
@@ -94,6 +95,9 @@ class AdaptiveJsonlRingStore:
         self._written = 0
         self._pruned = 0
         self._write_errors = 0
+        self._recovered_segments = 0
+        self._discarded_partial_bytes = 0
+        self._recovery_checked = False
 
     def _segments(self) -> list[Path]:
         return sorted(self.root.glob('segment-*.jsonl'), key=lambda path: path.name)
@@ -115,6 +119,45 @@ class AdaptiveJsonlRingStore:
             self.requested_percent,
             self.reserve_percent,
         )
+
+    def _repair_interrupted_segments(self) -> None:
+        if self._recovery_checked:
+            return
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        for path in self._segments():
+            try:
+                data = path.read_bytes()
+            except FileNotFoundError:
+                continue
+            if not data:
+                continue
+            valid_end = 0
+            offset = 0
+            for raw_line in data.splitlines(keepends=True):
+                next_offset = offset + len(raw_line)
+                if not raw_line.endswith(b'\n'):
+                    break
+                payload = raw_line[:-1].strip()
+                if not payload:
+                    break
+                try:
+                    parsed = json.loads(payload.decode('utf-8'))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    break
+                if not isinstance(parsed, dict):
+                    break
+                valid_end = next_offset
+                offset = next_offset
+            if valid_end == len(data):
+                continue
+            discarded = len(data) - valid_end
+            with path.open('r+b') as handle:
+                handle.truncate(valid_end)
+                handle.flush()
+                os.fsync(handle.fileno())
+            self._recovered_segments += 1
+            self._discarded_partial_bytes += discarded
+        self._recovery_checked = True
 
     def _new_segment(self) -> Path:
         self._counter = (self._counter + 1) % 1_000_000
@@ -148,6 +191,7 @@ class AdaptiveJsonlRingStore:
 
     def append(self, record: dict[str, Any]) -> dict[str, Any]:
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self._repair_interrupted_segments()
         line = (json.dumps(record, sort_keys=True, separators=(',', ':'), ensure_ascii=False) + '\n').encode('utf-8')
         if len(line) > self.max_record_bytes:
             raise ValueError('record exceeds max_record_bytes')
@@ -159,6 +203,7 @@ class AdaptiveJsonlRingStore:
             with self._current.open('ab') as handle:
                 handle.write(line)
                 handle.flush()
+                os.fsync(handle.fileno())
             self._written += 1
             return {'stored': True, 'mode': plan.mode, 'segment': self._current.name}
         except Exception:
@@ -167,6 +212,7 @@ class AdaptiveJsonlRingStore:
 
     def status(self) -> dict[str, Any]:
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self._repair_interrupted_segments()
         plan = self._plan()
         segments = self._segments()
         used = self._usage_bytes()
@@ -184,5 +230,8 @@ class AdaptiveJsonlRingStore:
             'writtenRecords': self._written,
             'prunedSegments': self._pruned,
             'writeErrors': self._write_errors,
+            'recoveredSegments': self._recovered_segments,
+            'discardedPartialBytes': self._discarded_partial_bytes,
+            'fsyncPerRecord': True,
             'controlAuthority': 'none',
         }

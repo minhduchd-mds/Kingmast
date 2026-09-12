@@ -1,0 +1,30 @@
+name: ESP32 Firmware Build
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'edge/esp32/**'
+      - '.github/workflows/esp32-firmware-build.yml'
+  pull_request:
+    paths:
+      - 'edge/esp32/**'
+      - '.github/workflows/esp32-firmware-build.yml'
+permissions:
+  contents: read
+jobs:
+  compile-esp32:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned PlatformIO Core
+        run: python -m pip install --disable-pip-version-check platformio==6.1.18
+      - name: Prepare compile-only configuration
+        run: cp edge/esp32/kingmast_edge/config.example.h edge/esp32/kingmast_edge/config.h
+      - name: Compile ESP32 firmware
+        run: pio run -d edge/esp32/kingmast_edge

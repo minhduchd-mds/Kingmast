@@ -14,7 +14,23 @@ jobs:
         with:
           persist-credentials: false
       - name: Python syntax
-        run: python -m py_compile edge/pi-storage/storage_runtime.py edge/pi-storage/history_gateway.py edge/pi-storage/test_storage_runtime.py edge/pi-storage/test_history_gateway.py
+        run: python -m py_compile edge/pi-storage/storage_runtime.py edge/pi-storage/history_gateway.py edge/pi-storage/test_storage_runtime.py edge/pi-storage/test_history_gateway.py edge/pi-storage/hardware_readiness_selftest.py edge/pi-storage/physical_sd_probe.py
       - name: Adaptive storage and history authentication tests
         working-directory: edge/pi-storage
         run: python -m unittest -v test_storage_runtime.py test_history_gateway.py
+      - name: Deterministic SD hardware-readiness preflight
+        working-directory: edge/pi-storage
+        run: |
+          python hardware_readiness_selftest.py > /tmp/kingmast.sd-readiness.json
+          python - <<'PY'
+          import json
+          report=json.load(open('/tmp/kingmast.sd-readiness.json',encoding='utf-8'))
+          assert report['schema']=='kingmast-sd-hardware-readiness-preflight/v1'
+          assert report['allPassed'] is True
+          assert report['failed']==0
+          assert report['physicalSdCardTested'] is False
+          assert report['physicalRaspberryPiTested'] is False
+          assert report['physicalEsp32Tested'] is False
+          assert report['controlAuthority']=='none'
+          print(f"KINGMAST SD software preflight passed {report['passed']}/{report['total']} checks without claiming physical hardware qualification.")
+          PY
