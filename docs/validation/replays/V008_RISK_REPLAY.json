@@ -1,0 +1,62 @@
+[
+  {
+    "scenarioId": "SIL8-RISK-001",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000000,"egoSpeedMps":20,"targetSpeedMps":20,"rangeM":50,"confidence":0.95,"canHealthy":true,"radarHealthy":true,"cameraHealthy":true},
+    "expected": {"severity":"safe","reasonsInclude":[],"ttcNull":true}
+  },
+  {
+    "scenarioId": "SIL8-RISK-002",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000000,"egoSpeedMps":20,"targetSpeedMps":20,"rangeM":30,"confidence":0.90,"canHealthy":true,"radarHealthy":true,"cameraHealthy":true},
+    "expected": {"severity":"caution","reasonsInclude":["short-headway"],"ttcNull":true}
+  },
+  {
+    "scenarioId": "SIL8-RISK-003",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000000,"egoSpeedMps":25,"targetSpeedMps":5,"rangeM":20,"confidence":0.98,"canHealthy":true,"radarHealthy":true,"cameraHealthy":true},
+    "expected": {"severity":"critical","reasonsInclude":["closing-gap"],"ttcMax":1.01}
+  },
+  {
+    "scenarioId": "SIL8-RISK-004",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1799999999000,"egoSpeedMps":25,"targetSpeedMps":5,"rangeM":8,"confidence":0.98,"canHealthy":true,"radarHealthy":true,"cameraHealthy":true},
+    "expected": {"severity":"safe","reasonsInclude":["stale-data-rejected"],"confidenceMax":0,"ttcNull":true,"thwNull":true}
+  },
+  {
+    "scenarioId": "SIL8-RISK-005",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000000,"egoSpeedMps":25,"targetSpeedMps":5,"rangeM":8,"confidence":0.98,"canHealthy":true,"radarHealthy":false,"cameraHealthy":true},
+    "expected": {"severity":"safe","reasonsInclude":["radar-unavailable"],"confidenceMax":0,"ttcNull":true,"thwNull":true}
+  },
+  {
+    "scenarioId": "SIL8-RISK-006",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000000,"egoSpeedMps":15,"targetSpeedMps":15,"rangeM":80,"confidence":0.80,"canHealthy":false,"radarHealthy":true,"cameraHealthy":true},
+    "expected": {"severity":"safe","reasonsInclude":["can-degraded"],"ttcNull":true}
+  },
+  {
+    "scenarioId": "SIL8-RISK-007",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000200,"egoSpeedMps":25,"targetSpeedMps":5,"rangeM":8,"confidence":0.98,"canHealthy":true,"radarHealthy":true,"cameraHealthy":true},
+    "expected": {"severity":"safe","reasonsInclude":["future-data-rejected"],"confidenceMax":0,"ttcNull":true,"thwNull":true}
+  },
+  {
+    "scenarioId": "SIL8-RISK-008",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000000,"egoSpeedMps":25,"targetSpeedMps":5,"rangeM":20,"confidence":0.98,"canHealthy":false,"radarHealthy":true,"cameraHealthy":true},
+    "expected": {"severity":"caution","reasonsInclude":["can-degraded","closing-gap","critical-blocked-can-degraded"],"ttcMax":1.01}
+  },
+  {
+    "scenarioId": "SIL8-RISK-009",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000000,"egoSpeedMps":25,"targetSpeedMps":5,"rangeM":20,"confidence":0.98,"canHealthy":true,"radarHealthy":true,"cameraHealthy":false},
+    "expected": {"severity":"critical","reasonsInclude":["camera-degraded","closing-gap"],"ttcMax":1.01}
+  },
+  {
+    "scenarioId": "SIL8-RISK-010",
+    "nowMs": 1800000000000,
+    "sample": {"timestampMs":1800000000000,"egoSpeedMps":25,"targetSpeedMps":5,"rangeM":20,"confidence":0.40,"canHealthy":true,"radarHealthy":true,"cameraHealthy":true},
+    "expected": {"severity":"safe","reasonsInclude":[],"ttcMax":1.01}
+  }
+]
