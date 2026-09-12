@@ -7,6 +7,10 @@ const realtime=read('lib/realtime.ts');
 const telemetry=read('lib/telemetry.ts');
 const sessionRoute=read('app/api/kingmast/session/route.ts');
 const clientErrorRoute=read('app/api/kingmast/client-error/route.ts');
+const navigationRoute=read('app/api/kingmast/live-navigation/alternatives/route.ts');
+const navigationSearchRoute=read('app/api/kingmast/live-navigation/search/route.ts');
+const securityEnvelope=read('lib/security-envelope.ts');
+const outerProxy=read('proxy.ts');
 const viewerSession=read('../../packages/contracts/src/viewer-session.ts');
 const vehicleReadOnly=read('../../packages/contracts/src/vehicle-readonly.ts');
 const contractsPackage=read('../../packages/contracts/package.json');
@@ -56,6 +60,17 @@ expect('strict operator-auth mode can disable migration token fallback',riskServ
 expect('assistant planner requires viewer authentication',riskServer.includes("app.post('/v3/assistant/plan'")&&riskServer.includes("if(!requireViewerAuth(request,reply))return"));
 expect('assistant input is bounded',riskServer.includes("max(240)"));
 expect('driver assist preserves zero control authority',riskServer.includes("controlAuthority:'none'")&&riskServer.includes('readOnlyAssistantPlanner:true'));
+
+expect('outer proxy covers all KINGMAST HMI API routes',outerProxy.includes("matcher: ['/api/kingmast/:path*']"));
+expect('outer proxy rejects unexpected methods and oversized bodies',outerProxy.includes('ALLOWED_METHODS')&&outerProxy.includes('method-not-allowed')&&outerProxy.includes('MAX_API_BODY_BYTES')&&outerProxy.includes('request-too-large'));
+expect('outer proxy exposes emergency lockdown gate',outerProxy.includes('KINGMAST_EMERGENCY_LOCKDOWN')&&outerProxy.includes('kingmast-emergency-lockdown'));
+expect('security envelope defaults to enforced auth',securityEnvelope.includes("enabled('KINGMAST_SECURITY_ENVELOPE_ENABLED', true)")&&securityEnvelope.includes("enabled('KINGMAST_NAV_AUTH_REQUIRED', true)"));
+expect('security envelope capability is HMAC verified with replay rejection',securityEnvelope.includes("createHmac('sha256'")&&securityEnvelope.includes('timingSafeEqual')&&securityEnvelope.includes('capabilityReplay')&&securityEnvelope.includes('15 * 60_000'));
+expect('security envelope has minute and hourly navigation limits',securityEnvelope.includes('KINGMAST_NAV_RATE_LIMIT_PER_MINUTE')&&securityEnvelope.includes('KINGMAST_NAV_RATE_LIMIT_PER_HOUR'));
+expect('paid map routing is explicit and kill-switch protected',securityEnvelope.includes('KINGMAST_PAID_ROUTING_ENABLED')&&securityEnvelope.includes('KINGMAST_NAV_KILL_SWITCH')&&securityEnvelope.includes('KINGMAST_NAV_DAILY_PAID_LIMIT'));
+expect('navigation alternatives cannot bypass envelope',navigationRoute.includes("admitNavigationRequest(request, 'navigation:route')")&&navigationRoute.includes('paidRoutingEnabled()')&&navigationRoute.includes('consumePaidRoutingQuota()'));
+expect('geocoding cannot bypass envelope',navigationSearchRoute.includes("admitNavigationRequest(request, 'navigation:search')"));
+expect('map provider credentials stay server-only in route code',navigationRoute.includes('process.env.GOOGLE_ROUTES_API_KEY')&&navigationRoute.includes('process.env.MAPBOX_ACCESS_TOKEN')&&!navigationRoute.includes('NEXT_PUBLIC_GOOGLE')&&!navigationRoute.includes('NEXT_PUBLIC_MAPBOX'));
 
 if(failures.length){console.error('KINGMAST HMI security contract failed:\n'+failures.map((item)=>`- ${item}`).join('\n'));process.exit(1);}
 console.log('KINGMAST HMI security contract passed.');
