@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   const lat = finiteCoordinate(request.nextUrl.searchParams.get('lat'), -90, 90);
   const lng = finiteCoordinate(request.nextUrl.searchParams.get('lng'), -180, 180);
-  const base = (process.env.GEOCODING_BASE_URL ?? 'https://nominatim.openstreetmap.org').replace(/\/$/, '');
+  const base = (process.env.GEOCODING_BASE_URL?.trim() || 'https://nominatim.openstreetmap.org').replace(/\/$/, '');
   const url = new URL(`${base}/search`);
   url.searchParams.set('format', 'jsonv2');
   url.searchParams.set('q', query);
