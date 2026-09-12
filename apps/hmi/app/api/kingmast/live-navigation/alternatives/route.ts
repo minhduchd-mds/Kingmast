@@ -132,7 +132,7 @@ function fromGoogle(raw: GoogleRoute, origin: GeoPoint, destination: GeoPoint): 
 }
 
 function backendOrder(): Backend[] {
-  const configured = (process.env.KINGMAST_TRAFFIC_ROUTING_PROVIDER ?? 'auto').trim().toLowerCase();
+  const configured = (process.env.KINGMAST_TRAFFIC_ROUTING_PROVIDER?.trim() || 'auto').toLowerCase();
   const google = Boolean(process.env.GOOGLE_ROUTES_API_KEY?.trim());
   const mapbox = Boolean(process.env.MAPBOX_ACCESS_TOKEN?.trim());
   if (configured === 'google') return google ? ['google', 'osrm'] : ['osrm'];
@@ -144,7 +144,7 @@ function backendOrder(): Backend[] {
 async function requestGoogle(origin: GeoPoint, destination: GeoPoint) {
   const key = process.env.GOOGLE_ROUTES_API_KEY?.trim();
   if (!key) throw new Error('google-not-configured');
-  const base = (process.env.GOOGLE_ROUTES_BASE_URL ?? 'https://routes.googleapis.com').replace(/\/$/, '');
+  const base = (process.env.GOOGLE_ROUTES_BASE_URL?.trim() || 'https://routes.googleapis.com').replace(/\/$/, '');
   const response = await fetch(`${base}/directions/v2:computeRoutes`, {
     method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(6500),
     headers: {
@@ -168,7 +168,7 @@ async function requestGoogle(origin: GeoPoint, destination: GeoPoint) {
 async function requestMapbox(origin: GeoPoint, destination: GeoPoint) {
   const token = process.env.MAPBOX_ACCESS_TOKEN?.trim();
   if (!token) throw new Error('mapbox-not-configured');
-  const base = (process.env.MAPBOX_DIRECTIONS_BASE_URL ?? 'https://api.mapbox.com').replace(/\/$/, '');
+  const base = (process.env.MAPBOX_DIRECTIONS_BASE_URL?.trim() || 'https://api.mapbox.com').replace(/\/$/, '');
   const url = new URL(`${base}/directions/v5/mapbox/driving-traffic/${origin.lng},${origin.lat};${destination.lng},${destination.lat}`);
   url.searchParams.set('access_token', token);
   url.searchParams.set('alternatives', 'true');
@@ -185,7 +185,7 @@ async function requestMapbox(origin: GeoPoint, destination: GeoPoint) {
 }
 
 async function requestOsrm(origin: GeoPoint, destination: GeoPoint) {
-  const base = (process.env.ROUTING_BASE_URL ?? 'https://router.project-osrm.org').replace(/\/$/, '');
+  const base = (process.env.ROUTING_BASE_URL?.trim() || 'https://router.project-osrm.org').replace(/\/$/, '');
   const url = `${base}/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
   const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6500), headers: { 'user-agent': 'KINGMAST-live-navigation/0.0.8' } });
   if (!response.ok) throw new Error(`osrm-${response.status}`);
