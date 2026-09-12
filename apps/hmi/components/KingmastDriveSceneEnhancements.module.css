@@ -3,3 +3,16 @@
 @media(max-width:1280px){.riskCluster{left:10px;bottom:50px;width:136px}.sensorHealthStrip{right:10px;bottom:50px;width:146px}.depthGrid{left:4%;right:4%}.cornerTechLeft,.cornerTechRight{display:none}}
 @media(max-height:760px){.riskCluster,.sensorHealthStrip{bottom:45px}.projectedPath{height:38%}.depthGrid{height:42%}}
 @media(prefers-reduced-motion:reduce){.scanLines,.pathCenter,.closingTrail,.speedStreaks,.dangerFlash{animation:none!important}.collisionEnvelope,.riskBar i{transition:none!important}}
+
+/* Rear-facing ego vehicle: the driver should see the back of the host vehicle, not its front fascia. */
+:global([data-testid="kingmast-drive-scene"] img[alt="KINGMAST vehicle visualization"]){content:url('/assets/kingmast/vehicle/kingmast-rear-520.svg');width:92%;max-height:230px;object-fit:contain;object-position:center bottom;transform:translateY(4%);filter:drop-shadow(0 20px 18px rgba(0,0,0,.56)) drop-shadow(0 0 18px rgba(79,228,255,.13))}
+
+/* Sensor-lost mode owns one readable warning surface and never covers the ego vehicle. */
+:global([data-testid="kingmast-drive-scene"][data-risk="SENSOR LOST"] [role="alert"]){display:none!important}
+:global([data-testid="kingmast-drive-scene"] > [role="status"]){top:18px!important;bottom:auto!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;width:min(76%,460px)!important;max-width:calc(100% - 24px)!important;min-width:0!important;display:grid!important;grid-template-columns:22px minmax(0,1fr)!important;align-items:center!important;gap:10px!important;padding:10px 12px!important;overflow:hidden!important}
+:global([data-testid="kingmast-drive-scene"] > [role="status"] > span){min-width:0!important;display:flex!important;flex-direction:column!important;gap:2px!important;overflow:hidden!important}
+:global([data-testid="kingmast-drive-scene"] > [role="status"] strong){display:block!important;max-width:100%!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important;font-size:10px!important;line-height:1.25!important;letter-spacing:.04em!important}
+:global([data-testid="kingmast-drive-scene"] > [role="status"] small){display:block!important;max-width:100%!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important;font-size:8px!important;line-height:1.35!important}
+
+@media(max-width:720px){:global([data-testid="kingmast-drive-scene"] > [role="status"]){top:10px!important;width:calc(100% - 20px)!important;max-width:none!important;padding:8px 10px!important}:global([data-testid="kingmast-drive-scene"] img[alt="KINGMAST vehicle visualization"]){width:86%;max-height:190px;transform:translateY(7%)}}
+@media(max-height:620px){:global([data-testid="kingmast-drive-scene"] > [role="status"]){top:8px!important}:global([data-testid="kingmast-drive-scene"] img[alt="KINGMAST vehicle visualization"]){max-height:170px}}
