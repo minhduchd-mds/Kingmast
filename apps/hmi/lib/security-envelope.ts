@@ -124,11 +124,16 @@ export function admitNavigationRequest(request: NextRequest, scope: NavigationSc
   if (!enabled('KINGMAST_SECURITY_ENVELOPE_ENABLED', true)) return { ok: false, status: 403, reason: 'security-envelope-disabled' };
   const mode = runtimeMode();
   if (mode === 'isolated' || mode === 'lockdown') return { ok: false, status: 403, reason: `runtime-${mode}` };
-  const local = process.env.NODE_ENV !== 'production' && isLoopbackHost(request) && enabled('KINGMAST_ALLOW_INSECURE_LOCAL_DEV');
+
+  const loopback = isLoopbackHost(request);
+  const localDev = process.env.NODE_ENV !== 'production' && loopback && enabled('KINGMAST_ALLOW_INSECURE_LOCAL_DEV');
+  const vehicleLocal = process.env.NODE_ENV === 'production' && loopback && enabled('KINGMAST_NAV_LOOPBACK_BROKER_ENABLED');
   const authRequired = enabled('KINGMAST_NAV_AUTH_REQUIRED', true);
   const capabilityOk = !authRequired || verifyCapability(request, scope);
-  if (!local && !capabilityOk) return { ok: false, status: 401, reason: 'navigation-capability-required' };
-  const principal = local ? 'loopback-dev' : clientIdentity(request);
+  if (!localDev && !vehicleLocal && !capabilityOk) return { ok: false, status: 401, reason: 'navigation-capability-required' };
+
+  const local = localDev || vehicleLocal;
+  const principal = localDev ? 'loopback-dev' : vehicleLocal ? 'vehicle-loopback' : clientIdentity(request);
   const perMinute = boundedInt('KINGMAST_NAV_RATE_LIMIT_PER_MINUTE', 5, 1, 120);
   const perHour = boundedInt('KINGMAST_NAV_RATE_LIMIT_PER_HOUR', 60, perMinute, 5000);
   if (!rateLimit(`${scope}:minute:${principal}`, perMinute, 60_000)) return { ok: false, status: 429, reason: 'navigation-rate-minute' };
