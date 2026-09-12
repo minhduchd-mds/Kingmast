@@ -14,6 +14,7 @@ type SecurityStore = {
   paidCalls: number;
 };
 
+const MAX_RATE_KEYS = 4096;
 const globalSecurity = globalThis as typeof globalThis & { __kingmastSecurityEnvelope?: SecurityStore };
 const store: SecurityStore = globalSecurity.__kingmastSecurityEnvelope ?? {
   buckets: new Map(),
@@ -48,16 +49,29 @@ function isLoopbackHost(request: NextRequest) {
 
 function clientIdentity(request: NextRequest) {
   const device = request.headers.get('x-kingmast-device-id')?.trim().slice(0, 96);
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  const real = request.headers.get('x-real-ip')?.trim();
-  const network = (forwarded || real || 'unknown').slice(0, 96);
+  const forwarded = (
+    request.headers.get('x-vercel-forwarded-for') ??
+    request.headers.get('x-forwarded-for') ??
+    request.headers.get('x-real-ip') ??
+    'unknown'
+  ).split(',')[0]?.trim();
+  const network = (forwarded || 'unknown').slice(0, 96);
   return `${device || 'nodevice'}@${network}`;
+}
+
+function pruneRateBuckets(now: number) {
+  if (store.buckets.size < MAX_RATE_KEYS / 2) return;
+  for (const [key, value] of store.buckets) {
+    if (value.resetAt <= now) store.buckets.delete(key);
+  }
 }
 
 function rateLimit(key: string, limit: number, windowMs: number) {
   const now = Date.now();
+  pruneRateBuckets(now);
   const current = store.buckets.get(key);
   if (!current || current.resetAt <= now) {
+    if (!current && store.buckets.size >= MAX_RATE_KEYS) return false;
     store.buckets.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }
@@ -121,7 +135,7 @@ export function admitNavigationRequest(request: NextRequest, scope: 'navigation:
     return { ok: false, status: 403, reason: `runtime-${mode}` };
   }
 
-  const local = isLoopbackHost(request) && enabled('KINGMAST_ALLOW_INSECURE_LOCAL_DEV');
+  const local = process.env.NODE_ENV !== 'production' && isLoopbackHost(request) && enabled('KINGMAST_ALLOW_INSECURE_LOCAL_DEV');
   const authRequired = enabled('KINGMAST_NAV_AUTH_REQUIRED', true);
   const capabilityOk = !authRequired || verifyCapability(request, scope);
   if (!local && !capabilityOk) return { ok: false, status: 401, reason: 'navigation-capability-required' };
