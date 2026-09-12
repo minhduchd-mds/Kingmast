@@ -15,7 +15,7 @@ export async function POST(request:NextRequest){
   if(!sameOrigin(request))return NextResponse.json({authenticated:false,error:'viewer-session-origin-rejected'},{status:403,headers:{'cache-control':'no-store'}});
 
   const token=viewerToken();
-  const localBench=process.env.KINGMAST_ALLOW_INSECURE_LOCAL_DEV==='1';
+  const localBench=process.env.NODE_ENV!=='production'&&process.env.KINGMAST_ALLOW_INSECURE_LOCAL_DEV==='1';
   if(!token){
     if(localBench)return NextResponse.json({authenticated:true,mode:'loopback-dev'},{headers:{'cache-control':'no-store'}});
     return NextResponse.json({authenticated:false,error:'viewer-session-unavailable'},{status:503,headers:{'cache-control':'no-store'}});
