@@ -13,13 +13,13 @@ const base = {
 };
 
 describe('assessRisk', () => {
-  it('raises critical only for a high-confidence closing gap with trustworthy vehicle speed', () => {
+  it('[S8-002] raises critical only for a high-confidence closing gap with trustworthy vehicle speed', () => {
     const result = assessRisk(base, 1_050);
     expect(result.severity).toBe('critical');
     expect(result.reasons).toContain('closing-gap');
   });
 
-  it('keeps short headway without closing dynamics at caution rather than critical', () => {
+  it('[S8-004] keeps short headway without closing dynamics at caution rather than critical', () => {
     const result = assessRisk({ ...base, targetSpeedMps: 20, rangeM: 15 }, 1_050);
     expect(result.ttcS).toBeNull();
     expect(result.thwS).toBeCloseTo(0.75);
@@ -55,11 +55,11 @@ describe('assessRisk', () => {
     expect(result.severity).toBe('safe');
   });
 
-  it('rejects stale frames', () => {
+  it('[S8-027] rejects stale frames', () => {
     expect(assessRisk(base, 2_000).reasons).toContain('stale-data-rejected');
   });
 
-  it('rejects future-dated frames beyond the allowed clock skew', () => {
+  it('[S8-028] rejects future-dated frames beyond the allowed clock skew', () => {
     const result = assessRisk({ ...base, timestampMs: 1_200 }, 1_000);
     expect(result.severity).toBe('safe');
     expect(result.reasons).toContain('future-data-rejected');
